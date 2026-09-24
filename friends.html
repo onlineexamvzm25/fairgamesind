@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, maximum-scale=1,user-scalable=no, viewport-fit=cover"
+  >
+  <meta name="theme-color" content="#000000">
+  <title>CRDG Rummy</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="history.css">
+</head>
+<body>
+
+  <!-- JOIN SCREEN -->
+  <section id="joinScreen" class="join-screen screen-layer">
+    <div class="auth-card">
+      <h2>🎮 Join Rummy Table</h2>
+
+      <input id="tableIdInput" type="number" inputmode="numeric" placeholder="Table ID" value="777777">
+      <input id="password" type="password" placeholder="Password">
+      <input id="nickname" type="text" 
+          placeholder="DISPLAY NAME" autocomplete="nickname"
+          maxlength="15"
+          title="Remember this exact name for reconnect the Game"
+          oninput="this.value = this.value.toUpperCase()">
+
+      <button type="button" onclick="joinTable()">Join Game</button>
+    </div>
+  </section>
+
+  <!-- LOBBY SCREEN -->
+<section id="lobbyScreen" class="lobby-screen screen-layer hidden">
+
+    <div class="lobby-wrap">
+
+        <h2>🎮 Waiting Room</h2>
+
+
+        <!-- ======================================
+             TABLE ID
+             ====================================== -->
+
+        <div class="friend-table-id-box">
+
+            <div class="friend-table-id-title">
+                TABLE ID
+            </div>
+
+            <div
+                id="lobbyTableId"
+                class="friend-table-id"
+            >
+                ------
+            </div>
+
+            <div class="friend-share-message">
+                📢 SHARE THIS TABLE ID WITH YOUR FRIENDS
+            </div>
+
+            <div class="friend-share-submessage">
+                Ask your friends to enter this Table ID
+                and join your table.
+            </div>
+
+        </div>
+
+
+        <!-- ======================================
+             LOBBY INFORMATION
+             ====================================== -->
+
+        <div class="lobby-card">
+
+            <div>
+                Your Seat:
+                <span id="lobbySeat">-</span>
+            </div>
+
+            <div>
+                Players:
+                <span id="lobbyPlayers">0</span>/6
+            </div>
+
+        </div>
+
+
+        <!-- ======================================
+             HOST START GAME AREA
+             ====================================== -->
+
+        <div
+            id="hostStartArea"
+            class="host-start-area"
+            style="display:none;"
+        >
+
+            <div
+                id="hostStartMessage"
+                class="host-start-message"
+            >
+                Waiting for at least 2 players...
+            </div>
+
+            <button
+                id="btnStartGame"
+                type="button"
+                class="start-game-button"
+                onclick="hostStartGame()"
+            >
+                ▶ START GAME
+            </button>
+
+        </div>
+
+
+        <!-- ======================================
+             NON-HOST MESSAGE
+             ====================================== -->
+
+        <div
+            id="guestWaitingMessage"
+            class="guest-waiting-message"
+            style="display:none;"
+        >
+            ⏳ Waiting for the host to start the game...
+        </div>
+
+
+        <!-- ======================================
+             JOINED PLAYERS
+             ====================================== -->
+
+        <h3>Joined Players</h3>
+
+        <div
+            id="lobbyPlayerList"
+            class="lobby-player-list"
+        >
+
+            <div id="seat1">
+                Seat 1: Empty
+            </div>
+
+            <div id="seat2">
+                Seat 2: Empty
+            </div>
+
+            <div id="seat3">
+                Seat 3: Empty
+            </div>
+
+            <div id="seat4">
+                Seat 4: Empty
+            </div>
+
+            <div id="seat5">
+                Seat 5: Empty
+            </div>
+
+            <div id="seat6">
+                Seat 6: Empty
+            </div>
+
+        </div>
+
+    </div>
+
+</section>
+
+  <!-- GAME SCREEN -->
+  <div id="app" class="game-viewport hidden">
+    <div id="gameStage" class="game-stage">
+
+     <header class="topbar">
+
+        <div class="topbar-section">
+            TABLE
+            <span id="tableIdDisplay">-</span>
+            <span class="player-count">(P <span id="topPlayerCount">0</span>)</span>
+        </div>
+
+        <div class="topbar-section">
+            <span id="topGameType">201 POOL</span>
+        </div>
+
+        <div class="topbar-section">
+            POT :<span id="topPot">0</span>
+        </div>
+
+        <div class="topbar-section topbar-turn">
+            TURN: <span id="currentTurnPlayer">-</span>
+        </div>
+
+        <div class="topbar-section topbar-timer">
+            ⏱ <span id="turnTimer">40</span>
+        </div>
+
+        <div class="topbar-section topbar-history">
+            <button id="btnHistory" type="button">HISTORY</button>
+        </div>
+
+        </header>
+
+      <main class="table">
+        <section id="opponents" class="opponents" aria-label="Opponents">
+          <div id="opp1" class="opponent-seat"></div>
+          <div id="opp2" class="opponent-seat"></div>
+          <div id="opp3" class="opponent-seat"></div>
+          <div id="opp4" class="opponent-seat"></div>
+          <div id="opp5" class="opponent-seat"></div>
+        </section>
+
+        <section class="center">
+
+        <div class="table-piles">
+
+            <!-- OPEN CARD -->
+
+            <div class="open-area">
+
+
+                            
+                <button
+                    id="openPileHistoryBtn"
+                    class="open-history-btn"
+                    onclick="showOpenPileHistory(event)"
+                    title="View discarded cards"
+                >
+                    ≡≡≡
+                </button>
+
+                <div
+                    id="openVisual"
+                    class="table-card clickable-pile"
+                    draggable="true">
+                    -
+                </div>
+
+                
+
+
+            </div>
+
+            <!-- JOKER + STOCK -->
+
+            <div class="stock-area">
+
+                <div
+                    id="jokerVisual"
+                    class="table-card joker-card">
+                    -
+                </div>
+
+                <div
+                    id="stockCard"
+                    class="card-back clickable-pile">
+                </div>
+
+            </div>
+
+            <!-- DECLARE BUTTON -->
+
+            <button
+                id="btnDeclare"
+                class="table-action-button declare-button"
+                type="button"
+                onclick="declareGame()">
+                Declare
+            </button>
+
+            <!-- DROP BUTTON -->
+
+            <button
+                id="dropBtn"
+                class="table-action-button drop-button"
+                type="button"
+                onclick="dropCurrentDeal()">
+                DROP
+            </button>
+
+            <div id="declarationTimer"></div>
+
+        </div>
+
+    </section>
+
+        <div
+          id="myPlayerPanel"
+          class="my-player-panel">
+
+          <div class="my-player-details">
+
+              <div id="myInfo">
+                  You
+              </div>
+
+              <div id="myScore">
+                  Score : 0
+              </div>
+
+              <div id="dealScore">
+                  Deal Score : 0
+              </div>
+
+              <button
+                  id="btnDiscard"
+                  class="player-discard-button"
+                  type="button"
+                  onclick="discard()">
+                  Discard
+              </button>
+
+          </div>
+
+          <div
+              id="dropStatus"
+              class="drop-status">
+          </div>
+
+      </div>
+
+        <section id="my-hand" class="hand" aria-label="My cards">
+          <div class="group-box" id="group0"></div>
+          <div class="group-box" id="group1"></div>
+          <div class="group-box" id="group2"></div>
+          <div class="group-box" id="group3"></div>
+          <div class="group-box" id="group4"></div>
+          <div class="group-box" id="group5"></div>
+        </section>
+      </main>
+
+      <aside id="chat-box" class="chat"></aside>
+    </div>
+  </div>
+
+  <!-- DECLARE PANEL -->
+  <section id="declarePanel" class="declare-panel hidden">
+    <div class="declare-content">
+      <h3>Arrange Your Cards</h3>
+      <div class="groups">
+        <div class="group" data-group="0"><h4>Group 1</h4></div>
+        <div class="group" data-group="1"><h4>Group 2</h4></div>
+        <div class="group" data-group="2"><h4>Group 3</h4></div>
+        <div class="group" data-group="3"><h4>Group 4</h4></div>
+        <div class="group" data-group="4"><h4>Group 5</h4></div>
+        <div class="group" data-group="5"><h4>Group 6</h4></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DEAL RESULT -->
+  <section id="dealResultModal" class="result-modal">
+    <div class="result-box">
+      <div class="result-header">
+        <span>Deal Results</span>
+        <span id="resultTimer">30</span>
+      </div>
+
+      <div class="next-deal-line">
+        Next Deal in: <span id="observationTimer">30</span>
+      </div>
+
+       <button
+        id="btnSettlement"
+        onclick="openSettlement()"
+        style="display:none;"> Settlement
+       </button>
+
+      <div id="resultJokerCard"></div>
+      <div id="dealResultsContainer"></div>
+    </div>
+  </section>
+
+
+  <div
+    id="settlementPopup"
+    style="
+        display:none;
+        position:fixed;
+        inset:0;
+        background:rgba(0,0,0,0.65);
+        z-index:9999;
+        align-items:center;
+        justify-content:center;
+    "
+>
+    <div
+        
+        style="
+            width:340px;
+            max-width:90%;
+            background:#ffffff;
+            color:#000000;
+            border-radius:14px;
+            padding:20px;
+            box-shadow:0 8px 30px rgba(0,0,0,0.35);
+            text-align:center;
+        "
+    >
+
+        <div
+            style="
+                font-size:22px;
+                font-weight:bold;
+                color:#1565c0;
+                margin-bottom:15px;
+            "
+        >
+            Settlement
+        </div>
+
+        <div
+            style="
+                font-size:14px;
+                color:#555;
+                margin-bottom:15px;
+            "
+        >
+            Proposed Settlement
+        </div>
+
+        <div
+            id="settlementPlayers"
+            style="
+                background:#f5f7fa;
+                border-radius:10px;
+                padding:12px;
+                margin-bottom:18px;
+            "
+        ></div>
+
+        <div
+            id="settlementStatus"
+            style="
+                min-height:24px;
+                margin-bottom:12px;
+                font-weight:bold;
+                color:#1565c0;
+            "
+        ></div>
+
+        <div
+            style="
+                display:flex;
+                gap:12px;
+                justify-content:center;
+            "
+        >
+
+            <button
+                id="btnSettlementAccept"
+                onclick="respondSettlement('ACCEPT')"
+                style="
+                    background:#2e7d32;
+                    color:white;
+                    border:none;
+                    border-radius:8px;
+                    padding:10px 22px;
+                    font-weight:bold;
+                    cursor:pointer;
+                "
+            >
+                Accept
+            </button>
+
+            <button
+                id="btnSettlementCancel"
+                onclick="respondSettlement('CANCEL')"
+                style="
+                    background:#c62828;
+                    color:white;
+                    border:none;
+                    border-radius:8px;
+                    padding:10px 22px;
+                    font-weight:bold;
+                    cursor:pointer;
+                "
+            >
+                Cancel
+            </button>
+
+        </div>
+
+    </div>
+</div>
+  
+  <!-- TABLE COMPLETED -->
+  <section id="tableCompletedScreen">
+    <div class="winner-card">
+      <div class="trophy">🏆</div>
+      <h1>TABLE COMPLETED</h1>
+
+      <div class="table-scroll">
+        <table id="finalScoreTable">
+          <thead>
+            <tr>
+              <th>Player</th>
+              <th>Score</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="finalScoreBody"></tbody>
+        </table>
+      </div>
+
+      <p>Thank you for playing</p>
+      
+    <!-- HOME BUTTON -->
+    <button
+      class="home-button"
+      onclick="goToHome()"
+    >
+      🏠 HOME
+    </button>
+
+    </div>
+  </section>
+
+    <div
+        id="settlementPopup"
+        class="settlement-popup"
+        style="display:none;"
+    >
+        <div class="settlement-box">
+
+            <h3>Settlement</h3>
+
+            <div id="settlementPlayers"></div>
+
+            <div class="settlement-actions">
+
+                <button
+                    id="btnSettlementAccept"
+                    onclick="respondSettlement('ACCEPT')"
+                >
+                    Accept
+                </button>
+
+                <button
+                    id="btnSettlementCancel"
+                    onclick="respondSettlement('CANCEL')"
+                >
+                    Cancel
+                </button>
+
+            </div>
+
+            <div id="settlementStatus"></div>
+
+        </div>
+    </div>
+
+
+  <div id="historyPopup" class="history-popup hidden">
+
+    <div class="history-popup-box">
+
+        <div class="history-popup-header">
+
+            <div class="history-popup-title">
+                Deal History
+            </div>
+
+            <button
+                id="btnCloseHistory"
+                class="history-close-btn"
+                type="button"
+            >
+                ✕
+            </button>
+
+        </div>
+
+        <div class="history-table-wrapper">
+
+            <table id="historyTable">
+
+                <thead id="historyTableHead"></thead>
+
+                <tbody id="historyTableBody"></tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+</div>
+
+  <div id="rotateDeviceOverlay">
+    <div class="rotate-message">
+        <div class="rotate-icon">📱↻</div>
+        <div>Please rotate your phone</div>
+        <small>This game is designed for landscape mode</small>
+    </div>
+</div>
+
+<div
+    id="openPilePopup"
+    class="open-pile-popup"
+    onclick="closeOpenPileHistory()"
+>
+    <div
+        class="open-pile-popup-box"
+        onclick="event.stopPropagation()"
+    >
+        <div class="open-pile-popup-title">
+            Discarded Cards
+        </div>
+
+        <div
+            id="openPileHistoryCards"
+            class="open-pile-history-cards"
+        ></div>
+
+        <button
+            class="open-pile-close-btn"
+            onclick="closeOpenPileHistory()"
+        >
+            Close
+        </button>
+
+    </div>
+</div>
+
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  <script src="app.js"></script>
+  <script src="responsive.js"></script>
+</body>
+</html>

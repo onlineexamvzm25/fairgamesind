@@ -1,0 +1,345 @@
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    min-height: 100%;
+    font-family: Arial, sans-serif;
+}
+
+body {
+    background: #101820;
+    color: white;
+}
+
+.page-container {
+    width: 100%;
+    max-width: 500px;
+    margin: 0 auto;
+    padding: 25px 15px 40px;
+}
+
+h1 {
+    text-align: center;
+    margin: 10px 0 25px;
+    font-size: 28px;
+}
+
+.card {
+    background: #1c2730;
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.35);
+}
+
+.card h2 {
+    text-align: center;
+    margin: 0 0 20px;
+    font-size: 20px;
+}
+
+label {
+    display: block;
+    margin-top: 14px;
+    margin-bottom: 7px;
+    font-size: 15px;
+    font-weight: bold;
+}
+
+input[type="text"],
+input[type="tel"],
+input[type="number"] {
+    width: 100%;
+    height: 48px;
+    border: none;
+    border-radius: 8px;
+    padding: 0 12px;
+    font-size: 17px;
+    outline: none;
+}
+
+.pool-options {
+    display: flex;
+    gap: 12px;
+    margin-top: 5px;
+}
+
+.pool-option {
+    flex: 1;
+    margin: 0;
+    background: #273640;
+    border-radius: 8px;
+    min-height: 48px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    cursor: pointer;
+}
+
+.pool-option input {
+    margin-right: 8px;
+}
+
+.pool-option span {
+    font-size: 16px;
+}
+
+.main-button {
+    width: 100%;
+    height: 50px;
+    margin-top: 22px;
+
+    border: none;
+    border-radius: 9px;
+
+    background: #00a86b;
+    color: white;
+
+    font-size: 17px;
+    font-weight: bold;
+
+    cursor: pointer;
+}
+
+.main-button:active {
+    transform: scale(0.98);
+}
+
+#message {
+    text-align: center;
+    min-height: 30px;
+    margin-top: 10px;
+    font-size: 16px;
+    font-weight: bold;
+}
+
+@media (max-width: 400px) {
+
+    .page-container {
+        padding: 15px 10px 30px;
+    }
+
+    h1 {
+        font-size: 24px;
+    }
+
+    .card {
+        padding: 16px;
+    }
+
+    .card h2 {
+        font-size: 18px;
+    }
+}
+
+/* ==========================================
+   FRIEND TABLE MAIN OPTIONS
+   ========================================== */
+
+#mainOptions {
+    width: 100%;
+    margin-bottom: 20px;
+}
+
+.option-button {
+    display: block;
+    width: 100%;
+    min-height: 58px;
+
+    margin: 0 0 15px 0;
+    padding: 12px;
+
+    border: none;
+    border-radius: 12px;
+
+    background: #273640;
+    color: white;
+
+    font-size: 17px;
+    font-weight: bold;
+
+    cursor: pointer;
+}
+
+.option-button:active {
+    transform: scale(0.98);
+}
+
+
+/* ==========================================
+   CREATE / JOIN SECTIONS
+   HIDDEN BY DEFAULT
+   ========================================== */
+
+#createSection,
+#joinSection {
+    display: none !important;
+}
+
+
+/* ==========================================
+   SHOW SELECTED SECTION
+   ========================================== */
+
+#createSection.active,
+#joinSection.active {
+    display: block !important;
+}
+
+
+/* ==========================================
+   BACK BUTTON
+   ========================================== */
+
+.back-button {
+    width: 100%;
+    height: 45px;
+
+    margin-top: 10px;
+
+    border: none;
+    border-radius: 8px;
+
+    background: #45545e;
+    color: white;
+
+    font-size: 15px;
+    font-weight: bold;
+
+    cursor: pointer;
+}
+
+/* ==========================================
+   HOME BUTTON
+   ========================================== */
+
+.home-button {
+    display: block;
+
+    width: 140px;
+    height: 45px;
+
+    margin: 0 auto 20px;
+
+    border: none;
+    border-radius: 10px;
+
+    background: #45545e;
+    color: white;
+
+    font-size: 16px;
+    font-weight: bold;
+
+    cursor: pointer;
+}
+
+.home-button:active {
+    transform: scale(0.97);
+}
+
+
+/* ==========================================
+   MOBILE COMPACT LAYOUT
+   ========================================== */
+
+@media (max-width: 600px) {
+
+    .page-container {
+        padding: 10px 10px 20px;
+    }
+
+    h1 {
+        font-size: 22px;
+        margin: 5px 0 15px;
+    }
+
+    .card {
+        padding: 14px;
+        margin-bottom: 12px;
+        border-radius: 10px;
+    }
+
+    .card h2 {
+        font-size: 17px;
+        margin-bottom: 12px;
+    }
+
+    label {
+        margin-top: 9px;
+        margin-bottom: 5px;
+        font-size: 13px;
+    }
+
+    input[type="text"],
+    input[type="tel"],
+    input[type="number"] {
+        height: 40px;
+        padding: 0 10px;
+        font-size: 15px;
+    }
+
+    .pool-options {
+        gap: 8px;
+        margin-top: 3px;
+    }
+
+    .pool-option {
+        min-height: 40px;
+        border-radius: 7px;
+    }
+
+    .pool-option span {
+        font-size: 14px;
+    }
+
+    .main-button {
+        height: 42px;
+        margin-top: 14px;
+        font-size: 15px;
+    }
+
+    #message {
+        min-height: 24px;
+        margin-top: 7px;
+        font-size: 14px;
+    }
+
+    /* Main CREATE / JOIN buttons */
+
+    #mainOptions {
+        margin-bottom: 12px;
+    }
+
+    .option-button {
+        min-height: 46px;
+        margin-bottom: 9px;
+        padding: 9px;
+        border-radius: 9px;
+        font-size: 14px;
+    }
+
+    /* Back button */
+
+    .back-button {
+        height: 38px;
+        margin-top: 7px;
+        font-size: 13px;
+    }
+
+    /* Home button */
+
+    .home-button {
+        width: 115px;
+        height: 38px;
+        margin-bottom: 12px;
+        border-radius: 8px;
+        font-size: 13px;
+    }
+}
