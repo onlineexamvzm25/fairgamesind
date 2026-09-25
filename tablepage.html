@@ -11,6 +11,157 @@
     <title>Play With Friends</title>
 
     <link rel="stylesheet" href="tablepage.css">
+
+<style>
+/* ==========================================
+   MOBILE COMPACT FRIENDS TABLE PAGE
+========================================== */
+
+.section-heading {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+}
+
+.section-heading h2 {
+    margin-left: 34px;
+    margin-right: 34px;
+}
+
+.section-back {
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+
+    width: 34px;
+    height: 34px;
+    min-height: 34px;
+
+    padding: 0;
+    margin: 0;
+
+    border: 1px solid rgba(255,255,255,.18);
+    border-radius: 50%;
+
+    background: rgba(0,0,0,.20);
+    color: white;
+
+    font-size: 23px;
+    font-weight: 700;
+    line-height: 1;
+
+    cursor: pointer;
+}
+
+.section-back:hover {
+    filter: brightness(1.1);
+}
+
+.compact-field {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+}
+
+.compact-field > label {
+    flex: 0 0 105px;
+    margin: 0;
+    white-space: nowrap;
+}
+
+.compact-field > input {
+    flex: 1;
+    min-width: 0;
+}
+
+@media screen and (max-width: 600px) {
+
+    .page-container {
+        width: min(94vw, 430px);
+    }
+
+    .page-container > h1 {
+        font-size: 24px;
+        margin-bottom: 12px;
+    }
+
+    .card {
+        padding: 16px 14px !important;
+        border-radius: 14px;
+    }
+
+    .card h2 {
+        font-size: 18px;
+        margin-top: 0;
+        margin-bottom: 12px;
+    }
+
+    .section-back {
+        width: 30px;
+        height: 30px;
+        min-height: 30px;
+        font-size: 20px;
+    }
+
+    .section-heading h2 {
+        margin-left: 30px;
+        margin-right: 30px;
+    }
+
+    .compact-field {
+        gap: 6px;
+        margin-bottom: 8px;
+    }
+
+    .compact-field > label {
+        flex-basis: 92px;
+        font-size: 13px;
+    }
+
+    .compact-field > input {
+        height: 38px;
+        min-height: 38px;
+        padding: 6px 10px;
+        font-size: 14px;
+    }
+
+    .card > label:not(.pool-option) {
+        font-size: 13px;
+        margin-bottom: 4px;
+    }
+
+    .pool-options {
+        gap: 7px;
+        margin-bottom: 10px;
+    }
+
+    .pool-option {
+        min-height: 40px !important;
+        height: 40px;
+        padding: 6px 8px !important;
+        font-size: 13px;
+    }
+
+    .main-button,
+    .back-button {
+        min-height: 40px !important;
+        height: 40px;
+        padding: 7px 12px !important;
+        font-size: 13px !important;
+        margin-top: 7px;
+    }
+
+    /* Old bottom BACK buttons are intentionally hidden.
+       The round arrow beside the heading is the only back control. */
+    .card > .back-button {
+        display: none !important;
+    }
+}
+</style>
 </head>
 
 <body>
@@ -65,35 +216,46 @@
         class="card hidden"
     >
 
-        <h2>CREATE TABLE FOR FRIENDS</h2>
+        <div class="section-heading">
+            <button
+                type="button"
+                class="section-back"
+                onclick="showMainOptions()"
+                aria-label="Back"
+                title="Back"
+            >←</button>
 
-        <label for="hostName">
-            Player Name
-        </label>
-
-        <input
-            type="text"
-            id="hostName"
-            maxlength="15"
-            placeholder="Loading account..."
-            autocomplete="off"
-            readonly
-        >
+            <h2>CREATE TABLE FOR FRIENDS</h2>
+        </div>
 
 
-        <label for="hostPhone">
-            Phone Number
-        </label>
+        <div class="compact-field">
+            <label for="hostName">Name :</label>
 
-        <input
-            type="tel"
-            id="hostPhone"
-            maxlength="10"
-            inputmode="numeric"
-            placeholder="Loading account..."
-            autocomplete="off"
-            readonly
-        >
+            <input
+                type="text"
+                id="hostName"
+                maxlength="15"
+                placeholder="Loading account..."
+                autocomplete="off"
+                readonly
+            >
+        </div>
+
+
+        <div class="compact-field">
+            <label for="hostPhone">Phone No :</label>
+
+            <input
+                type="tel"
+                id="hostPhone"
+                maxlength="10"
+                inputmode="numeric"
+                placeholder="Loading account..."
+                autocomplete="off"
+                readonly
+            >
+        </div>
 
 
         <label>
@@ -140,14 +302,6 @@
         </button>
 
 
-        <button
-            type="button"
-            class="back-button"
-            onclick="showMainOptions()"
-        >
-            ← BACK
-        </button>
-
     </div>
 
 
@@ -160,33 +314,44 @@
         class="card hidden"
     >
 
-        <h2>JOIN FRIENDS TABLE</h2>
+        <div class="section-heading">
+            <button
+                type="button"
+                class="section-back"
+                onclick="showMainOptions()"
+                aria-label="Back"
+                title="Back"
+            >←</button>
 
-        <label for="joinTableId">
-            Table ID
-        </label>
-
-        <input
-            type="number"
-            id="joinTableId"
-            inputmode="numeric"
-            maxlength="6"
-            placeholder="Enter table ID"
-        >
+            <h2>JOIN FRIENDS TABLE</h2>
+        </div>
 
 
-        <label for="joinPlayerName">
-            Player Name
-        </label>
+        <div class="compact-field">
+            <label for="joinTableId">Table No :</label>
 
-        <input
-            type="text"
-            id="joinPlayerName"
-            maxlength="15"
-            placeholder="Loading account..."
-            autocomplete="off"
-            readonly
-        >
+            <input
+                type="number"
+                id="joinTableId"
+                inputmode="numeric"
+                maxlength="6"
+                placeholder="Enter table ID"
+            >
+        </div>
+
+
+        <div class="compact-field">
+            <label for="joinPlayerName">Name :</label>
+
+            <input
+                type="text"
+                id="joinPlayerName"
+                maxlength="15"
+                placeholder="Loading account..."
+                autocomplete="off"
+                readonly
+            >
+        </div>
 
 
         <button
@@ -197,14 +362,6 @@
             JOIN TABLE
         </button>
 
-
-        <button
-            type="button"
-            class="back-button"
-            onclick="showMainOptions()"
-        >
-            ← BACK
-        </button>
 
     </div>
 

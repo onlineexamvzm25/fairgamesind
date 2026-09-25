@@ -96,6 +96,50 @@
   text-shadow: 0 2px 14px rgba(246,215,106,.25);
 }
 
+#joinScreen .auth-card .join-heading {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+#joinScreen .auth-card .join-heading h2 {
+  margin-left: 34px;
+  margin-right: 34px;
+}
+
+#joinScreen .auth-card .join-back-button {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 34px;
+  height: 34px;
+  min-height: 34px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid rgba(255,255,255,.18);
+  border-radius: 50%;
+  background: rgba(0,0,0,.25);
+  color: #fff;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0;
+  box-shadow: none;
+}
+
+#joinScreen .auth-card .join-back-button:hover {
+  transform: translateY(-50%);
+  filter: brightness(1.08);
+  box-shadow: none;
+}
+
+#joinScreen .auth-card .join-back-button:active {
+  transform: translateY(-50%) scale(.94);
+}
+
 #joinScreen .auth-card h2 {
   margin: 0 0 4px;
   color: #fff;
@@ -125,6 +169,34 @@
   color: #fff;
   font-size: 14px;
   transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
+}
+
+#joinScreen .auth-card .join-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+#joinScreen .auth-card .join-field label {
+  flex: 0 0 78px;
+  margin: 0;
+  color: rgba(255,255,255,.78);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .2px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+#joinScreen .auth-card .join-field input {
+  flex: 1;
+  min-width: 0;
+}
+
+#joinScreen .auth-card input[readonly] {
+  cursor: default;
+  opacity: .95;
 }
 
 #joinScreen .auth-card input::placeholder {
@@ -169,6 +241,18 @@
     border-radius: 16px;
   }
 
+  #joinScreen .auth-card .join-back-button {
+    width: 30px;
+    height: 30px;
+    min-height: 30px;
+    font-size: 21px;
+  }
+
+  #joinScreen .auth-card .join-heading h2 {
+    margin-left: 30px;
+    margin-right: 30px;
+  }
+
   #joinScreen .auth-card h2 {
     font-size: 21px;
     margin-bottom: 2px;
@@ -178,6 +262,15 @@
     margin-top: 4px;
     font-size: 7px;
     letter-spacing: 2px;
+  }
+
+  #joinScreen .auth-card .join-field {
+    gap: 7px;
+  }
+
+  #joinScreen .auth-card .join-field label {
+    flex-basis: 70px;
+    font-size: 11px;
   }
 
   #joinScreen .auth-card input,
@@ -202,15 +295,51 @@
   <!-- JOIN SCREEN -->
   <section id="joinScreen" class="join-screen screen-layer">
     <div class="auth-card">
-      <h2>🎮 Join Rummy Table</h2>
+      <div class="join-heading">
+        <button
+            type="button"
+            class="join-back-button"
+            onclick="goToHomepage()"
+            aria-label="Back to homepage"
+            title="Back to homepage"
+        >
+          ←
+        </button>
 
-      <input id="tableIdInput" type="number" inputmode="numeric" placeholder="Table ID" value="100000">
-      <input id="password" type="password" placeholder="Password"  value="xxxx">
-      <input id="nickname" type="text" 
-          placeholder="DISPLAY NAME" autocomplete="nickname"
-          maxlength="15"
-          title="Remember this exact name for reconnect the Game"
-          oninput="this.value = this.value.toUpperCase()">
+        <h2>🎮 Join Rummy Table</h2>
+      </div>
+
+      <div class="join-field">
+        <label for="tableIdInput">Table No :</label>
+        <input
+            id="tableIdInput"
+            type="number"
+            inputmode="numeric"
+            value="100000"
+            readonly
+        >
+      </div>
+
+      <div class="join-field">
+        <label for="password">Password :</label>
+        <input
+            id="password"
+            type="password"
+            value="xxxx"
+            readonly
+        >
+      </div>
+
+      <div class="join-field">
+        <label for="nickname">Name :</label>
+        <input
+            id="nickname"
+            type="text"
+            value="NNNN"
+            maxlength="15"
+            readonly
+        >
+      </div>
 
       <button type="button" onclick="startSoloGame()">Join Game</button>
     </div>
@@ -708,6 +837,12 @@
     </div>
 </div>
 
+
+  <script>
+    function goToHomepage() {
+      window.location.replace("homepage.html");
+    }
+  </script>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
  <script src="solo.js?v=20260910"></script>

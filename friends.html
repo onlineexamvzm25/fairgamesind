@@ -10,6 +10,155 @@
   <title>CRDG Rummy</title>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="history.css">
+
+<style>
+/* =========================================================
+   FRIENDS — WAITING ROOM MOBILE ONLY
+   DO NOT AFFECT GAME SCREEN
+========================================================= */
+
+@media screen and (max-width: 600px) {
+
+    #lobbyScreen .lobby-wrap {
+        width: min(360px, calc(100vw - 22px));
+        padding: 10px 9px;
+        gap: 0;
+    }
+
+    #lobbyScreen .lobby-wrap > h2 {
+        font-size: 19px;
+        line-height: 1.1;
+        margin: 2px 0 8px;
+    }
+
+    /* TABLE ID BOX */
+    #lobbyScreen .friend-table-id-box {
+        padding: 8px 8px;
+        margin-bottom: 7px;
+        border-radius: 9px;
+    }
+
+    #lobbyScreen .friend-table-id-title {
+        font-size: 10px;
+        line-height: 1;
+        margin-bottom: 2px;
+    }
+
+    #lobbyScreen .friend-table-id {
+        font-size: 27px;
+        line-height: 1;
+        letter-spacing: 4px;
+        margin: 2px 0 5px;
+    }
+
+    #lobbyScreen .friend-share-message {
+        font-size: 10px;
+        line-height: 1.1;
+        white-space: nowrap;
+    }
+
+    #lobbyScreen .friend-share-submessage {
+        font-size: 9px;
+        line-height: 1.15;
+        margin-top: 3px;
+    }
+
+    /* SEAT / PLAYERS */
+    #lobbyScreen .lobby-card {
+        padding: 7px 9px;
+        margin-bottom: 7px;
+        min-height: 0;
+        font-size: 11px;
+        line-height: 1.1;
+    }
+
+    /* HOST START AREA */
+    #lobbyScreen .host-start-area {
+        padding: 5px 7px;
+        margin-bottom: 6px;
+    }
+
+    #lobbyScreen .host-start-message {
+        font-size: 10px;
+        line-height: 1.1;
+        margin-bottom: 5px;
+    }
+
+    #lobbyScreen .start-game-button {
+        width: 100%;
+        height: 36px;
+        min-height: 36px;
+        padding: 5px 10px;
+        font-size: 12px;
+    }
+
+    /* GUEST MESSAGE */
+    #lobbyScreen .guest-waiting-message {
+        padding: 5px 6px;
+        margin-bottom: 6px;
+        font-size: 10px;
+        line-height: 1.1;
+    }
+
+    /* JOINED PLAYERS */
+    #lobbyScreen .lobby-wrap > h3 {
+        font-size: 13px;
+        line-height: 1;
+        margin: 6px 0 5px;
+    }
+
+    #lobbyScreen .lobby-player-list {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 3px 6px;
+        padding: 6px 7px;
+    }
+
+    #lobbyScreen .lobby-player-list > div {
+        min-height: 26px;
+        height: 26px;
+        padding: 4px 6px;
+        font-size: 10px;
+        line-height: 1.1;
+        display: flex;
+        align-items: center;
+    }
+}
+
+/* EXTRA COMPACT FOR SMALL PHONES */
+@media screen and (max-width: 380px) {
+
+    #lobbyScreen .lobby-wrap {
+        width: calc(100vw - 14px);
+        padding: 7px 6px;
+    }
+
+    #lobbyScreen .lobby-wrap > h2 {
+        font-size: 17px;
+        margin-bottom: 6px;
+    }
+
+    #lobbyScreen .friend-table-id {
+        font-size: 24px;
+        letter-spacing: 3px;
+    }
+
+    #lobbyScreen .friend-share-message {
+        font-size: 9px;
+    }
+
+    #lobbyScreen .friend-share-submessage {
+        font-size: 8px;
+    }
+
+    #lobbyScreen .lobby-player-list > div {
+        min-height: 24px;
+        height: 24px;
+        font-size: 9px;
+    }
+}
+</style>
+
 </head>
 <body>
 

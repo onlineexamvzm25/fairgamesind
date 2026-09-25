@@ -343,3 +343,201 @@ input[type="number"] {
         font-size: 13px;
     }
 }
+
+
+/* ==========================================
+   CREATE / JOIN COMPACT ROW FIELDS
+========================================== */
+
+.section-heading {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+}
+
+.section-heading h2 {
+    margin-left: 34px;
+    margin-right: 34px;
+}
+
+.section-back {
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+
+    width: 34px;
+    height: 34px;
+    min-height: 34px;
+
+    padding: 0;
+    margin: 0;
+
+    border: 1px solid rgba(255,255,255,.18);
+    border-radius: 50%;
+
+    background: rgba(0,0,0,.20);
+    color: white;
+
+    font-size: 23px;
+    font-weight: 700;
+    line-height: 1;
+
+    cursor: pointer;
+}
+
+.section-back:hover {
+    filter: brightness(1.1);
+}
+
+.compact-field {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    margin-top: 9px;
+}
+
+.compact-field > label {
+    flex: 0 0 105px;
+    margin: 0;
+    white-space: nowrap;
+}
+
+.compact-field > input {
+    flex: 1;
+    min-width: 0;
+}
+
+
+@media (max-width: 600px) {
+
+    .section-heading h2 {
+        margin-left: 30px;
+        margin-right: 30px;
+    }
+
+    .section-back {
+        width: 30px;
+        height: 30px;
+        min-height: 30px;
+        font-size: 20px;
+    }
+
+    .compact-field {
+        gap: 6px;
+        margin-top: 7px;
+    }
+
+    .compact-field > label {
+        flex: 0 0 92px;
+        font-size: 13px;
+    }
+
+    .compact-field > input {
+        height: 38px;
+        min-height: 38px;
+        padding: 0 10px;
+        font-size: 14px;
+    }
+
+    .card {
+        padding: 14px;
+        margin-bottom: 12px;
+        border-radius: 10px;
+    }
+
+    .card h2 {
+        font-size: 17px;
+        margin-bottom: 10px;
+    }
+
+    .pool-options {
+        gap: 8px;
+        margin-top: 3px;
+    }
+
+    .pool-option {
+        min-height: 40px;
+        height: 40px;
+    }
+
+    .pool-option span {
+        font-size: 14px;
+    }
+
+    .main-button {
+        height: 42px;
+        min-height: 42px;
+        margin-top: 12px;
+        font-size: 15px;
+    }
+
+    /* Only the heading arrow is used on mobile. */
+    .card > .back-button {
+        display: none;
+    }
+}
+
+/* ========================================
+   MOBILE LANDSCAPE REQUIREMENT
+======================================== */
+
+#rotateDeviceOverlay {
+    display: none;
+}
+
+
+@media screen and (orientation: portrait) and (max-width: 900px) {
+
+    #rotateDeviceOverlay {
+
+        display: flex;
+
+        position: fixed;
+        inset: 0;
+
+        width: 100vw;
+        height: 100vh;
+
+        align-items: center;
+        justify-content: center;
+
+        background: #000;
+        color: white;
+
+        z-index: 999999;
+
+        text-align: center;
+    }
+
+
+    .rotate-message {
+
+        text-align: center;
+
+        font-size: 24px;
+        font-weight: 900;
+    }
+
+
+    .rotate-icon {
+
+        font-size: 55px;
+
+        margin-bottom: 15px;
+    }
+
+
+    .rotate-message small {
+
+        display: block;
+
+        margin-top: 10px;
+
+        font-size: 16px;
+        font-weight: 500;
+    }
+}
