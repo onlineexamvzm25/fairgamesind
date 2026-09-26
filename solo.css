@@ -1396,7 +1396,7 @@ body.mobile-game-mode .game-stage {
 .open-history-btn {
     position: absolute;
 
-    left: 330px;
+    left: 230px;
     top: 50%;
 
     transform: translateY(-50%);
