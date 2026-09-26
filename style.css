@@ -1782,3 +1782,230 @@ body.mobile-game-mode .game-stage {
     }
 
 }
+/* =====================================================
+   FRIENDS WAITING ROOM - FINAL COMPACT SIDE-BY-SIDE
+   CSS ONLY: does not touch app.js or the game screen
+   ===================================================== */
+
+@media screen and (orientation: landscape) and (max-height: 800px) {
+
+    /* The existing HTML order is:
+       TABLE ID -> COUNT -> START -> PLAYER LIST.
+       Use CSS grid to visually place the two boxes together. */
+
+    #lobbyScreen .lobby-wrap {
+        width: min(620px, 94vw);
+        max-width: 620px;
+        padding: 4px 8px;
+        box-sizing: border-box;
+
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        column-gap: 8px;
+        row-gap: 5px;
+        align-items: stretch;
+    }
+
+    #lobbyScreen .lobby-wrap > h2 {
+        grid-column: 1 / -1;
+        grid-row: 1;
+        font-size: 20px;
+        line-height: 1;
+        margin: 0 0 3px;
+    }
+
+    /* LEFT BOX: TABLE ID */
+    #lobbyScreen .friend-table-id-box {
+        grid-column: 1;
+        grid-row: 2;
+
+        width: 100%;
+        height: 132px;
+        min-height: 132px;
+        margin: 0;
+        padding: 8px;
+        box-sizing: border-box;
+
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+
+        border: 1px solid #00a86b;
+        border-radius: 10px;
+    }
+
+    #lobbyScreen .friend-table-id-title {
+        font-size: 11px;
+        line-height: 1;
+        margin: 0 0 3px;
+    }
+
+    #lobbyScreen .friend-table-id {
+        font-size: 28px;
+        line-height: 1;
+        letter-spacing: 3px;
+        margin: 2px 0 7px;
+    }
+
+    #lobbyScreen .friend-share-message {
+        font-size: 9px;
+        line-height: 1.05;
+        white-space: nowrap;
+    }
+
+    #lobbyScreen .friend-share-submessage {
+        display: none;
+    }
+
+    /* RIGHT BOX: JOINED PLAYERS */
+    #lobbyScreen .lobby-wrap > h3 {
+        display: none;
+    }
+
+    #lobbyScreen .lobby-player-list {
+        grid-column: 2;
+        grid-row: 2;
+
+        width: 100%;
+        height: 132px;
+        min-height: 132px;
+        margin: 0;
+        padding: 6px 8px;
+        box-sizing: border-box;
+
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-rows: 20px repeat(3, 1fr);
+        gap: 2px 8px;
+
+        text-align: left;
+        border: 1px solid rgba(255,255,255,.22);
+        border-radius: 10px;
+        background: rgba(0,0,0,.25);
+    }
+
+    #lobbyScreen .lobby-player-list::before {
+        content: "JOINED PLAYERS";
+        grid-column: 1 / -1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: 700;
+        color: #fff;
+    }
+
+    #lobbyScreen .lobby-player-list > div {
+        min-width: 0;
+        height: auto;
+        min-height: 20px;
+        padding: 1px 3px;
+        display: flex;
+        align-items: center;
+        font-size: 10px;
+        line-height: 1;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        border: 0;
+        background: transparent;
+    }
+
+    /* Seat order: 1,4 / 2,5 / 3,6 */
+    #lobbyScreen #seat1 { grid-column: 1; grid-row: 2; }
+    #lobbyScreen #seat4 { grid-column: 2; grid-row: 2; }
+    #lobbyScreen #seat2 { grid-column: 1; grid-row: 3; }
+    #lobbyScreen #seat5 { grid-column: 2; grid-row: 3; }
+    #lobbyScreen #seat3 { grid-column: 1; grid-row: 4; }
+    #lobbyScreen #seat6 { grid-column: 2; grid-row: 4; }
+
+    /* COUNT ROW: below both boxes */
+    #lobbyScreen .lobby-card {
+        grid-column: 1 / -1;
+        grid-row: 3;
+
+        width: 100%;
+        height: 28px;
+        min-height: 28px;
+        margin: 0;
+        padding: 0 10px;
+
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
+
+        border-radius: 8px;
+        background: rgba(0,0,0,.25);
+    }
+
+    #lobbyScreen .lobby-card > div:first-child {
+        display: none;
+    }
+
+    #lobbyScreen .lobby-card > div:last-child {
+        display: block;
+        font-size: 11px;
+        line-height: 1;
+    }
+
+    /* WAITING / START AREA */
+    #lobbyScreen .host-start-area,
+    #lobbyScreen .guest-waiting-message {
+        grid-column: 1 / -1;
+        width: 100%;
+        margin: 0;
+        padding: 3px 6px;
+        box-sizing: border-box;
+        border-radius: 7px;
+    }
+
+    #lobbyScreen .host-start-message,
+    #lobbyScreen .guest-waiting-message {
+        font-size: 10px;
+        line-height: 1.05;
+        margin-bottom: 4px;
+    }
+
+    #lobbyScreen .start-game-button {
+        width: 100%;
+        height: 34px;
+        min-height: 34px;
+        padding: 4px 10px;
+        font-size: 12px;
+        border-radius: 8px;
+    }
+}
+
+/* Even shorter landscape screens */
+@media screen and (orientation: landscape) and (max-height: 560px) {
+
+    #lobbyScreen .lobby-wrap {
+        width: min(560px, 94vw);
+        row-gap: 3px;
+    }
+
+    #lobbyScreen .friend-table-id-box,
+    #lobbyScreen .lobby-player-list {
+        height: 112px;
+        min-height: 112px;
+    }
+
+    #lobbyScreen .lobby-player-list {
+        grid-template-rows: 18px repeat(3, 1fr);
+    }
+
+    #lobbyScreen .lobby-player-list > div {
+        min-height: 17px;
+        font-size: 9px;
+    }
+
+    #lobbyScreen .friend-table-id {
+        font-size: 25px;
+    }
+
+    #lobbyScreen .friend-share-message {
+        font-size: 8px;
+    }
+}

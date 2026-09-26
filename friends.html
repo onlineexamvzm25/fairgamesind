@@ -13,105 +13,295 @@
 
 <style>
 /* =========================================================
-   FRIENDS WAITING ROOM — MOBILE LANDSCAPE ONLY
-   GAME SCREEN IS NOT MODIFIED
+   FRIENDS — JOIN + WAITING ROOM MOBILE LANDSCAPE
+   GAME SCREEN IS NOT TOUCHED
 ========================================================= */
 
 @media screen and (orientation: landscape) and (max-height: 600px) {
 
+    /* =========================
+       JOIN SCREEN
+    ========================= */
+
+    #joinScreen {
+        overflow: hidden;
+    }
+
+    #joinScreen .auth-card {
+        width: min(620px, 88vw);
+        max-width: 620px;
+        padding: 12px 18px;
+        gap: 7px;
+        border-radius: 14px;
+    }
+
+    #joinScreen .auth-card h2 {
+        font-size: 20px;
+        line-height: 1.05;
+        margin: 0 0 5px;
+    }
+
+    /* Put each field on one horizontal line:
+       Table No : [value]
+       Password : [value]
+       Name     : [value]
+    */
+    #joinScreen .auth-card input {
+        height: 36px;
+        min-height: 36px;
+        padding: 6px 10px;
+        font-size: 13px;
+        box-sizing: border-box;
+    }
+
+    #joinScreen .auth-card input#tableIdInput,
+    #joinScreen .auth-card input#password,
+    #joinScreen .auth-card input#nickname {
+        width: 100%;
+    }
+
+    #joinScreen .auth-card button {
+        height: 36px;
+        min-height: 36px;
+        margin-top: 3px;
+        padding: 6px 12px;
+        font-size: 13px;
+    }
+
+
+    /* =========================
+       WAITING ROOM
+    ========================= */
+
+    #lobbyScreen {
+        overflow: hidden;
+    }
+
     #lobbyScreen .lobby-wrap {
-        width: min(850px, 94vw);
-        max-width: none;
-        padding: 8px 12px;
+        width: min(760px, 94vw);
+        max-width: 760px;
+        padding: 6px 10px;
         margin: 0 auto;
+
+        /* Two compact boxes side-by-side */
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        grid-template-areas:
+            "title title"
+            "table joinedTitle"
+            "table joined"
+            "count count"
+            "host host"
+            "guest guest";
+        gap: 4px 7px;
+        align-items: start;
     }
 
     #lobbyScreen .lobby-wrap > h2 {
-        font-size: 20px;
-        margin: 2px 0 7px;
+        grid-area: title;
+        font-size: 18px;
         line-height: 1;
+        margin: 1px 0 4px;
+        text-align: center;
     }
 
+    /* LEFT BOX — TABLE ID */
     #lobbyScreen .friend-table-id-box {
-        padding: 7px 10px;
-        margin-bottom: 6px;
+        grid-area: table;
+        height: 82px;
+        min-height: 82px;
+        box-sizing: border-box;
+        padding: 5px 8px;
+        margin: 0;
         border-radius: 9px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        text-align: center;
     }
 
     #lobbyScreen .friend-table-id-title {
-        font-size: 10px;
-        margin-bottom: 1px;
+        font-size: 9px;
+        margin-bottom: 0;
     }
 
     #lobbyScreen .friend-table-id {
-        font-size: 29px;
+        font-size: 25px;
         line-height: 1;
-        margin: 2px 0 4px;
+        margin: 2px 0 3px;
+        letter-spacing: 2px;
     }
 
     #lobbyScreen .friend-share-message {
-        font-size: 11px;
+        font-size: 9px;
         line-height: 1.05;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     #lobbyScreen .friend-share-submessage {
-        font-size: 9px;
-        line-height: 1.05;
-        margin-top: 2px;
+        display: none;
     }
 
+    /* RIGHT BOX TITLE */
+    #lobbyScreen .lobby-wrap > h3 {
+        grid-area: joinedTitle;
+        height: 16px;
+        margin: 0;
+        padding: 0;
+        font-size: 10px;
+        line-height: 16px;
+        text-align: center;
+        border: 1px solid rgba(255,255,255,.15);
+        border-bottom: 0;
+        border-radius: 9px 9px 0 0;
+        box-sizing: border-box;
+    }
+
+    /* RIGHT BOX — SIX PLAYER POSITIONS */
+    #lobbyScreen .lobby-player-list {
+        grid-area: joined;
+        height: 66px;
+        min-height: 66px;
+        box-sizing: border-box;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: repeat(3, 1fr);
+        gap: 0 8px;
+        padding: 3px 7px;
+        margin: 0;
+        border: 1px solid rgba(255,255,255,.15);
+        border-top: 0;
+        border-radius: 0 0 9px 9px;
+    }
+
+    #lobbyScreen .lobby-player-list > div {
+        min-width: 0;
+        height: 20px;
+        min-height: 20px;
+        padding: 1px 3px;
+        font-size: 9px;
+        line-height: 18px;
+        display: block;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* The existing lobby card is kept for JS compatibility,
+       but only the Joined Players count is shown. */
     #lobbyScreen .lobby-card {
-        padding: 6px 10px;
-        margin-bottom: 5px;
-        font-size: 11px;
-        line-height: 1;
+        grid-area: count;
+        height: 24px;
+        min-height: 24px;
+        box-sizing: border-box;
+        padding: 0 8px;
+        margin: 0;
+        font-size: 10px;
+        line-height: 24px;
+        text-align: center;
+    }
+
+    #lobbyScreen .lobby-card > div:first-child {
+        display: none;
+    }
+
+    #lobbyScreen .lobby-card > div:last-child {
+        width: 100%;
     }
 
     #lobbyScreen .host-start-area,
     #lobbyScreen .guest-waiting-message {
-        padding: 4px 7px;
-        margin-bottom: 5px;
+        padding: 3px 6px;
+        margin: 0;
+        box-sizing: border-box;
+        text-align: center;
+    }
+
+    #lobbyScreen .host-start-area {
+        grid-area: host;
+    }
+
+    #lobbyScreen .guest-waiting-message {
+        grid-area: guest;
     }
 
     #lobbyScreen .host-start-message,
     #lobbyScreen .guest-waiting-message {
-        font-size: 10px;
+        font-size: 9px;
         line-height: 1.05;
     }
 
     #lobbyScreen .start-game-button {
-        height: 34px;
-        min-height: 34px;
-        padding: 5px 10px;
-        font-size: 12px;
+        width: 100%;
+        height: 30px;
+        min-height: 30px;
+        padding: 4px 8px;
+        font-size: 11px;
     }
+}
 
-    #lobbyScreen .lobby-wrap > h3 {
-        font-size: 12px;
-        margin: 5px 0 4px;
-    }
 
-    #lobbyScreen .lobby-player-list {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 3px 5px;
-        padding: 5px 7px;
-    }
+/* =========================================================
+   FRIENDS — SMALL PORTRAIT DEVICES
+   Only JOIN / WAITING screens show the rotate message.
+   Game screen remains controlled by its existing layout.
+========================================================= */
 
-    #lobbyScreen .lobby-player-list > div {
-        height: 25px;
-        min-height: 25px;
-        padding: 4px 6px;
-        font-size: 10px;
-        line-height: 1;
+#friendsRotateOverlay {
+    display: none;
+}
+
+@media screen and (orientation: portrait) and (max-width: 900px) {
+
+    #friendsRotateOverlay {
         display: flex;
+        position: fixed;
+        inset: 0;
+        width: 100vw;
+        height: 100vh;
         align-items: center;
+        justify-content: center;
+        background: #000;
+        color: #fff;
+        z-index: 999999;
+        text-align: center;
+    }
+
+    #friendsRotateOverlay .rotate-message {
+        font-size: 22px;
+        font-weight: 800;
+        padding: 20px;
+    }
+
+    #friendsRotateOverlay .rotate-icon {
+        font-size: 48px;
+        margin-bottom: 12px;
+    }
+
+    #friendsRotateOverlay small {
+        display: block;
+        margin-top: 8px;
+        font-size: 13px;
+        font-weight: 500;
     }
 }
 </style>
 
 </head>
+
 <body>
+
+  <!-- MOBILE LANDSCAPE NOTICE -->
+  <div id="friendsRotateOverlay">
+    <div class="rotate-message">
+      <div class="rotate-icon">📱↔️</div>
+      Please rotate your device
+      <small>Landscape mode is required</small>
+    </div>
+  </div>
+
 
   <!-- JOIN SCREEN -->
   <section id="joinScreen" class="join-screen screen-layer">
@@ -131,29 +321,143 @@
   </section>
 
   <!-- LOBBY SCREEN -->
-  <section id="lobbyScreen" class="lobby-screen screen-layer hidden">
+<section id="lobbyScreen" class="lobby-screen screen-layer hidden">
+
     <div class="lobby-wrap">
-      <h2>🎮 Waiting Room</h2>
 
-      <div class="lobby-card">
-        <div>Table: <span id="lobbyTableId">-</span></div>
-        <div>Your Seat: <span id="lobbySeat">-</span></div>
-        <div>Players: <span id="lobbyPlayers">0</span>/6</div>
-        <div>Starts In: <span id="lobbyTimer">60</span> sec</div>
-      </div>
+        <h2>🎮 Waiting Room</h2>
 
-      <h3>Joined Players</h3>
 
-      <div id="lobbyPlayerList" class="lobby-player-list">
-        <div id="seat1">Seat 1: Empty</div>
-        <div id="seat2">Seat 2: Empty</div>
-        <div id="seat3">Seat 3: Empty</div>
-        <div id="seat4">Seat 4: Empty</div>
-        <div id="seat5">Seat 5: Empty</div>
-        <div id="seat6">Seat 6: Empty</div>
-      </div>
+        <!-- ======================================
+             TABLE ID
+             ====================================== -->
+
+        <div class="friend-table-id-box">
+
+            <div class="friend-table-id-title">
+                TABLE ID
+            </div>
+
+            <div
+                id="lobbyTableId"
+                class="friend-table-id"
+            >
+                ------
+            </div>
+
+            <div class="friend-share-message">
+                📢 SHARE THIS TABLE ID WITH YOUR FRIENDS
+            </div>
+
+            <div class="friend-share-submessage">
+                Ask your friends to enter this Table ID
+                and join your table.
+            </div>
+
+        </div>
+
+
+        <!-- ======================================
+             LOBBY INFORMATION
+             ====================================== -->
+
+        <div class="lobby-card">
+
+            <div>
+                Your Seat:
+                <span id="lobbySeat">-</span>
+            </div>
+
+            <div>
+                Players:
+                <span id="lobbyPlayers">0</span>/6
+            </div>
+
+        </div>
+
+
+        <!-- ======================================
+             HOST START GAME AREA
+             ====================================== -->
+
+        <div
+            id="hostStartArea"
+            class="host-start-area"
+            style="display:none;"
+        >
+
+            <div
+                id="hostStartMessage"
+                class="host-start-message"
+            >
+                Waiting for at least 2 players...
+            </div>
+
+            <button
+                id="btnStartGame"
+                type="button"
+                class="start-game-button"
+                onclick="hostStartGame()"
+            >
+                ▶ START GAME
+            </button>
+
+        </div>
+
+
+        <!-- ======================================
+             NON-HOST MESSAGE
+             ====================================== -->
+
+        <div
+            id="guestWaitingMessage"
+            class="guest-waiting-message"
+            style="display:none;"
+        >
+            ⏳ Waiting for the host to start the game...
+        </div>
+
+
+        <!-- ======================================
+             JOINED PLAYERS
+             ====================================== -->
+
+        <h3>Joined Players</h3>
+
+        <div
+            id="lobbyPlayerList"
+            class="lobby-player-list"
+        >
+
+            <div id="seat1">
+                Seat 1: Empty
+            </div>
+
+            <div id="seat2">
+                Seat 2: Empty
+            </div>
+
+            <div id="seat3">
+                Seat 3: Empty
+            </div>
+
+            <div id="seat4">
+                Seat 4: Empty
+            </div>
+
+            <div id="seat5">
+                Seat 5: Empty
+            </div>
+
+            <div id="seat6">
+                Seat 6: Empty
+            </div>
+
+        </div>
+
     </div>
-  </section>
+
+</section>
 
   <!-- GAME SCREEN -->
   <div id="app" class="game-viewport hidden">
@@ -161,31 +465,33 @@
 
      <header class="topbar">
 
-    <div class="topbar-item">
-        Table:
-        <span id="tableIdDisplay">-</span>
-    </div>
+        <div class="topbar-section">
+            TABLE
+            <span id="tableIdDisplay">-</span>
+            <span class="player-count">(P <span id="topPlayerCount">0</span>)</span>
+        </div>
 
-    <div class="topbar-item">
-        Dealer:
-        <span id="dealerName">-</span>
-    </div>
+        <div class="topbar-section">
+            <span id="topGameType">201 POOL</span>
+        </div>
 
-    <div class="topbar-item turn-timer-box">
-        ⏱ Turn Timer:
-        <span id="turnTimer">40</span>
-    </div>
+        <div class="topbar-section">
+            POT :<span id="topPot">0</span>
+        </div>
 
-    <div class="topbar-item current-turn-box">
-        Current Turn:
-        <span id="currentTurnPlayer">-</span>
-    </div>
+        <div class="topbar-section topbar-turn">
+            TURN: <span id="currentTurnPlayer">-</span>
+        </div>
 
-    <div class="topbar-history">
-        <button id="btnHistory">History</button>
-    </div>
+        <div class="topbar-section topbar-timer">
+            ⏱ <span id="turnTimer">40</span>
+        </div>
 
-</header>
+        <div class="topbar-section topbar-history">
+            <button id="btnHistory" type="button">HISTORY</button>
+        </div>
+
+        </header>
 
       <main class="table">
         <section id="opponents" class="opponents" aria-label="Opponents">
@@ -311,6 +617,7 @@
           <div class="group-box" id="group2"></div>
           <div class="group-box" id="group3"></div>
           <div class="group-box" id="group4"></div>
+          <div class="group-box" id="group5"></div>
         </section>
       </main>
 
@@ -328,6 +635,7 @@
         <div class="group" data-group="2"><h4>Group 3</h4></div>
         <div class="group" data-group="3"><h4>Group 4</h4></div>
         <div class="group" data-group="4"><h4>Group 5</h4></div>
+        <div class="group" data-group="5"><h4>Group 6</h4></div>
       </div>
     </div>
   </section>
@@ -488,6 +796,15 @@
       </div>
 
       <p>Thank you for playing</p>
+      
+    <!-- HOME BUTTON -->
+    <button
+      class="home-button"
+      onclick="goToHome()"
+    >
+      🏠 HOME
+    </button>
+
     </div>
   </section>
 
