@@ -344,138 +344,91 @@ input[type="number"] {
     }
 }
 
-
 /* ========================================
-   MOBILE LANDSCAPE MODE
-   TABLE PAGE ONLY
+   MOBILE LANDSCAPE REQUIREMENT
 ======================================== */
 
 #rotateDeviceOverlay {
     display: none;
 }
 
+
 @media screen and (orientation: portrait) and (max-width: 900px) {
+
     #rotateDeviceOverlay {
+
         display: flex;
+
         position: fixed;
         inset: 0;
+
         width: 100vw;
         height: 100vh;
+
         align-items: center;
         justify-content: center;
+
         background: #000;
-        color: #fff;
+        color: white;
+
         z-index: 999999;
+
         text-align: center;
     }
 
+
     .rotate-message {
-        font-size: 22px;
-        font-weight: 800;
+
+        text-align: center;
+
+        font-size: 24px;
+        font-weight: 900;
     }
+
 
     .rotate-icon {
-        font-size: 52px;
-        margin-bottom: 12px;
+
+        font-size: 55px;
+
+        margin-bottom: 15px;
     }
 
+
     .rotate-message small {
+
         display: block;
-        margin-top: 8px;
-        font-size: 14px;
+
+        margin-top: 10px;
+
+        font-size: 16px;
         font-weight: 500;
     }
 }
 
-/* Landscape phone: use the available width instead of the old 500px box. */
-@media screen and (orientation: landscape) and (max-height: 600px) {
+/* ==========================================================
+   TABLEPAGE MOBILE LANDSCAPE - COMPACT REDESIGN
+   JavaScript / element IDs / process are unchanged.
+   ========================================================== */
 
-    .page-container {
-        width: min(760px, 94vw);
-        max-width: none;
-        padding: 8px 12px 12px;
-        margin: 0 auto;
-    }
-
-    h1 {
-        font-size: 22px;
-        margin: 3px 0 8px;
-    }
-
-    .card {
-        width: min(700px, 92vw);
-        margin: 0 auto 8px;
-        padding: 10px 14px;
-        border-radius: 11px;
-    }
-
-    .card h2 {
-        font-size: 17px;
-        margin: 0 0 7px;
-    }
-
-    .compact-field {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin-top: 5px;
-    }
-
-    .compact-field > label {
-        flex: 0 0 92px;
-        margin: 0;
-        font-size: 12px;
-    }
-
-    .compact-field > input {
-        height: 34px;
-        min-height: 34px;
-        font-size: 13px;
-    }
-
-    .pool-options {
-        gap: 8px;
-        margin-top: 3px;
-    }
-
-    .pool-option {
-        height: 34px;
-        min-height: 34px;
-    }
-
-    .pool-option span {
-        font-size: 13px;
-    }
-
-    .main-button {
-        height: 36px;
-        margin-top: 8px;
-        font-size: 13px;
-    }
-
-    .back-button {
-        height: 34px;
-        margin-top: 5px;
-        font-size: 12px;
-    }
+/* Hide the old bottom BACK buttons. */
+.back-button {
+    display: none !important;
 }
 
-
-/* =========================================================
-   TABLE PAGE — COMPACT SECTION NAVIGATION
-   ========================================================= */
-
+/* Heading with circular back arrow. */
 .section-heading {
     position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
+    min-height: 30px;
     width: 100%;
 }
 
 .section-heading h2 {
     margin: 0;
     text-align: center;
+    font-weight: 800;
 }
 
 .section-back {
@@ -491,101 +444,126 @@ input[type="number"] {
     padding: 0;
     margin: 0;
 
-    border: 1px solid rgba(255,255,255,.18);
+    border: 1px solid rgba(255,255,255,.20);
     border-radius: 50%;
 
-    background: rgba(0,0,0,.20);
-    color: white;
+    background: rgba(0,0,0,.22);
+    color: #fff;
 
     font-size: 20px;
-    font-weight: 700;
+    font-weight: 900;
     line-height: 1;
-
-    cursor: pointer;
 }
 
-.section-back:active {
-    transform: translateY(-50%) scale(.95);
+.compact-field {
+    display: grid;
+    grid-template-columns: 110px minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    margin-top: 5px;
 }
 
-/* Old bottom back buttons are no longer used. */
-.back-button {
-    display: none !important;
+.compact-field > label {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.compact-field > input {
+    min-width: 0;
 }
 
 
-/* =========================================================
-   MOBILE LANDSCAPE — COMPACT TABLE PAGE
-   ========================================================= */
+/* ==========================================================
+   LANDSCAPE PHONE
+   ========================================================== */
 
 @media screen and (orientation: landscape) and (max-height: 600px) {
 
+    html, body {
+        overflow: hidden;
+    }
+
     .page-container {
-        width: min(620px, 92vw);
+        width: min(620px, 90vw);
         max-width: 620px;
-        padding: 5px 10px 8px;
         margin: 0 auto;
+        padding: 5px 10px 7px;
     }
 
     h1 {
-        font-size: 18px;
+        font-size: 20px;
         line-height: 1;
-        margin: 1px 0 5px;
+        margin: 2px 0 7px;
+        font-weight: 900;
     }
 
+    /* Main menu */
     #mainOptions {
-        margin-bottom: 6px;
+        width: min(500px, 82vw);
+        margin: 0 auto;
     }
 
     .option-button {
-        min-height: 34px;
-        height: 34px;
-        margin: 0 0 5px 0;
-        padding: 5px 8px;
-        border-radius: 7px;
-        font-size: 12px;
+        width: 100%;
+        min-height: 36px;
+        height: 36px;
+        margin: 0 0 6px;
+        padding: 5px 10px;
+        border-radius: 18px;
+        font-size: 13px;
+        font-weight: 900;
         line-height: 1;
     }
 
     .home-button {
-        width: 88px;
+        width: 90px;
         height: 30px;
         min-height: 30px;
-        margin: 2px auto 5px;
-        border-radius: 7px;
+        margin: 2px auto 0;
+        padding: 0 10px;
+        border-radius: 15px;
         font-size: 11px;
+        font-weight: 900;
     }
 
+    /* Create / Join card */
     .card {
-        width: min(560px, 90vw);
+        width: min(560px, 86vw);
         max-width: 560px;
-        padding: 8px 11px;
-        margin: 0 auto 5px;
-        border-radius: 9px;
+        margin: 0 auto;
+        padding: 8px 12px 10px;
+        border-radius: 12px;
     }
 
     .section-heading {
-        min-height: 28px;
+        min-height: 29px;
     }
 
     .section-heading h2 {
-        font-size: 14px;
+        font-size: 15px;
         line-height: 1;
-        margin: 0;
+        font-weight: 900;
     }
 
     .section-back {
-        width: 27px;
-        height: 27px;
-        min-height: 27px;
+        width: 28px;
+        height: 28px;
+        min-height: 28px;
         font-size: 18px;
     }
 
-    label {
+    .compact-field {
+        grid-template-columns: 105px minmax(0, 1fr);
+        gap: 7px;
         margin-top: 5px;
-        margin-bottom: 3px;
+    }
+
+    .compact-field > label {
         font-size: 11px;
-        line-height: 1;
+        font-weight: 900;
     }
 
     input[type="text"],
@@ -594,19 +572,24 @@ input[type="number"] {
         height: 30px;
         min-height: 30px;
         padding: 0 8px;
-        border-radius: 6px;
+        border-radius: 7px;
         font-size: 12px;
+        font-weight: 700;
     }
 
+    /* Pool choices */
     .pool-options {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
         gap: 6px;
-        margin-top: 2px;
+        margin-top: 4px;
     }
 
     .pool-option {
         height: 30px;
         min-height: 30px;
-        border-radius: 6px;
+        border-radius: 15px;
+        font-weight: 900;
     }
 
     .pool-option input {
@@ -615,19 +598,89 @@ input[type="number"] {
 
     .pool-option span {
         font-size: 11px;
+        font-weight: 900;
     }
 
     .main-button {
-        height: 32px;
-        min-height: 32px;
+        width: 100%;
+        height: 33px;
+        min-height: 33px;
         margin-top: 7px;
-        border-radius: 7px;
+        padding: 0 10px;
+        border-radius: 17px;
         font-size: 12px;
+        font-weight: 900;
     }
 
     #message {
-        min-height: 16px;
+        min-height: 14px;
+        margin-top: 3px;
+        font-size: 10px;
+        font-weight: 800;
+    }
+}
+
+
+/* Slightly tighter for short landscape phones. */
+@media screen and (orientation: landscape) and (max-height: 430px) {
+
+    .page-container {
+        padding-top: 3px;
+        padding-bottom: 4px;
+    }
+
+    h1 {
+        font-size: 18px;
+        margin-bottom: 4px;
+    }
+
+    .option-button {
+        height: 33px;
+        min-height: 33px;
+        font-size: 12px;
+    }
+
+    .home-button {
+        height: 27px;
+        min-height: 27px;
+        font-size: 10px;
+    }
+
+    .card {
+        padding: 6px 10px 8px;
+    }
+
+    .section-heading,
+    .section-back {
+        height: 26px;
+        min-height: 26px;
+    }
+
+    .section-heading h2 {
+        font-size: 14px;
+    }
+
+    .section-back {
+        width: 26px;
+        font-size: 17px;
+    }
+
+    .compact-field {
         margin-top: 4px;
+        grid-template-columns: 98px minmax(0, 1fr);
+    }
+
+    input[type="text"],
+    input[type="tel"],
+    input[type="number"],
+    .pool-option {
+        height: 28px;
+        min-height: 28px;
+    }
+
+    .main-button {
+        height: 31px;
+        min-height: 31px;
         font-size: 11px;
     }
 }

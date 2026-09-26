@@ -17,57 +17,7 @@
    GAME SCREEN IS NOT TOUCHED
 ========================================================= */
 
-@media screen and (orientation: landscape) and (max-height: 600px) {
-
-    /* =========================
-       JOIN SCREEN
-    ========================= */
-
-    #joinScreen {
-        overflow: hidden;
-    }
-
-    #joinScreen .auth-card {
-        width: min(620px, 88vw);
-        max-width: 620px;
-        padding: 12px 18px;
-        gap: 7px;
-        border-radius: 14px;
-    }
-
-    #joinScreen .auth-card h2 {
-        font-size: 20px;
-        line-height: 1.05;
-        margin: 0 0 5px;
-    }
-
-    /* Put each field on one horizontal line:
-       Table No : [value]
-       Password : [value]
-       Name     : [value]
-    */
-    #joinScreen .auth-card input {
-        height: 36px;
-        min-height: 36px;
-        padding: 6px 10px;
-        font-size: 13px;
-        box-sizing: border-box;
-    }
-
-    #joinScreen .auth-card input#tableIdInput,
-    #joinScreen .auth-card input#password,
-    #joinScreen .auth-card input#nickname {
-        width: 100%;
-    }
-
-    #joinScreen .auth-card button {
-        height: 36px;
-        min-height: 36px;
-        margin-top: 3px;
-        padding: 6px 12px;
-        font-size: 13px;
-    }
-
+@media screen and (orientation: landscape) and (max-width: 1000px) {
 
     /* =========================
        WAITING ROOM
@@ -78,9 +28,9 @@
     }
 
     #lobbyScreen .lobby-wrap {
-        width: min(760px, 94vw);
-        max-width: 760px;
-        padding: 6px 10px;
+        width: min(620px, 92vw);
+        max-width: 620px;
+        padding: 4px 8px;
         margin: 0 auto;
 
         /* Two compact boxes side-by-side */
@@ -93,27 +43,27 @@
             "count count"
             "host host"
             "guest guest";
-        gap: 4px 7px;
+        gap: 3px 5px;
         align-items: start;
     }
 
     #lobbyScreen .lobby-wrap > h2 {
         grid-area: title;
-        font-size: 18px;
+        font-size: 17px;
         line-height: 1;
-        margin: 1px 0 4px;
+        margin: 1px 0 3px;
         text-align: center;
     }
 
     /* LEFT BOX — TABLE ID */
     #lobbyScreen .friend-table-id-box {
         grid-area: table;
-        height: 82px;
-        min-height: 82px;
+        height: 56px;
+        min-height: 56px;
         box-sizing: border-box;
-        padding: 5px 8px;
+        padding: 1px 4px;
         margin: 0;
-        border-radius: 9px;
+        border-radius: 7px;
         display: flex;
         flex-direction: column;
         justify-content: center;
@@ -121,20 +71,20 @@
     }
 
     #lobbyScreen .friend-table-id-title {
-        font-size: 9px;
+        font-size: 8px;
         margin-bottom: 0;
     }
 
     #lobbyScreen .friend-table-id {
-        font-size: 25px;
+        font-size: 20px;
         line-height: 1;
-        margin: 2px 0 3px;
+        margin: 1px 0 1px;
         letter-spacing: 2px;
     }
 
     #lobbyScreen .friend-share-message {
-        font-size: 9px;
-        line-height: 1.05;
+        font-size: 7px;
+        line-height: 1.0;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -147,11 +97,11 @@
     /* RIGHT BOX TITLE */
     #lobbyScreen .lobby-wrap > h3 {
         grid-area: joinedTitle;
-        height: 16px;
+        height: 13px;
         margin: 0;
         padding: 0;
-        font-size: 10px;
-        line-height: 16px;
+        font-size: 9px;
+        line-height: 13px;
         text-align: center;
         border: 1px solid rgba(255,255,255,.15);
         border-bottom: 0;
@@ -162,14 +112,14 @@
     /* RIGHT BOX — SIX PLAYER POSITIONS */
     #lobbyScreen .lobby-player-list {
         grid-area: joined;
-        height: 66px;
-        min-height: 66px;
+        height: 43px;
+        min-height: 43px;
         box-sizing: border-box;
         display: grid;
         grid-template-columns: 1fr 1fr;
         grid-template-rows: repeat(3, 1fr);
-        gap: 0 8px;
-        padding: 3px 7px;
+        gap: 0 6px;
+        padding: 1px 5px;
         margin: 0;
         border: 1px solid rgba(255,255,255,.15);
         border-top: 0;
@@ -178,11 +128,11 @@
 
     #lobbyScreen .lobby-player-list > div {
         min-width: 0;
-        height: 20px;
-        min-height: 20px;
-        padding: 1px 3px;
-        font-size: 9px;
-        line-height: 18px;
+        height: 14px;
+        min-height: 14px;
+        padding: 0 2px;
+        font-size: 8px;
+        line-height: 14px;
         display: block;
         white-space: nowrap;
         overflow: hidden;
@@ -193,13 +143,13 @@
        but only the Joined Players count is shown. */
     #lobbyScreen .lobby-card {
         grid-area: count;
-        height: 24px;
-        min-height: 24px;
+        height: 19px;
+        min-height: 19px;
         box-sizing: border-box;
         padding: 0 8px;
         margin: 0;
-        font-size: 10px;
-        line-height: 24px;
+        font-size: 9px;
+        line-height: 19px;
         text-align: center;
     }
 
@@ -213,7 +163,7 @@
 
     #lobbyScreen .host-start-area,
     #lobbyScreen .guest-waiting-message {
-        padding: 3px 6px;
+        padding: 2px 5px;
         margin: 0;
         box-sizing: border-box;
         text-align: center;
@@ -229,16 +179,16 @@
 
     #lobbyScreen .host-start-message,
     #lobbyScreen .guest-waiting-message {
-        font-size: 9px;
-        line-height: 1.05;
+        font-size: 7px;
+        line-height: 1.0;
     }
 
     #lobbyScreen .start-game-button {
         width: 100%;
-        height: 30px;
-        min-height: 30px;
-        padding: 4px 8px;
-        font-size: 11px;
+        height: 26px;
+        min-height: 26px;
+        padding: 3px 7px;
+        font-size: 9px;
     }
 }
 
@@ -288,6 +238,7 @@
     }
 }
 </style>
+
 
 </head>
 

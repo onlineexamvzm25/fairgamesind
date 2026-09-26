@@ -80,37 +80,33 @@
                 onclick="showMainOptions()"
                 aria-label="Back"
             >←</button>
-
             <h2>CREATE TABLE FOR FRIENDS</h2>
         </div>
 
-        <label for="hostName">
-            Player Name
-        </label>
+        <div class="compact-field">
+            <label for="hostName">Player Name</label>
+            <input
+                type="text"
+                id="hostName"
+                maxlength="15"
+                placeholder="Loading account..."
+                autocomplete="off"
+                readonly
+            >
+        </div>
 
-        <input
-            type="text"
-            id="hostName"
-            maxlength="15"
-            placeholder="Loading account..."
-            autocomplete="off"
-            readonly
-        >
-
-
-        <label for="hostPhone">
-            Phone Number
-        </label>
-
-        <input
-            type="tel"
-            id="hostPhone"
-            maxlength="10"
-            inputmode="numeric"
-            placeholder="Loading account..."
-            autocomplete="off"
-            readonly
-        >
+        <div class="compact-field">
+            <label for="hostPhone">Phone Number</label>
+            <input
+                type="tel"
+                id="hostPhone"
+                maxlength="10"
+                inputmode="numeric"
+                placeholder="Loading account..."
+                autocomplete="off"
+                readonly
+            >
+        </div>
 
 
         <label>
@@ -157,6 +153,7 @@
         </button>
 
 
+
     </div>
 
 
@@ -176,35 +173,31 @@
                 onclick="showMainOptions()"
                 aria-label="Back"
             >←</button>
-
             <h2>JOIN FRIENDS TABLE</h2>
         </div>
 
-        <label for="joinTableId">
-            Table ID
-        </label>
+        <div class="compact-field">
+            <label for="joinTableId">Table ID</label>
+            <input
+                type="number"
+                id="joinTableId"
+                inputmode="numeric"
+                maxlength="6"
+                placeholder="Enter table ID"
+            >
+        </div>
 
-        <input
-            type="number"
-            id="joinTableId"
-            inputmode="numeric"
-            maxlength="6"
-            placeholder="Enter table ID"
-        >
-
-
-        <label for="joinPlayerName">
-            Player Name
-        </label>
-
-        <input
-            type="text"
-            id="joinPlayerName"
-            maxlength="15"
-            placeholder="Loading account..."
-            autocomplete="off"
-            readonly
-        >
+        <div class="compact-field">
+            <label for="joinPlayerName">Player Name</label>
+            <input
+                type="text"
+                id="joinPlayerName"
+                maxlength="15"
+                placeholder="Loading account..."
+                autocomplete="off"
+                readonly
+            >
+        </div>
 
 
         <button
@@ -214,6 +207,7 @@
         >
             JOIN TABLE
         </button>
+
 
 
     </div>
