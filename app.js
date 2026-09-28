@@ -8,11 +8,34 @@ const SUPABASE_URL ='https://dbfycihbcosuxxkrmbhl.supabase.co';
 const SUPABASE_KEY ='sb_publishable_aOyXtAbzrrX0Z9jPAU1qEA_0ZnK35BX';
 
 
+
+
+
 const supabaseClient =
 supabase.createClient(
 SUPABASE_URL,
 SUPABASE_KEY
 );
+
+
+// =====================================================
+// TABLE GAME TYPE
+// =====================================================
+
+const GAME_TYPE =
+    (
+        localStorage.getItem(
+            "crdg_game_type"
+        ) || "FRIENDS"
+    ).toUpperCase();
+
+console.log(
+    "CURRENT GAME TYPE:",
+    GAME_TYPE
+);
+
+const IS_POINTS =
+    GAME_TYPE === "POINTS";
 
 
 // =========================
@@ -80,6 +103,15 @@ let state = {
 const pickupSound = new Audio("pickup.mp3");
 const discardSound = new Audio("discard.mp3");
 
+
+
+// ==================================================
+// POINTS : EXIT BUTTON
+// ==================================================
+
+
+
+
 let savedUserId =
   localStorage.getItem("crdg_user_id");
 
@@ -99,8 +131,6 @@ let turnTimerHandle = null;
 
 let observationTimeRemaining = 30;
 
-
-const GAME_TYPE = "FRIENDS";
 
 // ==========================================
 // PREVENT ACCIDENTAL BACK DURING FRIENDS GAME
@@ -1870,6 +1900,312 @@ function startObservationTimer()
 }
 
 
+
+// ==================================================
+// POINTS : EXIT TABLE
+// ==================================================
+
+async function exitPointsTable()
+{
+    // --------------------------------------------------
+    // POINTS ONLY
+    // --------------------------------------------------
+
+    if (
+        typeof GAME_TYPE === "undefined" ||
+        GAME_TYPE !== "POINTS"
+    )
+    {
+        return;
+    }
+
+
+    // --------------------------------------------------
+    // CONFIRM
+    // --------------------------------------------------
+
+    const confirmed =
+        confirm(
+            "Exit this POINTS table?\n\n" +
+            "The current deal will be settled first, " +
+            "then you will be eliminated."
+        );
+
+
+    if (!confirmed)
+    {
+        return;
+    }
+
+
+    // --------------------------------------------------
+    // BUTTON
+    // --------------------------------------------------
+
+    const button =
+        document.getElementById(
+            "btnExitPointsTable"
+        );
+
+
+    if (button)
+    {
+        button.disabled = true;
+
+        button.innerText =
+            "PROCESSING...";
+    }
+
+
+    try
+    {
+        const sessionToken =
+            localStorage.getItem(
+                "crdgn_session_token"
+            );
+
+
+        if (!sessionToken)
+        {
+            alert(
+                "Login session is not available. Please login again."
+            );
+
+            if (button)
+            {
+                button.disabled = false;
+                button.innerText = "EXIT TABLE";
+            }
+
+            return;
+        }
+
+
+        // --------------------------------------------------
+        // SETTLEMENT → ELIMINATION → PLAYER COUNT
+        // --------------------------------------------------
+
+        console.log(
+            "POINTS: Exit requested. Settling current deal first..."
+        );
+
+
+        const {
+            data,
+            error
+        } =
+        await supabaseClient.rpc(
+            "crdgp_exit_points_table",
+            {
+                p_session_token:
+                    sessionToken,
+
+                p_session_id:
+                    state.sessionId
+            }
+        );
+
+
+        if (error)
+        {
+            console.error(
+                "POINTS exit error:",
+                error
+            );
+
+            alert(
+                error.message ||
+                "Unable to exit POINTS table."
+            );
+
+            if (button)
+            {
+                button.disabled = false;
+                button.innerText = "EXIT TABLE";
+            }
+
+            return;
+        }
+
+
+        const result =
+            Array.isArray(data)
+                ? data[0]
+                : data;
+
+
+        console.log(
+            "POINTS exit result:",
+            result
+        );
+
+
+        if (
+            !result ||
+            result.success !== true
+        )
+        {
+            alert(
+                result?.message ||
+                "Unable to exit POINTS table."
+            );
+
+            if (button)
+            {
+                button.disabled = false;
+                button.innerText = "EXIT TABLE";
+            }
+
+            return;
+        }
+
+
+        // --------------------------------------------------
+        // TABLE COMPLETED
+        // --------------------------------------------------
+
+        if (
+            result.table_completed === true
+        )
+        {
+            console.log(
+                "POINTS: Exit completed table."
+            );
+
+
+            // Reload session so handleTableCompleted
+            // receives the latest state.
+
+            const {
+                data: sessionData,
+                error: sessionError
+            } =
+            await supabaseClient
+                .from("crdg_game_sessions")
+                .select("*")
+                .eq(
+                    "session_id",
+                    state.sessionId
+                )
+                .single();
+
+
+            if (sessionError)
+            {
+                console.error(
+                    "POINTS final session reload failed:",
+                    sessionError
+                );
+
+                return;
+            }
+
+
+            handleTableCompleted(
+                sessionData
+            );
+
+
+            return;
+        }
+
+
+        // --------------------------------------------------
+        // TABLE CONTINUES
+        // --------------------------------------------------
+
+        console.log(
+            "POINTS: Exit successful. " +
+            "Remaining players:",
+            result.remaining_players
+        );
+
+
+        // The exiting player should not
+        // start the next deal.
+
+        state.playerStatus =
+            "ELIMINATED";
+
+
+        state.ignoreResultWindow =
+            true;
+
+
+        state.resultWindowOpened =
+            false;
+
+
+        state.resultWindowLoaded =
+            false;
+
+
+        clearInterval(
+            state.observationTimerInterval
+        );
+
+
+        document.getElementById(
+            "dealResultModal"
+        ).style.display = "none";
+
+
+        // --------------------------------------------------
+        // IMPORTANT
+        //
+        // Existing dealer will start the next deal.
+        // We simply refresh this eliminated player.
+        // --------------------------------------------------
+
+        setTimeout(
+            async () =>
+            {
+                try
+                {
+                    await loadGame();
+
+                    await loadSessionInfo();
+
+                    await loadPlayers();
+
+                    state.ignoreResultWindow =
+                        false;
+                }
+                catch (error)
+                {
+                    console.error(
+                        "POINTS exited-player refresh failed:",
+                        error
+                    );
+                }
+            },
+            2500
+        );
+
+    }
+    catch (error)
+    {
+        console.error(
+            "POINTS exit unexpected error:",
+            error
+        );
+
+
+        alert(
+            error.message ||
+            "Unable to exit POINTS table."
+        );
+
+
+        if (button)
+        {
+            button.disabled = false;
+            button.innerText = "EXIT TABLE";
+        }
+    }
+}
+
+
 async function onObservationTimerExpired()
 {
     
@@ -1920,13 +2256,138 @@ async function onObservationTimerExpired()
     }
 
 
+            // --------------------------------------------------
+            // POINTS GAME
+            //
+            // Stop after the current deal.
+            // DO NOT automatically start the next deal.
+            //
+            // The POINTS settlement / NEXT DEAL flow
+            // will be handled separately.
+            // --------------------------------------------------
+
+            // --------------------------------------------------
+        // POINTS GAME
+        //
+        // 1. Settle the completed deal
+        // 2. Check whether the table is completed
+        // 3. Otherwise start the next deal
+        // --------------------------------------------------
+
+        if (
+            typeof GAME_TYPE !== "undefined" &&
+            GAME_TYPE === "POINTS"
+        ) {
+
+            console.log(
+                "POINTS: Observation timer expired. Settling deal..."
+            );
+
+
+            // --------------------------------------------------
+            // SETTLE CURRENT DEAL
+            // --------------------------------------------------
+
+            const {
+                data: settlementData,
+                error: settlementError
+            } =
+            await supabaseClient.rpc(
+                "crdgp_settle_points_deal",
+                {
+                    p_session_id:
+                        state.sessionId
+                }
+            );
+
+
+            if (settlementError)
+            {
+                console.error(
+                    "POINTS settlement failed:",
+                    settlementError
+                );
+
+                return;
+            }
+
+
+            console.log(
+                "POINTS settlement result:",
+                settlementData
+            );
+
+
+            // --------------------------------------------------
+            // RELOAD SESSION AFTER SETTLEMENT
+            // --------------------------------------------------
+
+            const {
+                data: settledSession,
+                error: settledSessionError
+            } =
+            await supabaseClient
+                .from("crdg_game_sessions")
+                .select("*")
+                .eq(
+                    "session_id",
+                    state.sessionId
+                )
+                .single();
+
+
+            if (settledSessionError)
+            {
+                console.error(
+                    "POINTS post-settlement session check failed:",
+                    settledSessionError
+                );
+
+                return;
+            }
+
+
+            // --------------------------------------------------
+            // TABLE COMPLETED?
+            // --------------------------------------------------
+
+            if (
+                settledSession.game_completed === true
+            )
+            {
+                console.log(
+                    "POINTS: Table completed after settlement."
+                );
+
+                handleTableCompleted(
+                    settledSession
+                );
+
+                return;
+            }
+
+
+            // --------------------------------------------------
+            // TABLE NOT COMPLETED
+            // START NEXT DEAL
+            // --------------------------------------------------
+
+            console.log(
+                "POINTS: Settlement completed. Starting next deal..."
+            );
+
+            await startNextDeal();
+
+            return;
+        }
+
+
     // --------------------------------------------------
     // NORMAL GAME → START NEXT DEAL
     // --------------------------------------------------
 
     await startNextDeal();
 }
-
 
 function resetSettlementControls() {
 
@@ -4729,11 +5190,18 @@ async function joinTable() {
     // -----------------------------------------------
 
     // -----------------------------------------------
-// REGISTERED ACCOUNT → FRIENDS GAME USER ID
+// // REGISTERED ACCOUNT → GAME USER ID
 // -----------------------------------------------
 
         const sessionToken =
             localStorage.getItem("crdgn_session_token");
+
+
+        const gameType =
+    (
+        localStorage.getItem("crdg_game_type") ||
+        "FRIENDS"
+    ).toUpperCase();
 
         if (!sessionToken) {
 
@@ -4753,7 +5221,7 @@ async function joinTable() {
             "crdgn_get_or_create_game_user_id",
             {
                 p_session_token: sessionToken,
-                p_game_type: "FRIENDS"
+                p_game_type: gameType
             }
         );
 
@@ -5737,6 +6205,10 @@ const isHost =
 // HOST START FRIENDS GAME
 // =====================================================
 
+// =====================================================
+// HOST START GAME
+// =====================================================
+
 async function hostStartGame() {
 
     // -----------------------------------------------
@@ -5748,22 +6220,18 @@ async function hostStartGame() {
             "btnStartGame"
         );
 
-
     if (!button) {
         return;
     }
-
 
     if (button.disabled) {
         return;
     }
 
-
     button.disabled = true;
 
     button.innerText =
         "STARTING...";
-
 
     try {
 
@@ -5775,7 +6243,6 @@ async function hostStartGame() {
             localStorage.getItem(
                 "crdgn_session_token"
             );
-
 
         if (!sessionToken) {
 
@@ -5793,18 +6260,138 @@ async function hostStartGame() {
 
 
         // =================================================
-        // START FRIENDS GAME
+        // DETERMINE GAME TYPE
+        // =================================================
+
+        const gameType =
+            (
+                localStorage.getItem(
+                    "crdg_game_type"
+                ) || "FRIENDS"
+            ).toUpperCase();
+
+
+        // =================================================
+        // CRDGP START
+        // POINTS ONLY
+        // =================================================
+
+        if (gameType === "POINTS") {
+
+            const {
+                data,
+                error
+            } = await supabaseClient.rpc(
+                "crdgp_start_points_game",
+                {
+                    p_session_token:
+                        sessionToken,
+
+                    p_table_id:
+                        state.tableId
+                }
+            );
+
+
+            // =================================================
+            // DATABASE ERROR
+            // =================================================
+
+            if (error) {
+
+                console.error(
+                    "POINTS start game error:",
+                    error
+                );
+
+                alert(
+                    error.message ||
+                    "Unable to start POINTS game."
+                );
+
+                button.disabled = false;
+
+                button.innerText =
+                    "▶ START GAME";
+
+                return;
+            }
+
+
+            // =================================================
+            // READ RESULT
+            // =================================================
+
+            const result =
+                Array.isArray(data)
+                    ? data[0]
+                    : data;
+
+
+            // =================================================
+            // POINTS START REJECTED
+            // =================================================
+
+            if (
+                !result ||
+                result.status !== "success" ||
+                !result.session_id
+            ) {
+
+                console.error(
+                    "POINTS start game rejected:",
+                    result
+                );
+
+                alert(
+                    result?.message ||
+                    "Unable to start POINTS game."
+                );
+
+                button.disabled = false;
+
+                button.innerText =
+                    "▶ START GAME";
+
+                return;
+            }
+
+
+            // =================================================
+            // POINTS START SUCCESS
+            // =================================================
+
+            console.log(
+                "POINTS GAME STARTED:",
+                {
+                    session_id:
+                        result.session_id,
+
+                    status:
+                        result.status,
+
+                    message:
+                        result.message
+                }
+            );
+
+
+            state.sessionId =
+                result.session_id;
+
+
+            await enterGame();
+
+            return;
+        }
+
+
+        // =================================================
+        // EXISTING FRIENDS START
+        // =================================================
         //
-        // This NEW crdgn function:
-        //
-        // 1. Validates logged-in account
-        // 2. Checks every active player's balance
-        // 3. Calls existing crdg_start_game()
-        // 4. Gets the new session_id
-        // 5. Deducts 80 from every player
-        // 6. Creates RUMMY_ENTRY transactions
-        //
-        // Existing crdg_start_game() is NOT modified.
+        // IMPORTANT:
+        // Existing Friends behavior is unchanged.
         // =================================================
 
         const {
@@ -5858,7 +6445,7 @@ async function hostStartGame() {
 
 
         // =================================================
-        // START REJECTED
+        // FRIENDS START REJECTED
         // =================================================
 
         if (
@@ -5887,7 +6474,7 @@ async function hostStartGame() {
 
 
         // =================================================
-        // SUCCESS
+        // FRIENDS START SUCCESS
         // =================================================
 
         console.log(
@@ -5902,11 +6489,6 @@ async function hostStartGame() {
         );
 
 
-        // =================================================
-        // IMPORTANT
-        // Existing game flow continues exactly as before.
-        // =================================================
-
         state.sessionId =
             result.session_id;
 
@@ -5917,13 +6499,13 @@ async function hostStartGame() {
     } catch (error) {
 
         console.error(
-            "Friends start game exception:",
+            "Start game exception:",
             error
         );
 
         alert(
             error.message ||
-            "Unable to start Friends game."
+            "Unable to start game."
         );
 
         button.disabled = false;
@@ -6589,6 +7171,75 @@ async function loadDealResults()
                 showReJoinWindow(me);
             }
         }
+
+
+
+
+// ==================================================
+// POINTS : EXIT BUTTON
+// ==================================================
+
+        if (
+            typeof GAME_TYPE !== "undefined" &&
+            GAME_TYPE === "POINTS"
+        )
+        {
+            const container =
+                document.getElementById(
+                    "dealResultsContainer"
+                );
+
+
+            // Prevent duplicate button
+            const oldButton =
+                document.getElementById(
+                    "btnExitPointsTable"
+                );
+
+
+            if (oldButton)
+            {
+                oldButton.remove();
+            }
+
+
+            container.insertAdjacentHTML(
+                "beforeend",
+                `
+                <div
+                    id="pointsExitPanel"
+                    style="
+                        margin-top:18px;
+                        padding:12px;
+                        text-align:center;
+                    "
+                >
+
+                    <button
+                        id="btnExitPointsTable"
+                        type="button"
+                        onclick="exitPointsTable()"
+                        style="
+                            min-width:150px;
+                            padding:10px 20px;
+                            border:none;
+                            border-radius:8px;
+                            background:#c62828;
+                            color:white;
+                            font-size:15px;
+                            font-weight:bold;
+                            cursor:pointer;
+                        "
+                    >
+                        EXIT TABLE
+                    </button>
+
+                </div>
+                `
+            );
+        }
+
+
 
     document.getElementById(
         "dealResultModal"

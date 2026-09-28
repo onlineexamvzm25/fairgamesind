@@ -18,14 +18,14 @@
   <div class="rotate-message">
     <div class="rotate-icon">📱↻</div>
     <div>Please rotate your phone</div>
-    <small>This page is designed for landscape mode</small>
+    <small>This game is designed for landscape mode</small>
   </div>
 </div>
 
 
 <div class="page-container">
 
-    <h1>PLAY WITH FRIENDS</h1>
+    <h1 id="pageTitle">PLAY WITH FRIENDS</h1>
 
 
     <!-- ==========================================
@@ -38,6 +38,7 @@
         <button
             type="button"
             class="option-button"
+            id="createOptionButton"
             onclick="showCreateTable()"
         >
             CREATE TABLE FOR FRIENDS
@@ -47,6 +48,7 @@
         <button
             type="button"
             class="option-button"
+            id="joinOptionButton"
             onclick="showJoinTable()"
         >
             JOIN FRIENDS TABLE
@@ -80,7 +82,7 @@
                 onclick="showMainOptions()"
                 aria-label="Back"
             >←</button>
-            <h2>CREATE TABLE FOR FRIENDS</h2>
+            <h2 id="createHeading">CREATE TABLE FOR FRIENDS</h2>
         </div>
 
         <div class="compact-field">
@@ -109,6 +111,8 @@
         </div>
 
 
+        <div id="friendsPoolOptions">
+
         <label>
             Select Pool (80 chips)
         </label>
@@ -116,32 +120,95 @@
         <div class="pool-options">
 
             <label class="pool-option">
-
                 <input
                     type="radio"
                     name="poolType"
                     value="201"
                     checked
                 >
-
                 <span>201 POOL</span>
-
             </label>
 
-
             <label class="pool-option">
-
                 <input
                     type="radio"
                     name="poolType"
                     value="101"
                 >
-
                 <span>101 POOL</span>
-
             </label>
 
         </div>
+
+    </div>
+
+
+        <div id="pointsMultiplierOptions" style="display:none;">
+
+        <label>
+            POINTS : 80 multiply
+        </label>
+
+        <div class="pool-options">
+
+            <label class="pool-option">
+                <input
+                    type="radio"
+                    name="pointsMultiplier"
+                    value="1"
+                    checked
+                >
+                <span>1 x 80</span>
+            </label>
+
+            <label class="pool-option">
+                <input
+                    type="radio"
+                    name="pointsMultiplier"
+                    value="5"
+                >
+                <span>5 x 400</span>
+            </label>
+
+            <label class="pool-option">
+                <input
+                    type="radio"
+                    name="pointsMultiplier"
+                    value="10"
+                >
+                <span>10 x 800</span>
+            </label>
+
+            <label class="pool-option">
+                <input
+                    type="radio"
+                    name="pointsMultiplier"
+                    value="50"
+                >
+                <span>50 x 4000</span>
+            </label>
+
+            <label class="pool-option">
+                <input
+                    type="radio"
+                    name="pointsMultiplier"
+                    value="100"
+                >
+                <span>100 x 8000</span>
+            </label>
+
+            <label class="pool-option">
+                <input
+                    type="radio"
+                    name="pointsMultiplier"
+                    value="200"
+                >
+                <span>200 x 16000</span>
+            </label>
+
+        </div>
+
+    </div>
 
 
         <button
@@ -149,7 +216,7 @@
             class="main-button"
             onclick="createTable()"
         >
-            CREATE NEW TABLE
+            <span id="createButtonText">CREATE NEW TABLE</span>
         </button>
 
 
@@ -173,7 +240,7 @@
                 onclick="showMainOptions()"
                 aria-label="Back"
             >←</button>
-            <h2>JOIN FRIENDS TABLE</h2>
+            <h2 id="joinHeading">JOIN FRIENDS TABLE</h2>
         </div>
 
         <div class="compact-field">

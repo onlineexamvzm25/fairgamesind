@@ -553,7 +553,7 @@ body::before {
     display: grid;
 
     grid-template-columns:
-        1fr 1fr;
+        1fr 1fr 1fr;
 
     gap: 12px;
 }
@@ -645,6 +645,15 @@ body::before {
 .friends-button {
 
     background:
+        linear-gradient(
+            145deg,
+            #2d61dc,
+            #193b99
+        );
+}
+
+.points-button {
+     background:
         linear-gradient(
             145deg,
             #2d61dc,

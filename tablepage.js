@@ -8,6 +8,34 @@
 
 const SUPABASE_KEY ='sb_publishable_aOyXtAbzrrX0Z9jPAU1qEA_0ZnK35BX';
 
+// =====================================================
+// TABLE GAME TYPE
+// =====================================================
+
+const TABLE_GAME_TYPE =
+    new URLSearchParams(window.location.search)
+        .get("game_type")
+        ?.toUpperCase() || "FRIENDS";
+
+const IS_POINTS =
+    TABLE_GAME_TYPE === "POINTS";
+
+
+function isPointsTablePage() {
+
+    return TABLE_GAME_TYPE === "POINTS";
+}
+
+// =====================================================
+// SAVE TABLE GAME TYPE
+// =====================================================
+
+localStorage.setItem(
+    "crdg_game_type",
+    TABLE_GAME_TYPE
+);
+
+
 const supabaseClient =
 supabase.createClient(
 SUPABASE_URL,
@@ -32,7 +60,6 @@ if (!savedUserId) {
         savedUserId
     );
 }
-
 
 
 
@@ -119,6 +146,9 @@ async function loadLoggedInProfile() {
 
 // Load the registered account as soon as the page opens.
 document.addEventListener("DOMContentLoaded", async function () {
+
+    initializeTablePageMode();
+
     await loadLoggedInProfile();
 });
 
@@ -126,6 +156,10 @@ document.addEventListener("DOMContentLoaded", async function () {
 
 // =====================================================
 // GET REGISTERED ACCOUNT -> FRIENDS GAME USER ID
+// =====================================================
+
+// =====================================================
+// GET REGISTERED ACCOUNT → GAME USER ID
 // =====================================================
 
 async function getFriendsGameUserId() {
@@ -143,34 +177,42 @@ async function getFriendsGameUserId() {
         return null;
     }
 
+
+    const gameType =
+        TABLE_GAME_TYPE;
+
+
     const { data, error } =
         await supabaseClient.rpc(
             "crdgn_get_or_create_game_user_id",
             {
                 p_session_token: sessionToken,
-                p_game_type: "FRIENDS"
+                p_game_type: gameType
             }
         );
+
 
     if (error) {
 
         console.error(
-            "Friends account mapping error:",
+            "Game account mapping error:",
             error
         );
 
         showMessage(
-            "Unable to connect your Friends account.",
+            "Unable to connect your game account.",
             true
         );
 
         return null;
     }
 
+
     const result =
         Array.isArray(data)
             ? data[0]
             : data;
+
 
     if (
         !result ||
@@ -179,18 +221,37 @@ async function getFriendsGameUserId() {
     ) {
 
         console.error(
-            "Invalid Friends mapping:",
+            "Invalid game mapping:",
             result
         );
 
         showMessage(
             result?.message ||
-            "Friends account mapping failed.",
+            "Game account mapping failed.",
             true
         );
 
         return null;
     }
+
+
+    console.log(
+        "GAME ACCOUNT MAPPING:",
+        {
+            requested_game_type:
+                gameType,
+
+            registered_user_id:
+                result.user_id,
+
+            game_user_id:
+                result.game_user_id,
+
+            returned_game_type:
+                result.game_type
+        }
+    );
+
 
     return result.game_user_id;
 }
@@ -283,10 +344,85 @@ function showMessage(text, isError = false) {
 
 
 // =====================================================
+// INITIALIZE TABLE PAGE MODE
+// =====================================================
+
+function initializeTablePageMode() {
+
+    if (!IS_POINTS) {
+        return;
+    }
+
+    document.title = "Play With Points";
+
+    const pageTitle =
+        document.getElementById("pageTitle");
+
+    const createOptionButton =
+        document.getElementById("createOptionButton");
+
+    const joinOptionButton =
+        document.getElementById("joinOptionButton");
+
+    const createHeading =
+        document.getElementById("createHeading");
+
+    const joinHeading =
+        document.getElementById("joinHeading");
+
+    const createButtonText =
+        document.getElementById("createButtonText");
+
+    const friendsPoolOptions =
+        document.getElementById("friendsPoolOptions");
+
+    const pointsMultiplierOptions =
+        document.getElementById("pointsMultiplierOptions");
+
+
+    if (pageTitle)
+        pageTitle.innerText = "PLAY WITH POINTS";
+
+    if (createOptionButton)
+        createOptionButton.innerText =
+            "CREATE POINTS TABLE";
+
+    if (joinOptionButton)
+        joinOptionButton.innerText =
+            "JOIN POINTS TABLE";
+
+    if (createHeading)
+        createHeading.innerText =
+            "CREATE POINTS TABLE";
+
+    if (joinHeading)
+        joinHeading.innerText =
+            "JOIN POINTS TABLE";
+
+    if (createButtonText)
+        createButtonText.innerText =
+            "CREATE POINTS TABLE";
+
+    if (friendsPoolOptions)
+        friendsPoolOptions.style.display = "none";
+
+    if (pointsMultiplierOptions)
+        pointsMultiplierOptions.style.display = "block";
+}
+
+// =====================================================
 // CREATE NEW TABLE
 // =====================================================
 
 async function createTable() {
+
+
+        if (isPointsTablePage()) {
+
+         await createPointsTable();
+
+           return;
+        }
 
     if (!loggedInProfile) {
 
@@ -624,6 +760,466 @@ async function createTable() {
 
         console.error(
             "Create table exception:",
+            error
+        );
+
+        showMessage(
+            "Unexpected error occurred",
+            true
+        );
+    }
+}
+
+
+// =====================================================
+// CREATE POINTS TABLE
+// =====================================================
+
+async function createPointsTable() {
+
+    if (!loggedInProfile) {
+
+        const loaded =
+            await loadLoggedInProfile();
+
+        if (!loaded) {
+
+            showMessage(
+                "Please login to create a POINTS table",
+                true
+            );
+
+            return;
+        }
+    }
+
+
+    const playerName =
+        String(loggedInProfile.name)
+            .trim()
+            .toUpperCase();
+
+
+    const phone =
+        String(loggedInProfile.phone_no)
+            .trim();
+
+
+    const multiplierElement =
+        document.querySelector(
+            'input[name="pointsMultiplier"]:checked'
+        );
+
+
+    if (!multiplierElement) {
+
+        showMessage(
+            "Please select a multiplier",
+            true
+        );
+
+        return;
+    }
+
+
+    const multiplier =
+        Number(multiplierElement.value);
+
+
+    // ---------------------------------------------
+    // VALIDATION
+    // ---------------------------------------------
+
+    if (!playerName) {
+
+        showMessage(
+            "Please enter your name",
+            true
+        );
+
+        return;
+    }
+
+
+    if (!/^[0-9]{10}$/.test(phone)) {
+
+        showMessage(
+            "Please enter a valid 10 digit phone number",
+            true
+        );
+
+        return;
+    }
+
+
+    if (
+        ![1, 5, 10, 50, 100, 200]
+            .includes(multiplier)
+    ) {
+
+        showMessage(
+            "Invalid multiplier",
+            true
+        );
+
+        return;
+    }
+
+
+    showMessage(
+        "Creating POINTS table..."
+    );
+
+
+    try {
+
+        // -----------------------------------------
+        // SESSION TOKEN
+        // -----------------------------------------
+
+        const sessionToken =
+            localStorage.getItem(
+                "crdgn_session_token"
+            );
+
+
+        if (!sessionToken) {
+
+            showMessage(
+                "Please login again",
+                true
+            );
+
+            return;
+        }
+
+
+        // -----------------------------------------
+        // PREPARE POINTS PLAYER
+        // -----------------------------------------
+
+        const {
+            data: prepareData,
+            error: prepareError
+        } =
+            await supabaseClient.rpc(
+                "crdgp_prepare_points_player",
+                {
+                    p_session_token:
+                        sessionToken,
+
+                    p_display_name:
+                        playerName
+                }
+            );
+
+
+        if (prepareError) {
+
+            console.error(
+                "Prepare POINTS player error:",
+                prepareError
+            );
+
+            showMessage(
+                "Unable to prepare POINTS account",
+                true
+            );
+
+            return;
+        }
+
+
+        const prepareResult =
+            prepareData?.[0];
+
+
+        if (
+            !prepareResult ||
+            prepareResult.success !== true
+        ) {
+
+            showMessage(
+                prepareResult?.message ||
+                "POINTS account preparation failed",
+                true
+            );
+
+            return;
+        }
+
+
+        const pointsGameUserId =
+            prepareResult.game_user_id;
+
+
+        // -----------------------------------------
+        // CREATE POINTS TABLE
+        // -----------------------------------------
+
+        const {
+            data,
+            error
+        } =
+            await supabaseClient.rpc(
+                "crdgp_create_points_table",
+                {
+                    p_session_token:
+                        sessionToken,
+
+                    p_player_name:
+                        playerName,
+
+                    p_phone:
+                        phone,
+
+                    p_multiplier:
+                        multiplier
+                }
+            );
+
+
+        if (error) {
+
+            console.error(
+                "POINTS create table error:",
+                error
+            );
+
+            showMessage(
+                "Unable to create POINTS table",
+                true
+            );
+
+            return;
+        }
+
+
+        const result =
+            data?.[0];
+
+
+        if (!result) {
+
+            showMessage(
+                "Unable to create POINTS table",
+                true
+            );
+
+            return;
+        }
+
+
+        if (result.status !== "success") {
+
+            showMessage(
+                result.message ||
+                "Unable to create POINTS table",
+                true
+            );
+
+            return;
+        }
+
+
+        const tableId =
+            Number(result.table_id);
+
+
+        // -----------------------------------------
+        // SAVE TABLE INFORMATION
+        // -----------------------------------------
+
+        localStorage.setItem(
+            "crdg_table",
+            tableId
+        );
+
+
+        localStorage.setItem(
+            "crdg_nickname",
+            playerName
+        );
+
+
+        localStorage.setItem(
+            "crdg_host",
+            "true"
+        );
+
+
+        localStorage.setItem(
+            "crdg_game_type",
+            "POINTS"
+        );
+
+
+        localStorage.setItem(
+            "crdgp_multiplier",
+            String(multiplier)
+        );
+
+
+        localStorage.setItem(
+            "crdgp_bet_chips",
+            String(80 * multiplier)
+        );
+
+
+        // -----------------------------------------
+        // HOST JOINS THE NEW TABLE
+        // USING EXISTING JOIN RPC
+        // -----------------------------------------
+
+        const {
+            data: joinData,
+            error: joinError
+        } =
+            await supabaseClient.rpc(
+                "crdg_join_table",
+                {
+                    p_table_id:
+                        tableId,
+
+                    p_password:
+                        "5E2D",
+
+                    p_user_id:
+                        pointsGameUserId,
+
+                    p_display_name:
+                        playerName
+                }
+            );
+
+
+        if (joinError) {
+
+            console.error(
+                "POINTS host join error:",
+                joinError
+            );
+
+            showMessage(
+                "Table created, but host could not join",
+                true
+            );
+
+            return;
+        }
+
+
+        const joinResult =
+            joinData?.[0];
+
+
+        if (
+            !joinResult ||
+            (
+                joinResult.status !== "success" &&
+                joinResult.status !== "reconnected"
+            )
+        ) {
+
+            showMessage(
+                joinResult?.message ||
+                "Host could not join POINTS table",
+                true
+            );
+
+            return;
+        }
+
+
+        // -----------------------------------------
+        // MARK HOST
+        // -----------------------------------------
+
+        const {
+            error: hostError
+        } =
+            await supabaseClient
+                .from("crdg_table_players")
+                .update({
+                    is_host: true
+                })
+                .eq(
+                    "table_id",
+                    tableId
+                )
+                .eq(
+                    "user_id",
+                    pointsGameUserId
+                );
+
+
+        if (hostError) {
+
+            console.error(
+                "POINTS host update error:",
+                hostError
+            );
+
+            showMessage(
+                "POINTS host setup failed",
+                true
+            );
+
+            return;
+        }
+
+
+        // -----------------------------------------
+        // SAVE GAME USER ID
+        // -----------------------------------------
+
+        localStorage.setItem(
+            "crdg_user_id",
+            pointsGameUserId
+        );
+
+
+        // -----------------------------------------
+        // SUCCESS
+        // -----------------------------------------
+
+        showMessage(
+            "POINTS table created successfully"
+        );
+
+
+        console.log(
+            "POINTS TABLE CREATED:",
+            {
+                tableId,
+                multiplier,
+                betChips:
+                    80 * multiplier,
+                gameUserId:
+                    pointsGameUserId
+            }
+        );
+
+
+        // -----------------------------------------
+        // STOP HERE FOR THIS TEST
+        // -----------------------------------------
+        //
+        // We will connect the waiting room
+        // in the next stage.
+        //
+
+                // -----------------------------------------
+        // GO TO EXISTING FRIENDS WAITING ROOM
+        // -----------------------------------------
+
+        window.location.href = "friends.html";
+
+    }
+    catch (error) {
+
+        console.error(
+            "POINTS create table exception:",
             error
         );
 
