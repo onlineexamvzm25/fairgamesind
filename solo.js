@@ -74,7 +74,8 @@ let state = {
   settlementId: null,
   settlementOpened: false,
   pickedCard: null,
-  participatedInDeal : false
+  participatedInDeal : false,
+  drawInProgress: false
 };
 
 

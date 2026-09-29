@@ -95,7 +95,9 @@ let state = {
   settlementId: null,
   settlementOpened: false,
   pickedCard: null,
-  participatedInDeal : false
+  participatedInDeal : false,
+  drawInProgress: false,
+  myTurnPickAnimation: false
 };
 
 
@@ -1352,7 +1354,68 @@ function groupSelectedCards() {
 }
 
 
-async function loadTopGameType() {
+async function loadTopGameType()
+{
+    // =====================================================
+    // POINTS GAME
+    // =====================================================
+
+    if (
+        typeof GAME_TYPE !== "undefined" &&
+        GAME_TYPE === "POINTS"
+    )
+    {
+        const {
+            data: multiplierData,
+            error: multiplierError
+        } =
+            await supabaseClient.rpc(
+                "crdgp_get_multiplier",
+                {
+                    p_table_id:
+                        Number(state.tableId)
+                }
+            );
+
+        if (multiplierError)
+        {
+            console.error(
+                "POINTS multiplier load failed:",
+                multiplierError
+            );
+
+            return;
+        }
+
+        const multiplier =
+            Number(multiplierData) || 1;
+
+        const el =
+            document.getElementById(
+                "topGameType"
+            );
+
+        if (el)
+        {
+            el.innerText =
+                "Points:( 80 x " +
+                multiplier +
+                ")";
+        }
+
+        console.log(
+            "POINTS top game:",
+            "Points(80 x " + multiplier + ")"
+        );
+
+        return;
+    }
+
+
+    // =====================================================
+    // EXISTING POOL GAME
+    // DO NOT CHANGE
+    // =====================================================
 
     const { data, error } =
         await supabaseClient
@@ -1361,8 +1424,13 @@ async function loadTopGameType() {
             .eq("table_id", state.tableId)
             .single();
 
-    if (error) {
-        console.error("Failed to load game type:", error);
+    if (error)
+    {
+        console.error(
+            "Failed to load game type:",
+            error
+        );
+
         return;
     }
 
@@ -1372,10 +1440,14 @@ async function loadTopGameType() {
             : "201 POOL";
 
     const el =
-        document.getElementById("topGameType");
+        document.getElementById(
+            "topGameType"
+        );
 
-    if (el) {
-        el.innerText = gameType;
+    if (el)
+    {
+        el.innerText =
+            gameType;
     }
 }
 
@@ -3110,52 +3182,95 @@ function closeHistoryPopup() {
 // =========================
 // DRAW
 // =========================
+// =========================
+// DRAW
+// =========================
 async function draw(source, targetGroup = 5) {
 
-  if (!state.sessionId) return;
-  if(state.declarationMode){
+    // =====================================================
+    // PREVENT DOUBLE / MULTIPLE CLICK DRAW
+    // =====================================================
 
-    return;
-   }
-
-   
-
-    if (
-        Number(state.seatNo) !==
-        Number(state.currentTurnSeat)
-    ) {
-        alert("Please wait. It is another player's turn.");
+    if (state.drawInProgress === true) {
+        console.log(
+            "DRAW ignored: another draw is already in progress."
+        );
         return;
     }
 
-    const cardCount = getTotalCards();
-
-    if (cardCount !== 13) {
-        alert("You have already picked a card. Please discard or declare.");
-        return;
-    }
-
-    // existing draw code...
+    // Lock immediately BEFORE any async operation.
+    state.drawInProgress = true;
 
 
-  const { data, error } = await supabaseClient.rpc("crdg_draw_card", {
-    p_session_id: state.sessionId,
-    p_table_id: state.tableId,
-    p_user_id: state.userId,
-    p_source: source
-  });
+    try
+    {
+        if (!state.sessionId) {
+            return;
+        }
 
-  if (error) {
-    console.error(error);
-    return;
-  }
+        if (state.declarationMode) {
+            return;
+        }
 
-        if(
+
+        if (
+            Number(state.seatNo) !==
+            Number(state.currentTurnSeat)
+        ) {
+            alert(
+                "Please wait. It is another player's turn."
+            );
+            return;
+        }
+
+
+        const cardCount =
+            getTotalCards();
+
+
+        if (cardCount !== 13) {
+            alert(
+                "You have already picked a card. Please discard or declare."
+            );
+            return;
+        }
+
+
+        // =================================================
+        // EXISTING DRAW CODE STARTS HERE
+        // =================================================
+
+        const { data, error } =
+            await supabaseClient.rpc(
+                "crdg_draw_card",
+                {
+                    p_session_id:
+                        state.sessionId,
+
+                    p_table_id:
+                        state.tableId,
+
+                    p_user_id:
+                        state.userId,
+
+                    p_source:
+                        source
+                }
+            );
+
+
+        if (error) {
+            console.error(error);
+            return;
+        }
+
+
+        if (
             data &&
             data.length > 0 &&
-            data[0].status === "cannot_pick_joker"
-        )
-        {
+            data[0].status ===
+                "cannot_pick_joker"
+        ) {
             alert(
                 "Cannot pick discarded Joker / Wild Joker"
             );
@@ -3163,39 +3278,79 @@ async function draw(source, targetGroup = 5) {
             return;
         }
 
-  const card = data?.[0]?.card;
 
-  if (card) {
+        const card =
+            data?.[0]?.card;
 
-        pickupSound.currentTime = 0;
-        pickupSound.play().catch(() => {});
+
+        if (card) {
+
+                    // =================================================
+        // STOP PICK CARD ANIMATION
+        // Card was successfully picked
+        // =================================================
+        state.myTurnPickAnimation = false;
+
+        document
+            .getElementById("openVisual")
+            .classList.remove("pick-card-pulse");
+
+        document
+            .getElementById("stockCard")
+            .classList.remove("pick-card-pulse");
+
+            pickupSound.currentTime = 0;
+
+            pickupSound
+                .play()
+                .catch(() => {});
+
 
             ensureSixGroups();
 
-        // Destination:
-        // G1-G6 when dragged to a group.
-        // G6 when using normal click.
-        const destinationGroup =
-            Number.isInteger(targetGroup) &&
-            targetGroup >= 0 &&
-            targetGroup <= 5
-                ? targetGroup
-                : 5;
 
-        state.groups[destinationGroup].push(card);
+            const destinationGroup =
+                Number.isInteger(targetGroup) &&
+                targetGroup >= 0 &&
+                targetGroup <= 5
+                    ? targetGroup
+                    : 5;
 
-        state.pickedCard = {
-            card: card,
-            group: destinationGroup,
-            index: state.groups[destinationGroup].length - 1
-        };
 
-    //await loadSessionInfo();
-    renderHand();
-    calculateDealScore();
+            state.groups[
+                destinationGroup
+            ].push(card);
 
-    updateActionButtons();
-}
+
+            state.pickedCard = {
+                card: card,
+                group: destinationGroup,
+                index:
+                    state.groups[
+                        destinationGroup
+                    ].length - 1
+            };
+
+
+            renderHand();
+
+            calculateDealScore();
+
+            updateActionButtons();
+        }
+    }
+    finally
+    {
+        // =================================================
+        // ALWAYS RELEASE DRAW LOCK
+        // =================================================
+
+        state.drawInProgress = false;
+
+        console.log(
+            "DRAW lock released."
+        );
+    }
 }
 
 
@@ -3243,6 +3398,17 @@ async function dropCurrentDeal()
         console.error(error);
         return;
     }
+
+    
+        state.myTurnPickAnimation = false;
+
+        document
+            .getElementById("openVisual")
+            .classList.remove("pick-card-pulse");
+
+        document
+            .getElementById("stockCard")
+            .classList.remove("pick-card-pulse");
 
     await loadSessionInfo();
     await loadPlayers();
@@ -4053,6 +4219,32 @@ async function loadSessionInfo() {
     state.deal_no = data.deal_no;
     state.declarationEndAt =  data.declaration_end_at;
     state.observationEndAt =  data.observation_end_at;
+
+    // =====================================================
+        // MY TURN PICK ANIMATION
+        // =====================================================
+        if (
+            state.currentTurnSeat === state.seatNo &&
+            state.hand.length === 13 &&
+            !state.pickedCard
+        ) {
+            state.myTurnPickAnimation = true;
+        }
+
+
+        // =====================================================
+        // START PICK CARD ANIMATION
+        // =====================================================
+        if (state.myTurnPickAnimation) {
+
+            document
+                .getElementById("openVisual")
+                .classList.add("pick-card-pulse");
+
+            document
+                .getElementById("stockCard")
+                .classList.add("pick-card-pulse");
+        }
 
 
     if (
@@ -5921,8 +6113,23 @@ async function loadPlayers(playersData = null) {
         `You ${myIcons}`;
 
 
-        let myScoreHtml =
-            `Score : ${state.myScore || 0}`;
+
+        // =====================================================
+// MY SCORE DISPLAY
+// POINTS = no cumulative Score display
+// POOL   = keep cumulative Score display
+// =====================================================
+
+        let myScoreHtml = "";
+
+        if (
+            typeof GAME_TYPE === "undefined" ||
+            GAME_TYPE !== "POINTS"
+        )
+        {
+            myScoreHtml =
+                `Score : ${state.myScore || 0}`;
+        }
 
         if(state.playerStatus === "ELIMINATED")
         {
@@ -7008,7 +7215,15 @@ async function loadDealResults()
         <th>Player</th>
         <th>Cards</th>
         <th>Score</th>
-        <th>Total</th>
+                    <th>
+                    ${
+                        typeof GAME_TYPE !== "undefined" &&
+                        GAME_TYPE === "POINTS"
+                            ? "Win/Loss"
+                            : "Total"
+                    }
+                    </th>
+
         <th>Status</th>
         </tr>
         </thead>
@@ -7025,9 +7240,91 @@ async function loadDealResults()
             "resultTableBody"
         );
 
-    data.forEach(row => {
+        // =====================================================
+        // POINTS MULTIPLIER
+        // Read through SECURITY DEFINER RPC so RLS does not block browser access.
+        let pointsMultiplier = 1;
+        let pointsTableId = null;
+
+        if (typeof GAME_TYPE !== "undefined" && GAME_TYPE === "POINTS") {
+            const { data: sessionInfo, error: sessionInfoError } =
+                await supabaseClient
+                    .from("crdg_game_sessions")
+                    .select("table_id")
+                    .eq("session_id", state.sessionId)
+                    .maybeSingle();
+
+            if (sessionInfoError || !sessionInfo) {
+                console.error("POINTS session table lookup failed:", sessionInfoError || state.sessionId);
+                return;
+            }
+
+            pointsTableId = Number(sessionInfo.table_id);
+            console.log("POINTS result table ID:", pointsTableId);
+
+            const { data: multiplierData, error: multiplierError } =
+                await supabaseClient.rpc("crdgp_get_multiplier", {
+                    p_table_id: pointsTableId
+                });
+
+            if (multiplierError) {
+                console.error("POINTS multiplier RPC failed:", multiplierError);
+                return;
+            }
+
+            pointsMultiplier = Number(multiplierData) || 1;
+            console.log("POINTS result multiplier:", pointsMultiplier);
+        }
+
+
+        data.forEach(row => {
 
         let showCards = true;
+
+                // =====================================================
+        // POINTS WIN / LOSS
+        // =====================================================
+
+        let pointsWinLoss = null;
+
+        if (
+            typeof GAME_TYPE !== "undefined" &&
+            GAME_TYPE === "POINTS"
+        ) {
+            const dealScore =
+                Number(row.current_deal_score) || 0;
+
+            const multiplier =
+                Number(pointsMultiplier) || 1;
+
+            if (dealScore === 0) {
+
+                // Winner receives the total loss points
+                // multiplied by the table multiplier.
+
+                const totalLoserScore =
+                    data.reduce(
+                        (sum, player) =>
+                            sum +
+                            (
+                                Number(player.current_deal_score) || 0
+                            ),
+                        0
+                    );
+
+                pointsWinLoss =
+                    totalLoserScore * multiplier;
+
+            } else {
+
+                // Loser loses his deal score
+                // multiplied by the table multiplier.
+
+                pointsWinLoss =
+                    -(dealScore * multiplier);
+            }
+        }
+
 
         if(
             row.drop_type === "DROP" ||
@@ -7140,9 +7437,20 @@ async function loadDealResults()
             ${row.current_deal_score}
         </td>
 
-        <td style="text-align:center">
-            ${row.points}
+
+        <td style="text-align:center;font-weight:bold;">
+            ${
+                typeof GAME_TYPE !== "undefined" &&
+                GAME_TYPE === "POINTS"
+                    ? (
+                        pointsWinLoss > 0
+                            ? "+" + pointsWinLoss
+                            : pointsWinLoss
+                    )
+                    : row.points
+            }
         </td>
+
 
         <td style="text-align:center;font-weight:bold;">
             ${
@@ -7172,73 +7480,58 @@ async function loadDealResults()
             }
         }
 
-
-
-
-// ==================================================
-// POINTS : EXIT BUTTON
-// ==================================================
+        // ==================================================
+        // POINTS : EXIT BUTTON
+        // ==================================================
 
         if (
             typeof GAME_TYPE !== "undefined" &&
             GAME_TYPE === "POINTS"
         )
         {
-            const container =
-                document.getElementById(
-                    "dealResultsContainer"
+            const header =
+                document.querySelector(
+                    "#dealResultModal .result-header"
                 );
 
-
-            // Prevent duplicate button
-            const oldButton =
-                document.getElementById(
-                    "btnExitPointsTable"
-                );
-
-
-            if (oldButton)
+            if (header)
             {
-                oldButton.remove();
-            }
+                const oldButton =
+                    document.getElementById(
+                        "btnExitPointsTable"
+                    );
 
+                if (oldButton)
+                {
+                    oldButton.remove();
+                }
 
-            container.insertAdjacentHTML(
-                "beforeend",
-                `
-                <div
-                    id="pointsExitPanel"
-                    style="
-                        margin-top:18px;
-                        padding:12px;
-                        text-align:center;
-                    "
-                >
-
+                header.insertAdjacentHTML(
+                    "beforeend",
+                    `
                     <button
                         id="btnExitPointsTable"
                         type="button"
                         onclick="exitPointsTable()"
                         style="
-                            min-width:150px;
-                            padding:10px 20px;
+                            margin-left:auto;
+                            margin-right:12px;
+                            padding:8px 18px;
                             border:none;
-                            border-radius:8px;
+                            border-radius:7px;
                             background:#c62828;
                             color:white;
-                            font-size:15px;
+                            font-size:14px;
                             font-weight:bold;
                             cursor:pointer;
                         "
                     >
                         EXIT TABLE
                     </button>
-
-                </div>
-                `
-            );
+                    `
+                );
+            }
         }
-
 
 
     document.getElementById(
