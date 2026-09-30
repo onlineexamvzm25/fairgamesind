@@ -1529,4 +1529,29 @@ body.mobile-game-mode .game-stage {
     opacity: 0.9;
 }
 
+/* ==========================================
+   MY TURN - PICK CARD PULSE
+   ========================================== */
+
+.pick-card-pulse {
+    animation: pickCardPulse 1s ease-in-out infinite;
+}
+
+@keyframes pickCardPulse {
+
+    0% {
+        transform: scale(1);
+        box-shadow: 0 0 0 rgba(255,255,255,0);
+    }
+
+    50% {
+        transform: scale(1.08);
+        box-shadow: 0 0 18px rgba(255,255,255,0.9);
+    }
+
+    100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 rgba(255,255,255,0);
+    }
+}
 /* The game itself is scaled by responsive.js. */
