@@ -2857,6 +2857,7 @@ async function draw(source, targetGroup = 5) {
 
   if (card) {
 
+        state.myTurnPickAnimation = false;
         pickupSound.currentTime = 0;
         pickupSound.play().catch(() => {});
 
@@ -3616,6 +3617,35 @@ async function loadSessionInfo() {
     state.declarationEndAt =  data.declaration_end_at;
     state.observationEndAt =  data.observation_end_at;
 
+
+            // ==========================================
+        // MY TURN - START PICK CARD ANIMATION
+        // ==========================================
+
+        if (
+            state.currentTurnSeat === state.seatNo &&
+            getTotalCards() === 13 &&
+            !state.pickedCard
+        ) {
+            state.myTurnPickAnimation = true;
+            startMyTurnVibration();
+        }
+
+                // ==========================================
+        // APPLY PICK CARD ANIMATION
+        // ==========================================
+
+        if (state.myTurnPickAnimation) {
+
+            document
+                .getElementById("openVisual")
+                .classList.add("pick-card-pulse");
+
+            document
+                .getElementById("stockCard")
+                .classList.add("pick-card-pulse");
+        }
+
         // ------------------------------------------
     // SOLO COMPUTER TURN
     // ------------------------------------------
@@ -3856,6 +3886,12 @@ async function loadSessionInfo() {
 
    updateActionButtons();
    
+}
+
+function startMyTurnVibration() {
+    if (!("vibrate" in navigator)) return;
+
+    navigator.vibrate(300);
 }
 
 

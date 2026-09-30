@@ -3419,6 +3419,22 @@ async function dropCurrentDeal()
     renderHand();
 }
 
+
+
+// ==========================================
+// MY TURN - MOBILE VIBRATION
+// ==========================================
+
+function startMyTurnVibration() {
+
+    if (!("vibrate" in navigator)) {
+        return;
+    }
+
+    // Vibrate once when it becomes my turn
+    navigator.vibrate(300);
+}
+
 // ==========================================================
 // SINGLE-CARD ACTION SELECTION
 // Multi-select remains in state.selectedCards.
@@ -4229,6 +4245,8 @@ async function loadSessionInfo() {
             !state.pickedCard
         ) {
             state.myTurnPickAnimation = true;
+                // Mobile vibration
+            startMyTurnVibration();
         }
 
 
