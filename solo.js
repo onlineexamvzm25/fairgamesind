@@ -75,7 +75,8 @@ let state = {
   settlementOpened: false,
   pickedCard: null,
   participatedInDeal : false,
-  drawInProgress: false
+  drawInProgress: false,
+  myTurnPickDone: false
 };
 
 
@@ -2858,6 +2859,16 @@ async function draw(source, targetGroup = 5) {
   if (card) {
 
         state.myTurnPickAnimation = false;
+        state.myTurnPickDone = true;
+
+        document
+    .getElementById("openVisual")
+    ?.classList.remove("pick-card-pulse");
+
+document
+    .getElementById("stockCard")
+    ?.classList.remove("pick-card-pulse");
+
         pickupSound.currentTime = 0;
         pickupSound.play().catch(() => {});
 
@@ -3592,61 +3603,153 @@ async function loadSessionInfo() {
 
     if (data.game_completed) {
 
-            // If deal results are ready, allow the normal
-            // result/observation flow to continue.
-            if (data.deal_results_ready === true) {
+        // If deal results are ready, allow the normal
+        // result/observation flow to continue.
+        if (data.deal_results_ready === true) {
 
-                console.log(
-                    "GAME COMPLETED - WAITING FOR OBSERVATION FLOW"
+            console.log(
+                "GAME COMPLETED - WAITING FOR OBSERVATION FLOW"
+            );
+
+        }
+        else {
+
+            // No result window pending.
+            // Safe to show final completion.
+            handleTableCompleted(data);
+            return;
+
+        }
+    }
+
+
+    state.dealerSeat =
+        Number(data.dealer_seat);
+
+    state.currentTurnSeat =
+        Number(data.current_turn_seat);
+
+    state.deal_no =
+        data.deal_no;
+
+    state.declarationEndAt =
+        data.declaration_end_at;
+
+    state.observationEndAt =
+        data.observation_end_at;
+
+
+    // ==========================================
+    // SOLO / MY TURN - PICK CARD ANIMATION
+    // ==========================================
+
+    if (
+        typeof GAME_TYPE !== "undefined" &&
+        GAME_TYPE === "SOLO"
+    ) {
+
+        const myTurn =
+            Number(state.currentTurnSeat) ===
+            Number(state.seatNo);
+
+        const computerTurn =
+            Number(state.currentTurnSeat) ===
+            Number(state.computerSeat);
+
+
+        // ==========================================
+        // COMPUTER TURN
+        // STOP MY PICK ANIMATION
+        // ==========================================
+
+        if (computerTurn) {
+
+            state.myTurnPickAnimation = false;
+            state.myTurnPickDone = false;
+
+            const openVisual =
+                document.getElementById("openVisual");
+
+            const stockCard =
+                document.getElementById("stockCard");
+
+
+            if (openVisual) {
+
+                openVisual.classList.remove(
+                    "pick-card-pulse"
                 );
 
             }
-            else {
 
-                // No result window pending.
-                // Safe to show final completion.
-                handleTableCompleted(data);
-                return;
+
+            if (stockCard) {
+
+                stockCard.classList.remove(
+                    "pick-card-pulse"
+                );
 
             }
+
         }
 
-    state.dealerSeat = Number(data.dealer_seat);
-    state.currentTurnSeat = Number(data.current_turn_seat);
-    state.deal_no = data.deal_no;
-    state.declarationEndAt =  data.declaration_end_at;
-    state.observationEndAt =  data.observation_end_at;
+
+        // ==========================================
+        // MY TURN
+        // START PICK ANIMATION
+        // ==========================================
+
+        else if (
+            myTurn &&
+            getTotalCards() === 13 &&
+            state.myTurnPickDone === false
+
+        ) {
+
+            // Start only once
+            if (!state.myTurnPickAnimation) {
+
+                state.myTurnPickAnimation = true;
+
+                // 📳 Vibrate only once
+                startMyTurnVibration();
+
+            }
 
 
             // ==========================================
-        // MY TURN - START PICK CARD ANIMATION
-        // ==========================================
+            // APPLY RED PICK ANIMATION
+            // ==========================================
 
-        if (
-            state.currentTurnSeat === state.seatNo &&
-            getTotalCards() === 13 &&
-            !state.pickedCard
-        ) {
-            state.myTurnPickAnimation = true;
-            startMyTurnVibration();
+            const openVisual =
+                document.getElementById("openVisual");
+
+            const stockCard =
+                document.getElementById("stockCard");
+
+
+            if (openVisual) {
+
+                openVisual.classList.add(
+                    "pick-card-pulse"
+                );
+
+            }
+
+
+            if (stockCard) {
+
+                stockCard.classList.add(
+                    "pick-card-pulse"
+                );
+
+            }
+
         }
+    }
 
-                // ==========================================
-        // APPLY PICK CARD ANIMATION
-        // ==========================================
 
-        if (state.myTurnPickAnimation) {
-
-            document
-                .getElementById("openVisual")
-                .classList.add("pick-card-pulse");
-
-            document
-                .getElementById("stockCard")
-                .classList.add("pick-card-pulse");
-        }
-
-        // ------------------------------------------
+    // ------------------------------------------
     // SOLO COMPUTER TURN
     // ------------------------------------------
 
@@ -3662,25 +3765,39 @@ async function loadSessionInfo() {
     }
 
 
+    // ==========================================
+    // HANDLE TURN TIMEOUT EVENT
+    // ==========================================
+
     if (
-            data.last_event_type === "TURN_TIMEOUT" &&
-            data.last_event_user_id === state.userId &&
-            data.last_event_time &&
-            state.lastHandledTimeoutEvent !== data.last_event_time
-        ) {
-            state.lastHandledTimeoutEvent =
-                data.last_event_time;
+        data.last_event_type === "TURN_TIMEOUT" &&
+        data.last_event_user_id === state.userId &&
+        data.last_event_time &&
+        state.lastHandledTimeoutEvent !==
+            data.last_event_time
+    ) {
 
-            await loadGame();
+        state.lastHandledTimeoutEvent =
+            data.last_event_time;
 
-            renderHand();
+        await loadGame();
 
-            updateActionButtons();
-        }
+        renderHand();
+
+        updateActionButtons();
+
+    }
 
 
-    // Refresh my dynamic seat after rejoin/rebuild
-    const { data: players, error: playersError } =
+    // ==========================================
+    // REFRESH MY DYNAMIC SEAT
+    // AFTER REJOIN / REBUILD
+    // ==========================================
+
+    const {
+        data: players,
+        error: playersError
+    } =
         await supabaseClient.rpc(
             "crdg_get_lobby_players",
             {
@@ -3688,204 +3805,310 @@ async function loadSessionInfo() {
             }
         );
 
-  
 
     if (playersError) {
+
         console.error(playersError);
+
         return;
+
     }
 
-    const me = players?.find(
-        player =>
-            Number(player.fixed_seat_no) ===
-            Number(state.fixedSeatNo)
-    );
+
+    const me =
+        players?.find(
+            player =>
+                Number(player.fixed_seat_no) ===
+                Number(state.fixedSeatNo)
+        );
+
 
     if (me) {
-        state.seatNo = Number(me.seat_no);
+
+        state.seatNo =
+            Number(me.seat_no);
+
     }
+
 
     await loadPlayers(players);
 
 
-  state.turnStartedAt =    new Date(
-        data.turn_started_at
-    ).getTime();
+    state.turnStartedAt =
+        new Date(
+            data.turn_started_at
+        ).getTime();
 
-    state.turnEndAt = data.turn_end_at;
+    state.turnEndAt =
+        data.turn_end_at;
 
- 
-    // Complete current open pile
+
+    // ==========================================
+    // COMPLETE CURRENT OPEN PILE
+    // ==========================================
+
     state.openPile =
         data.open_pile || [];
 
-        
+
     const topOpenCard =
         data.open_pile?.slice(-1)[0];
 
+
     const openEl =
-        document.getElementById("openVisual");
+        document.getElementById(
+            "openVisual"
+        );
+
 
     openEl.innerHTML =
-        getTableCardHTML(topOpenCard || "-");
+        getTableCardHTML(
+            topOpenCard || "-"
+        );
 
-    openEl.classList.remove("red-card");
+
+    openEl.classList.remove(
+        "red-card"
+    );
+
 
     if (
         topOpenCard?.includes("♥") ||
         topOpenCard?.includes("♦")
     ) {
-        openEl.classList.add("red-card");
+
+        openEl.classList.add(
+            "red-card"
+        );
+
     }
 
 
+    // ==========================================
     // JOKER CARD
+    // ==========================================
 
     const jokerCard =
         data.joker_card || "-";
 
+
     const jokerEl =
-        document.getElementById("jokerVisual");
+        document.getElementById(
+            "jokerVisual"
+        );
+
 
     jokerEl.innerHTML =
-        getTableCardHTML(jokerCard);
+        getTableCardHTML(
+            jokerCard
+        );
 
-    jokerEl.classList.remove("red-card");
+
+    jokerEl.classList.remove(
+        "red-card"
+    );
+
 
     if (
         jokerCard?.includes("♥") ||
         jokerCard?.includes("♦")
     ) {
-        jokerEl.classList.add("red-card");
+
+        jokerEl.classList.add(
+            "red-card"
+        );
+
     }
 
-    state.jokerCard = data.joker_card;
-    state.wildRank  = data.wild_rank;
+
+    state.jokerCard =
+        data.joker_card;
+
+    state.wildRank =
+        data.wild_rank;
+
 
     state.declarationMode =
-    data.declaration_started || false;
+        data.declaration_started || false;
 
 
-     if(
-          state.declarationMode &&
-          !state.declarationTimerStarted
-      ){
+    // ==========================================
+    // DECLARATION TIMER
+    // ==========================================
 
-          clearInterval(
-              state.turnTimerInterval
-          );
-          state.turnTimerInterval = null; //MAH
+    if (
+        state.declarationMode &&
+        !state.declarationTimerStarted
+    ) {
 
-              
-            const { data: declarationEndAt, error: dectmrerror } =
+        clearInterval(
+            state.turnTimerInterval
+        );
+
+        state.turnTimerInterval = null;
+
+
+        const {
+            data: declarationEndAt,
+            error: dectmrerror
+        } =
             await supabaseClient.rpc(
                 "crdg_start_declaration_timer",
                 {
-                    p_session_id: state.sessionId,
-                    p_user_id: state.userId
+                    p_session_id:
+                        state.sessionId,
+
+                    p_user_id:
+                        state.userId
                 }
             );
 
+
         if (dectmrerror) {
+
             console.error(
                 "Declaration timer start error:",
                 dectmrerror
             );
+
             return;
+
         }
-        
-        state.declarationEndAt = declarationEndAt;
-        state.declarationTimerStarted =  true;
+
+
+        state.declarationEndAt =
+            declarationEndAt;
+
+        state.declarationTimerStarted =
+            true;
+
 
         if (
             state.declarationEndAt &&
             !state.declarationTimerInterval
         ) {
+
             startDeclarationTimer();
+
         }
 
-      }
+    }
 
 
-    document.getElementById("stockCard").innerText =
+    document.getElementById(
+        "stockCard"
+    ).innerText =
         data.stock_pile?.length || 0;
-        
-        if (
-            state.playerStatus !== "ELIMINATED" &&
-            data.deal_results_ready !== true &&
-            !state.resultWindowOpened &&
-            !state.declarationMode &&
-            state.turnEndAt &&
-            (
-                state.lastTurnSeat !== data.current_turn_seat ||
-                !state.turnTimerInterval
-            )
-        ) {
-            state.lastTurnSeat =
-                data.current_turn_seat;
 
 
-       await syncTurnClock();
+    // ==========================================
+    // START / SYNC TURN TIMER
+    // ==========================================
 
-
-            startTurnTimer();
-        }
-
-
-        if (
-            data.deal_results_ready === true &&
-            !state.resultWindowOpened &&
-            state.participatedInDeal === true &&
-            !state.ignoreResultWindow
+    if (
+        state.playerStatus !== "ELIMINATED" &&
+        data.deal_results_ready !== true &&
+        !state.resultWindowOpened &&
+        !state.declarationMode &&
+        state.turnEndAt &&
+        (
+            state.lastTurnSeat !==
+                data.current_turn_seat ||
+            !state.turnTimerInterval
         )
-        {
-            clearInterval(state.turnTimerInterval);
-            state.turnTimerInterval = null;
+    ) {
 
-            document.getElementById(
-                "turnTimer"
-            ).innerText = "-";
+        state.lastTurnSeat =
+            data.current_turn_seat;
 
 
-            state.resultWindowOpened = true;
+        await syncTurnClock();
 
-            hideBaseTableHand();
 
-            resetSettlementControls();
+        startTurnTimer();
 
-            loadDealResults();
+    }
 
-            await checkSettlementEligibility();
 
-            const {
-                data: observationEndAt,
-                error: obstmrerror
-            } =
+    // ==========================================
+    // DEAL RESULT / OBSERVATION WINDOW
+    // ==========================================
+
+    if (
+        data.deal_results_ready === true &&
+        !state.resultWindowOpened &&
+        state.participatedInDeal === true &&
+        !state.ignoreResultWindow
+    ) {
+
+        clearInterval(
+            state.turnTimerInterval
+        );
+
+        state.turnTimerInterval = null;
+
+
+        document.getElementById(
+            "turnTimer"
+        ).innerText = "-";
+
+
+        state.resultWindowOpened =
+            true;
+
+
+        hideBaseTableHand();
+
+        resetSettlementControls();
+
+        loadDealResults();
+
+
+        await checkSettlementEligibility();
+
+
+        const {
+            data: observationEndAt,
+            error: obstmrerror
+        } =
             await supabaseClient.rpc(
                 "crdg_start_observation_timer",
                 {
-                    p_session_id: state.sessionId
+                    p_session_id:
+                        state.sessionId
                 }
             );
 
-            if(obstmrerror){
-                console.error(obstmrerror);
-                return;
-            }
 
-            state.observationEndAt =
-                observationEndAt;
+        if (obstmrerror) {
 
-            if(
-                state.observationEndAt &&
-                !state.observationTimerInterval
-            ){
-                startObservationTimer();
-            }
+            console.error(
+                obstmrerror
+            );
+
+            return;
+
         }
 
-   updateActionButtons();
-   
+
+        state.observationEndAt =
+            observationEndAt;
+
+
+        if (
+            state.observationEndAt &&
+            !state.observationTimerInterval
+        ) {
+
+            startObservationTimer();
+
+        }
+
+    }
+
+
+    updateActionButtons();
+
 }
 
 function startMyTurnVibration() {
