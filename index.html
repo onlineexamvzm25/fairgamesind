@@ -204,7 +204,9 @@
             </div>
 
             <button id="loginBtn" class="btn primary" type="button" onclick="loginUser()">LOGIN</button>
-
+            <button onclick="testVibration()">
+    TEST VIBRATION
+</button>
             <div class="links">
                 <button class="link-btn" type="button" onclick="showScreen('forgotScreen')">Forgot Password?</button>
                 <button class="link-btn" type="button" onclick="showScreen('registerScreen')">Create Account</button>
@@ -452,6 +454,17 @@
         }
     }
 
+
+
+    function testVibration() {
+    console.log("vibrate:", typeof navigator.vibrate);
+
+    if (typeof navigator.vibrate === "function") {
+        navigator.vibrate(500);
+    } else {
+        alert("navigator.vibrate is not available");
+    }
+}
     // ============================================================
     // REGISTER
     // ============================================================
