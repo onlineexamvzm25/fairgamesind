@@ -458,8 +458,9 @@
 
     function testVibration() {
     //console.log("vibrate:", typeof navigator.vibrate);
-     alert("Entered:navigator");
+     //alert("Entered:navigator");
     if (typeof navigator.vibrate === "function") {
+          alert("Entered:in finction block");
         navigator.vibrate(500);
     } else {
         alert("navigator.vibrate is not available");
