@@ -455,25 +455,24 @@
     }
 
 
+function testVibration() {
 
- function testVibration() {
-
-   // alert("Vibration test started");
+   // alert("Starting vibration");
 
     if (typeof navigator.vibrate === "function") {
 
-        alert("navigator.vibrate is available");
+        const result = navigator.vibrate(3000);
 
-        const result = navigator.vibrate([500, 300, 500, 300, 1000]);
-
-        alert("vibrate() returned: " + result);
+        alert("Returned: " + result);
 
     } else {
 
-        alert("navigator.vibrate is NOT available");
-
+        alert("navigator.vibrate unavailable");
     }
 }
+
+    
+    
     // ============================================================
     // REGISTER
     // ============================================================
