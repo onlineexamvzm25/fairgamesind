@@ -456,14 +456,22 @@
 
 
 
-    function testVibration() {
-    //console.log("vibrate:", typeof navigator.vibrate);
-     //alert("Entered:navigator");
+ function testVibration() {
+
+   // alert("Vibration test started");
+
     if (typeof navigator.vibrate === "function") {
-          alert("Entered:in finction block");
-        navigator.vibrate(500);
+
+        alert("navigator.vibrate is available");
+
+        const result = navigator.vibrate([500, 300, 500, 300, 1000]);
+
+        alert("vibrate() returned: " + result);
+
     } else {
-        alert("navigator.vibrate is not available");
+
+        alert("navigator.vibrate is NOT available");
+
     }
 }
     // ============================================================
