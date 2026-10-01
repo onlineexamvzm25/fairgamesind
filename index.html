@@ -204,9 +204,7 @@
             </div>
 
             <button id="loginBtn" class="btn primary" type="button" onclick="loginUser()">LOGIN</button>
-            <button onclick="testVibration()">
-    TEST VIBRATION
-</button>
+        
             <div class="links">
                 <button class="link-btn" type="button" onclick="showScreen('forgotScreen')">Forgot Password?</button>
                 <button class="link-btn" type="button" onclick="showScreen('registerScreen')">Create Account</button>
@@ -453,24 +451,6 @@
             setBusy('loginBtn', false, 'LOGGING IN...', 'LOGIN');
         }
     }
-
-
-function testVibration() {
-
-   // alert("Starting vibration");
-
-    if (typeof navigator.vibrate === "function") {
-
-        const result = navigator.vibrate(3000);
-
-        alert("Returned: " + result);
-
-    } else {
-
-        alert("navigator.vibrate unavailable");
-    }
-}
-
     
     
     // ============================================================
