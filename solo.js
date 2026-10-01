@@ -2803,101 +2803,138 @@ function closeHistoryPopup() {
 // =========================
 async function draw(source, targetGroup = 5) {
 
-  if (!state.sessionId) return;
-  if(state.declarationMode){
-
-    return;
-   }
-
-   
-
-    if (
-        Number(state.seatNo) !==
-        Number(state.currentTurnSeat)
-    ) {
-        alert("Please wait. It is another player's turn.");
+    // --------------------------------------------------
+    // Prevent double-click / multiple draw requests
+    // --------------------------------------------------
+    if (state.drawInProgress === true) {
+        console.log("DRAW ignored: another draw is already in progress.");
         return;
     }
 
-    const cardCount = getTotalCards();
+    state.drawInProgress = true;
 
-    if (cardCount !== 13) {
-        alert("You have already picked a card. Please discard or declare.");
-        return;
-    }
+    try {
 
-    // existing draw code...
+        if (!state.sessionId) return;
 
-
-  const { data, error } = await supabaseClient.rpc("crdg_draw_card", {
-    p_session_id: state.sessionId,
-    p_table_id: state.tableId,
-    p_user_id: state.userId,
-    p_source: source
-  });
-
-  if (error) {
-    console.error(error);
-    return;
-  }
-
-        if(
-            data &&
-            data.length > 0 &&
-            data[0].status === "cannot_pick_joker"
-        )
-        {
-            alert(
-                "Cannot pick discarded Joker / Wild Joker"
-            );
-
+        if (state.declarationMode) {
             return;
         }
 
-  const card = data?.[0]?.card;
+        // --------------------------------------------------
+        // Must be player's turn
+        // --------------------------------------------------
+        if (
+            Number(state.seatNo) !==
+            Number(state.currentTurnSeat)
+        ) {
+            alert("Please wait. It is another player's turn.");
+            return;
+        }
 
-  if (card) {
+        // --------------------------------------------------
+        // Player must have exactly 13 cards before picking
+        // --------------------------------------------------
+        const cardCount = getTotalCards();
 
-        state.myTurnPickAnimation = false;
-        state.myTurnPickDone = true;
+        if (cardCount !== 13) {
+            alert(
+                "You have already picked a card. Please discard or declare."
+            );
+            return;
+        }
 
-        document
-    .getElementById("openVisual")
-    ?.classList.remove("pick-card-pulse");
+        // --------------------------------------------------
+        // Draw card from Supabase
+        // --------------------------------------------------
+        const { data, error } =
+            await supabaseClient.rpc("crdg_draw_card", {
+                p_session_id: state.sessionId,
+                p_table_id: state.tableId,
+                p_user_id: state.userId,
+                p_source: source
+            });
 
-document
-    .getElementById("stockCard")
-    ?.classList.remove("pick-card-pulse");
+        if (error) {
+            console.error(error);
+            return;
+        }
 
-        pickupSound.currentTime = 0;
-        pickupSound.play().catch(() => {});
+        // --------------------------------------------------
+        // Cannot pick discarded Joker / Wild Joker
+        // --------------------------------------------------
+        if (
+            data &&
+            data.length > 0 &&
+            data[0].status === "cannot_pick_joker"
+        ) {
+            alert(
+                "Cannot pick discarded Joker / Wild Joker"
+            );
+            return;
+        }
 
-        ensureSixGroups();
+        const card = data?.[0]?.card;
 
-        // Destination:
-        // G1-G6 when dragged to a group.
-        // G6 when using normal click.
-        const destinationGroup =
-            Number.isInteger(targetGroup) &&
-            targetGroup >= 0 &&
-            targetGroup <= 5
-                ? targetGroup
-                : 5;
+        if (card) {
 
-        state.groups[destinationGroup].push(card);
+            // --------------------------------------------------
+            // Stop pick-card animation
+            // --------------------------------------------------
+            state.myTurnPickAnimation = false;
+            state.myTurnPickDone = true;
 
-        state.pickedCard = {
-            card: card,
-            group: destinationGroup,
-            index: state.groups[destinationGroup].length - 1
-        };
+            document
+                .getElementById("openVisual")
+                ?.classList.remove("pick-card-pulse");
 
-    //await loadSessionInfo();
-    renderHand();
-    calculateDealScore();
+            document
+                .getElementById("stockCard")
+                ?.classList.remove("pick-card-pulse");
 
-    updateActionButtons();
-}
+            // --------------------------------------------------
+            // Pickup sound
+            // --------------------------------------------------
+            pickupSound.currentTime = 0;
+            pickupSound.play().catch(() => {});
+
+            ensureSixGroups();
+
+            // --------------------------------------------------
+            // Destination:
+            // G1-G6 when dragged to a group.
+            // G6 when using normal click.
+            // --------------------------------------------------
+            const destinationGroup =
+                Number.isInteger(targetGroup) &&
+                targetGroup >= 0 &&
+                targetGroup <= 5
+                    ? targetGroup
+                    : 5;
+
+            state.groups[destinationGroup].push(card);
+
+            state.pickedCard = {
+                card: card,
+                group: destinationGroup,
+                index:
+                    state.groups[destinationGroup].length - 1
+            };
+
+            renderHand();
+            calculateDealScore();
+            updateActionButtons();
+        }
+
+    } finally {
+
+        // --------------------------------------------------
+        // Allow next draw only after current draw is finished
+        // --------------------------------------------------
+        state.drawInProgress = false;
+
+        console.log("DRAW lock released.");
+    }
 }
 
 
