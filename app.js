@@ -2511,6 +2511,15 @@ async function startNextDeal()
         return;
     }
 
+    state.myTurnPickAnimation = false;
+    document
+            .getElementById("openVisual")
+            .classList.remove("pick-card-pulse");
+
+        document
+            .getElementById("stockCard")
+            .classList.remove("pick-card-pulse");
+
     closeSettlementPopup();
 
 
@@ -4535,6 +4544,15 @@ function startDeclarationTimer() {
     clearInterval(
         state.declarationTimerInterval
     );
+    state.myTurnPickAnimation = false;
+    document
+            .getElementById("openVisual")
+            .classList.remove("pick-card-pulse");
+
+        document
+            .getElementById("stockCard")
+            .classList.remove("pick-card-pulse");
+
 
     function updateDeclarationTimer() {
 
