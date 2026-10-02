@@ -3,13 +3,9 @@
 // =========================
 
 
-
-
 const SUPABASE_URL ='https://dbfycihbcosuxxkrmbhl.supabase.co';
 
 const SUPABASE_KEY ='sb_publishable_aOyXtAbzrrX0Z9jPAU1qEA_0ZnK35BX';
-
-
 
 
 
@@ -101,53 +97,13 @@ let state = {
   pickedCard: null,
   participatedInDeal : false,
   drawInProgress: false,
-  myTurnPickAnimation: false,
-  pickAnimationTurnKey: null,
-  pickAnimationEligible: false,
-  pickAnimationStartTimer: null
+  myTurnPickAnimation: false
 };
 
 
 
 const pickupSound = new Audio("pickup.mp3");
 const discardSound = new Audio("discard.mp3");
-
-
-// =====================================================
-// PICK CARD ANIMATION CONTROL
-// One place to start/stop the turn-pick pulse.
-// =====================================================
-function stopPickCardAnimation() {
-
-    state.myTurnPickAnimation = false;
-
-    if (state.pickAnimationStartTimer) {
-        clearTimeout(state.pickAnimationStartTimer);
-        state.pickAnimationStartTimer = null;
-    }
-
-    document
-        .getElementById("openVisual")
-        ?.classList.remove("pick-card-pulse");
-
-    document
-        .getElementById("stockCard")
-        ?.classList.remove("pick-card-pulse");
-}
-
-
-function startPickCardAnimation() {
-
-    state.myTurnPickAnimation = true;
-
-    document
-        .getElementById("openVisual")
-        ?.classList.add("pick-card-pulse");
-
-    document
-        .getElementById("stockCard")
-        ?.classList.add("pick-card-pulse");
-}
 
 
 
@@ -2550,12 +2506,6 @@ function resetSettlementControls() {
 async function startNextDeal()
 {
 
-    // Never carry the previous turn's pick animation
-    // into the result/next-deal flow.
-    state.pickAnimationEligible = false;
-    state.pickAnimationTurnKey = null;
-    stopPickCardAnimation();
-
     if (state.tableCompleted)
     {
         return;
@@ -3339,8 +3289,15 @@ async function draw(source, targetGroup = 5) {
         // STOP PICK CARD ANIMATION
         // Card was successfully picked
         // =================================================
-        state.pickAnimationEligible = false;
-        stopPickCardAnimation();
+        state.myTurnPickAnimation = false;
+
+        document
+            .getElementById("openVisual")
+            .classList.remove("pick-card-pulse");
+
+        document
+            .getElementById("stockCard")
+            .classList.remove("pick-card-pulse");
 
             pickupSound.currentTime = 0;
 
@@ -3427,10 +3384,6 @@ async function dropCurrentDeal()
         return;
     }
 
-    // Drop ends the pick phase immediately.
-    state.pickAnimationEligible = false;
-    stopPickCardAnimation();
-
     const { data, error } =
         await supabaseClient.rpc(
             "crdg_drop_player",
@@ -3447,7 +3400,15 @@ async function dropCurrentDeal()
     }
 
     
-    stopPickCardAnimation();
+        state.myTurnPickAnimation = false;
+
+        document
+            .getElementById("openVisual")
+            .classList.remove("pick-card-pulse");
+
+        document
+            .getElementById("stockCard")
+            .classList.remove("pick-card-pulse");
 
     await loadSessionInfo();
     await loadPlayers();
@@ -3465,6 +3426,10 @@ async function dropCurrentDeal()
 // ==========================================
 
 function startMyTurnVibration() {
+
+    if (!("vibrate" in navigator)) {
+        return;
+    }
 
     // Vibrate once when it becomes my turn
     navigator.vibrate(300);
@@ -3580,10 +3545,6 @@ async function discard() {
         data[0].status === "success"
     ) 
     {
-
-        // Discard completes this player's turn.
-        state.pickAnimationEligible = false;
-        stopPickCardAnimation();
 
         discardSound.currentTime = 0;
         discardSound.play().catch(() => {});
@@ -4275,16 +4236,41 @@ async function loadSessionInfo() {
     state.declarationEndAt =  data.declaration_end_at;
     state.observationEndAt =  data.observation_end_at;
 
+    // =====================================================
+        // MY TURN PICK ANIMATION
+        // =====================================================
+        if (
+            state.currentTurnSeat === state.seatNo &&
+            state.hand.length === 13 &&
+            !state.pickedCard
+        ) {
+            state.myTurnPickAnimation = true;
+                // Mobile vibration
+            startMyTurnVibration();
+        }
+
+
+        // =====================================================
+        // START PICK CARD ANIMATION
+        // =====================================================
+        if (state.myTurnPickAnimation) {
+
+            document
+                .getElementById("openVisual")
+                .classList.add("pick-card-pulse");
+
+            document
+                .getElementById("stockCard")
+                .classList.add("pick-card-pulse");
+        }
+
+
     if (
             data.last_event_type === "TURN_TIMEOUT" &&
             data.last_event_user_id === state.userId &&
             data.last_event_time &&
             state.lastHandledTimeoutEvent !== data.last_event_time
         ) {
-
-            // Auto timeout / middle drop ends the pick phase.
-            state.pickAnimationEligible = false;
-            stopPickCardAnimation();
             state.lastHandledTimeoutEvent =
                 data.last_event_time;
 
@@ -4322,122 +4308,7 @@ async function loadSessionInfo() {
     await loadPlayers(players);
 
 
-    // =====================================================
-    // PICK CARD ANIMATION
-    //
-    // Blink ONLY when:
-    //   1. It is this player's current turn.
-    //   2. This turn has not already completed its pick/action.
-    //   3. No declaration/result/drop/completion is active.
-    //
-    // A short delay is used whenever a NEW turn is detected.
-    // This prevents the pulse from appearing during the
-    // initial/new-deal card distribution animation.
-    // =====================================================
-
-    const currentTurnKey =
-        String(state.deal_no ?? "") +
-        "|" +
-        String(state.currentTurnSeat ?? "") +
-        "|" +
-        String(data.turn_started_at ?? data.turn_end_at ?? "");
-
-    const turnChanged =
-        state.pickAnimationTurnKey !== currentTurnKey;
-
-    if (turnChanged) {
-
-        state.pickAnimationTurnKey =
-            currentTurnKey;
-
-        // A genuine new turn starts a fresh pick phase.
-        state.pickAnimationEligible = true;
-    }
-
-
-    const myPlayerIsOut =
-        me?.is_out_of_deal === true ||
-        state.isDropped === true ||
-        state.playerStatus === "ELIMINATED";
-
-    const isMyCurrentTurn =
-        Number(state.currentTurnSeat) ===
-        Number(state.seatNo);
-
-    const canShowPickAnimation =
-        state.pickAnimationEligible === true &&
-        isMyCurrentTurn &&
-        !myPlayerIsOut &&
-        !state.declarationMode &&
-        !state.resultWindowOpened &&
-        !state.tableCompleted &&
-        !data.game_completed;
-
-
-    if (!canShowPickAnimation) {
-
-        stopPickCardAnimation();
-
-    }
-    else if (turnChanged) {
-
-        // New turn: wait until the new hand/card-entry animation
-        // has finished before showing the pick pulse.
-        if (state.pickAnimationStartTimer) {
-            clearTimeout(state.pickAnimationStartTimer);
-        }
-
-        const scheduledTurnKey =
-            state.pickAnimationTurnKey;
-
-        state.pickAnimationStartTimer =
-            setTimeout(() => {
-
-                state.pickAnimationStartTimer = null;
-
-                // Re-check everything before starting.
-                const stillSameTurn =
-                    state.pickAnimationTurnKey ===
-                    scheduledTurnKey;
-
-                const stillMyTurn =
-                    Number(state.currentTurnSeat) ===
-                    Number(state.seatNo);
-
-                const stillEligible =
-                    state.pickAnimationEligible === true;
-
-                const stillAllowed =
-                    !state.declarationMode &&
-                    !state.resultWindowOpened &&
-                    !state.tableCompleted &&
-                    state.playerStatus !== "ELIMINATED";
-
-                if (
-                    stillSameTurn &&
-                    stillMyTurn &&
-                    stillEligible &&
-                    stillAllowed
-                ) {
-
-                    startPickCardAnimation();
-
-                    // Mobile vibration only when the pulse
-                    // actually begins for THIS player.
-                    startMyTurnVibration();
-                }
-
-            }, 450);
-
-    }
-    else if (!state.myTurnPickAnimation) {
-
-        // Same active turn after a refresh: keep the pulse alive.
-        startPickCardAnimation();
-    }
-
-
-    state.turnStartedAt =    new Date(
+  state.turnStartedAt =    new Date(
         data.turn_started_at
     ).getTime();
 
@@ -4721,7 +4592,197 @@ function startDeclarationTimer() {
 }
 
 
-function showOpenPileHistory(event)
+function ensureDiscardHistoryStyles()
+{
+    if (document.getElementById("discardHistoryPlayerWiseStyles")) {
+        return;
+    }
+
+    const style = document.createElement("style");
+    style.id = "discardHistoryPlayerWiseStyles";
+
+    style.textContent = `
+        .discard-player-row {
+            width: 100%;
+            display: grid;
+            grid-template-columns: 108px minmax(0, 1fr);
+            align-items: center;
+            column-gap: 10px;
+            margin: 0 0 8px;
+            text-align: left;
+        }
+
+        .discard-player-name {
+            margin: 0;
+            padding: 0;
+            min-width: 0;
+            font-size: 14px;
+            font-weight: 900;
+            color: #111;
+            text-transform: uppercase;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .discard-player-strip {
+            width: 100%;
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .discard-nav-btn {
+            flex: 0 0 28px;
+            width: 28px;
+            height: 52px;
+            padding: 0;
+            border: none;
+            border-radius: 6px;
+            background: #333;
+            color: #fff;
+            font-size: 20px;
+            font-weight: 900;
+            line-height: 1;
+            cursor: pointer;
+        }
+
+        .discard-nav-btn:disabled {
+            opacity: .28;
+            cursor: default;
+        }
+
+        .discard-cards-viewport {
+            flex: 1 1 auto;
+            min-width: 0;
+            overflow: hidden;
+        }
+
+        .discard-cards-line {
+            width: max-content;
+            min-width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 5px;
+            min-height: 54px;
+        }
+
+        .discard-history-card {
+            flex: 0 0 42px;
+            width: 42px;
+            height: 54px;
+            box-sizing: border-box;
+            background: #fff;
+            border: 1px solid #444;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 900;
+            box-shadow: 0 2px 4px rgba(0,0,0,.20);
+        }
+
+        .discard-page-label {
+            grid-column: 2;
+            margin: 1px 0 0;
+            font-size: 9px;
+            font-weight: 700;
+            color: #666;
+            text-align: left;
+        }
+
+        .discard-history-empty {
+            padding: 12px 4px 4px;
+            color: #555;
+            font-weight: 700;
+        }
+
+        /* Keep navigation space even when hidden */
+        .discard-nav-btn[style*="display: none"] {
+            visibility: hidden;
+        }
+
+        /* 5 or 6 players */
+        #openPileHistoryCards[data-player-count="5"] .discard-player-row,
+        #openPileHistoryCards[data-player-count="6"] .discard-player-row {
+            margin-bottom: 5px;
+            grid-template-columns: 96px minmax(0, 1fr);
+        }
+
+        #openPileHistoryCards[data-player-count="5"] .discard-history-card,
+        #openPileHistoryCards[data-player-count="6"] .discard-history-card {
+            flex-basis: 40px;
+            width: 40px;
+            height: 50px;
+            font-size: 13px;
+        }
+
+        #openPileHistoryCards[data-player-count="5"] .discard-nav-btn,
+        #openPileHistoryCards[data-player-count="6"] .discard-nav-btn {
+            flex-basis: 24px;
+            width: 24px;
+            height: 48px;
+        }
+
+        @media (max-width: 700px) {
+
+            .discard-player-row {
+                grid-template-columns: 86px minmax(0, 1fr);
+                column-gap: 7px;
+                margin-bottom: 6px;
+            }
+
+            .discard-player-name {
+                font-size: 12px;
+            }
+
+            .discard-nav-btn {
+                flex-basis: 24px;
+                width: 24px;
+                height: 48px;
+                font-size: 18px;
+            }
+
+            .discard-history-card {
+                flex-basis: 40px;
+                width: 40px;
+                height: 50px;
+                font-size: 13px;
+            }
+
+            #openPileHistoryCards[data-player-count="5"] .discard-player-row,
+            #openPileHistoryCards[data-player-count="6"] .discard-player-row {
+                grid-template-columns: 78px minmax(0, 1fr);
+                column-gap: 6px;
+                margin-bottom: 4px;
+            }
+
+            #openPileHistoryCards[data-player-count="5"] .discard-history-card,
+            #openPileHistoryCards[data-player-count="6"] .discard-history-card {
+                flex-basis: 38px;
+                width: 38px;
+                height: 48px;
+                font-size: 12px;
+            }
+
+            #openPileHistoryCards[data-player-count="5"] .discard-nav-btn,
+            #openPileHistoryCards[data-player-count="6"] .discard-nav-btn {
+                flex-basis: 22px;
+                width: 22px;
+                height: 46px;
+                font-size: 17px;
+            }
+        }
+    `;
+
+    document.head.appendChild(style);
+}
+
+
+async function showOpenPileHistory(event)
 {
     if (event) {
         event.stopPropagation();
@@ -4736,46 +4797,254 @@ function showOpenPileHistory(event)
         document.getElementById(
             "openPileHistoryCards"
         );
+        
 
-    if (!popup || !container) {
+    if (!popup || !container || !state.sessionId) {
         return;
     }
 
-    container.innerHTML = "";
+    ensureDiscardHistoryStyles();
 
-    const cards =
-        (state.openPile || []).slice(0, -1);
+    container.innerHTML = `
+        <div class="discard-history-empty">
+            Loading discarded cards...
+        </div>
+    `;
 
+    popup.style.display = "flex";
 
-    if (cards.length === 0)
-    {
-        container.innerHTML =
-            "<div>No discarded cards</div>";
+    const { data, error } =
+        await supabaseClient.rpc(
+            "crdg_get_current_deal_discards",
+            {
+                p_session_id: state.sessionId
+            }
+        );
+
+    if (error) {
+        console.error(
+            "crdg_get_current_deal_discards ERROR:",
+            error
+        );
+
+        container.innerHTML = `
+            <div class="discard-history-empty">
+                Unable to load discarded cards
+            </div>
+        `;
+
+        return;
     }
-    else
-    {
-        cards.forEach(card =>
+
+    const rows =
+        Array.isArray(data) ? data : [];
+
+    if (rows.length === 0) {
+        container.innerHTML = `
+            <div class="discard-history-empty">
+                No discarded cards in this deal
+            </div>
+        `;
+        return;
+    }
+
+    const playerMap = new Map();
+
+    rows.forEach(row => {
+        if (!playerMap.has(row.user_id)) {
+            playerMap.set(
+                row.user_id,
+                {
+                    userId: row.user_id,
+                    displayName:
+                        row.display_name || "PLAYER",
+                    cards: []
+                }
+            );
+        }
+
+        playerMap
+            .get(row.user_id)
+            .cards
+            .push(row.card);
+    });
+
+    container.innerHTML = "";
+    container.dataset.playerCount = String(playerMap.size);
+
+    // 8 cards per row on normal landscape screens,
+    // 6 on smaller screens. Extra cards use navigation.
+    const pageSize =
+        window.innerWidth <= 700 ? 6 : 8;
+
+    playerMap.forEach(player => {
+        const row =
+            document.createElement("div");
+
+        row.className =
+            "discard-player-row";
+
+        const name =
+            document.createElement("div");
+
+        name.className =
+            "discard-player-name";
+
+        name.textContent =
+            player.displayName;
+
+        row.appendChild(name);
+
+        const strip =
+            document.createElement("div");
+
+        strip.className =
+            "discard-player-strip";
+
+        const prevBtn =
+            document.createElement("button");
+
+        prevBtn.type = "button";
+        prevBtn.className =
+            "discard-nav-btn";
+        prevBtn.textContent = "‹";
+        prevBtn.title = "Previous discarded cards";
+
+        const viewport =
+            document.createElement("div");
+
+        viewport.className =
+            "discard-cards-viewport";
+
+        const cardLine =
+            document.createElement("div");
+
+        cardLine.className =
+            "discard-cards-line";
+
+        viewport.appendChild(cardLine);
+
+        const nextBtn =
+            document.createElement("button");
+
+        nextBtn.type = "button";
+        nextBtn.className =
+            "discard-nav-btn";
+        nextBtn.textContent = "›";
+        nextBtn.title = "Next discarded cards";
+
+        strip.appendChild(prevBtn);
+        strip.appendChild(viewport);
+        strip.appendChild(nextBtn);
+
+        row.appendChild(strip);
+
+        const pageLabel =
+            document.createElement("div");
+
+        pageLabel.className =
+            "discard-page-label";
+
+        row.appendChild(pageLabel);
+
+        container.appendChild(row);
+
+        let page = 0;
+        const pageCount =
+            Math.ceil(
+                player.cards.length /
+                pageSize
+            );
+
+        function renderPage()
         {
-            const cardDiv =
-                document.createElement(
-                    "div"
+            const start =
+                page * pageSize;
+
+            const visibleCards =
+                player.cards.slice(
+                    start,
+                    start + pageSize
                 );
 
-            cardDiv.className =
-                "open-history-card";
+            cardLine.innerHTML = "";
 
-            cardDiv.innerText =
-                card;
+            visibleCards.forEach(card => {
+                const cardDiv =
+                    document.createElement("div");
 
-            container.appendChild(
-                cardDiv
-            );
-        });
-    }
+                cardDiv.className =
+                    "discard-history-card";
 
+                cardDiv.innerText =
+                    card;
 
-    popup.style.display =
-        "flex";
+                if (
+                    card &&
+                    (
+                        card.includes("♥") ||
+                        card.includes("♦")
+                    )
+                ) {
+                    cardDiv.style.color = "#e00000";
+                }
+                else {
+                    cardDiv.style.color = "#111111";
+                }
+
+                cardLine.appendChild(
+                    cardDiv
+                );
+            });
+
+            const showNavigation =
+                pageCount > 1;
+
+            prevBtn.style.display =
+                showNavigation ? "flex" : "none";
+
+            nextBtn.style.display =
+                showNavigation ? "flex" : "none";
+
+            if (showNavigation) {
+                prevBtn.disabled = page <= 0;
+                nextBtn.disabled =
+                    page >= pageCount - 1;
+
+                pageLabel.textContent =
+                    `Page ${page + 1} / ${pageCount}`;
+            }
+            else {
+                pageLabel.textContent = "";
+            }
+        }
+
+        prevBtn.addEventListener(
+            "click",
+            function(e) {
+                e.stopPropagation();
+
+                if (page > 0) {
+                    page--;
+                    renderPage();
+                }
+            }
+        );
+
+        nextBtn.addEventListener(
+            "click",
+            function(e) {
+                e.stopPropagation();
+
+                if (page < pageCount - 1) {
+                    page++;
+                    renderPage();
+                }
+            }
+        );
+
+        renderPage();
+    });
 }
 
 
@@ -7079,10 +7348,6 @@ async function declareGame() {
     if(!confirm( "Confirm Declaration?" )){
         return;
     }
-
-    // Declaration ends the pick phase immediately.
-    state.pickAnimationEligible = false;
-    stopPickCardAnimation();
 
     const declareCard = singleSelectedCard.card;
 

@@ -178,3 +178,8 @@
         font-size: 13px;
     }
 }
+
+.open-history-red-card {
+    color: #e00000 !important;
+    font-weight: 900;
+}

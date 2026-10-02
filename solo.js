@@ -2,8 +2,7 @@
 // SUPABASE INIT
 // =========================
 
-
-   const SUPABASE_URL ='https://dbfycihbcosuxxkrmbhl.supabase.co';
+const SUPABASE_URL ='https://dbfycihbcosuxxkrmbhl.supabase.co';
 
 const SUPABASE_KEY ='sb_publishable_aOyXtAbzrrX0Z9jPAU1qEA_0ZnK35BX';
 
@@ -4337,7 +4336,194 @@ async function playSoloComputerTurn() {
 
 
 
-function showOpenPileHistory(event)
+function ensureDiscardHistoryStyles()
+{
+    if (document.getElementById("discardHistoryPlayerWiseStyles")) {
+        return;
+    }
+
+    const style = document.createElement("style");
+    style.id = "discardHistoryPlayerWiseStyles";
+    style.textContent = `
+        .discard-player-row {
+            width: 100%;
+            display: grid;
+            grid-template-columns: 108px minmax(0, 1fr);
+            align-items: center;
+            column-gap: 10px;
+            margin: 0 0 8px;
+            text-align: left;
+        }
+
+        .discard-player-name {
+            margin: 0;
+            padding: 0;
+            min-width: 0;
+            font-size: 14px;
+            font-weight: 900;
+            color: #111;
+            text-transform: uppercase;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .discard-player-strip {
+            width: 100%;
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .discard-nav-btn {
+            flex: 0 0 28px;
+            width: 28px;
+            height: 52px;
+            padding: 0;
+            border: none;
+            border-radius: 6px;
+            background: #333;
+            color: #fff;
+            font-size: 20px;
+            font-weight: 900;
+            line-height: 1;
+            cursor: pointer;
+        }
+
+        .discard-nav-btn:disabled {
+            opacity: .28;
+            cursor: default;
+        }
+
+        .discard-cards-viewport {
+            flex: 1 1 auto;
+            min-width: 0;
+            overflow: hidden;
+        }
+
+        .discard-cards-line {
+            width: max-content;
+            min-width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 5px;
+            min-height: 54px;
+        }
+
+        .discard-history-card {
+            flex: 0 0 42px;
+            width: 42px;
+            height: 54px;
+            box-sizing: border-box;
+            background: #fff;
+            border: 1px solid #444;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 900;
+            box-shadow: 0 2px 4px rgba(0,0,0,.20);
+        }
+
+        .discard-page-label {
+            grid-column: 2;
+            margin: 1px 0 0;
+            font-size: 9px;
+            font-weight: 700;
+            color: #666;
+            text-align: left;
+        }
+
+        .discard-history-empty {
+            padding: 12px 4px 4px;
+            color: #555;
+            font-weight: 700;
+        }
+
+        /* Hidden navigation still reserves the same space, so all rows align. */
+        .discard-nav-btn[style*="display: none"] {
+            visibility: hidden;
+        }
+
+        #openPileHistoryCards[data-player-count="5"] .discard-player-row,
+        #openPileHistoryCards[data-player-count="6"] .discard-player-row {
+            margin-bottom: 5px;
+            grid-template-columns: 96px minmax(0, 1fr);
+        }
+
+        #openPileHistoryCards[data-player-count="5"] .discard-history-card,
+        #openPileHistoryCards[data-player-count="6"] .discard-history-card {
+            flex-basis: 40px;
+            width: 40px;
+            height: 50px;
+            font-size: 13px;
+        }
+
+        #openPileHistoryCards[data-player-count="5"] .discard-nav-btn,
+        #openPileHistoryCards[data-player-count="6"] .discard-nav-btn {
+            flex-basis: 24px;
+            width: 24px;
+            height: 48px;
+        }
+
+        @media (max-width: 700px) {
+            .discard-player-row {
+                grid-template-columns: 86px minmax(0, 1fr);
+                column-gap: 7px;
+                margin-bottom: 6px;
+            }
+
+            .discard-player-name {
+                font-size: 12px;
+            }
+
+            .discard-nav-btn {
+                flex-basis: 24px;
+                width: 24px;
+                height: 48px;
+                font-size: 18px;
+            }
+
+            .discard-history-card {
+                flex-basis: 40px;
+                width: 40px;
+                height: 50px;
+                font-size: 13px;
+            }
+
+            #openPileHistoryCards[data-player-count="5"] .discard-player-row,
+            #openPileHistoryCards[data-player-count="6"] .discard-player-row {
+                grid-template-columns: 78px minmax(0, 1fr);
+                column-gap: 6px;
+                margin-bottom: 4px;
+            }
+
+            #openPileHistoryCards[data-player-count="5"] .discard-history-card,
+            #openPileHistoryCards[data-player-count="6"] .discard-history-card {
+                flex-basis: 38px;
+                width: 38px;
+                height: 48px;
+                font-size: 12px;
+            }
+
+            #openPileHistoryCards[data-player-count="5"] .discard-nav-btn,
+            #openPileHistoryCards[data-player-count="6"] .discard-nav-btn {
+                flex-basis: 22px;
+                width: 22px;
+                height: 46px;
+                font-size: 17px;
+            }
+        }
+    `;
+
+    document.head.appendChild(style);
+}
+
+
+async function showOpenPileHistory(event)
 {
     if (event) {
         event.stopPropagation();
@@ -4353,47 +4539,253 @@ function showOpenPileHistory(event)
             "openPileHistoryCards"
         );
 
-    if (!popup || !container) {
+    if (!popup || !container || !state.sessionId) {
         return;
     }
 
-    container.innerHTML = "";
+    ensureDiscardHistoryStyles();
 
-    const cards =
-        (state.openPile || []).slice(0, -1);
+    container.innerHTML = `
+        <div class="discard-history-empty">
+            Loading discarded cards...
+        </div>
+    `;
 
+    popup.style.display = "flex";
 
-    if (cards.length === 0)
-    {
-        container.innerHTML =
-            "<div>No discarded cards</div>";
+    const { data, error } =
+        await supabaseClient.rpc(
+            "crdg_get_current_deal_discards",
+            {
+                p_session_id: state.sessionId
+            }
+        );
+
+    if (error) {
+        console.error(
+            "crdg_get_current_deal_discards ERROR:",
+            error
+        );
+
+        container.innerHTML = `
+            <div class="discard-history-empty">
+                Unable to load discarded cards
+            </div>
+        `;
+
+        return;
     }
-    else
-    {
-        cards.forEach(card =>
+
+    const rows =
+        Array.isArray(data) ? data : [];
+
+    if (rows.length === 0) {
+        container.innerHTML = `
+            <div class="discard-history-empty">
+                No discarded cards in this deal
+            </div>
+        `;
+        return;
+    }
+
+    const playerMap = new Map();
+
+    rows.forEach(row => {
+        if (!playerMap.has(row.user_id)) {
+            playerMap.set(
+                row.user_id,
+                {
+                    userId: row.user_id,
+                    displayName:
+                        row.display_name || "PLAYER",
+                    cards: []
+                }
+            );
+        }
+
+        playerMap
+            .get(row.user_id)
+            .cards
+            .push(row.card);
+    });
+
+    container.innerHTML = "";
+    container.dataset.playerCount = String(playerMap.size);
+
+    // 8 cards per row on normal landscape screens,
+    // 6 on smaller screens. Extra cards use navigation.
+    const pageSize =
+        window.innerWidth <= 700 ? 6 : 8;
+
+    playerMap.forEach(player => {
+        const row =
+            document.createElement("div");
+
+        row.className =
+            "discard-player-row";
+
+        const name =
+            document.createElement("div");
+
+        name.className =
+            "discard-player-name";
+
+        name.textContent =
+            player.displayName;
+
+        row.appendChild(name);
+
+        const strip =
+            document.createElement("div");
+
+        strip.className =
+            "discard-player-strip";
+
+        const prevBtn =
+            document.createElement("button");
+
+        prevBtn.type = "button";
+        prevBtn.className =
+            "discard-nav-btn";
+        prevBtn.textContent = "‹";
+        prevBtn.title = "Previous discarded cards";
+
+        const viewport =
+            document.createElement("div");
+
+        viewport.className =
+            "discard-cards-viewport";
+
+        const cardLine =
+            document.createElement("div");
+
+        cardLine.className =
+            "discard-cards-line";
+
+        viewport.appendChild(cardLine);
+
+        const nextBtn =
+            document.createElement("button");
+
+        nextBtn.type = "button";
+        nextBtn.className =
+            "discard-nav-btn";
+        nextBtn.textContent = "›";
+        nextBtn.title = "Next discarded cards";
+
+        strip.appendChild(prevBtn);
+        strip.appendChild(viewport);
+        strip.appendChild(nextBtn);
+
+        row.appendChild(strip);
+
+        const pageLabel =
+            document.createElement("div");
+
+        pageLabel.className =
+            "discard-page-label";
+
+        row.appendChild(pageLabel);
+
+        container.appendChild(row);
+
+        let page = 0;
+        const pageCount =
+            Math.ceil(
+                player.cards.length /
+                pageSize
+            );
+
+        function renderPage()
         {
-            const cardDiv =
-                document.createElement(
-                    "div"
+            const start =
+                page * pageSize;
+
+            const visibleCards =
+                player.cards.slice(
+                    start,
+                    start + pageSize
                 );
 
-            cardDiv.className =
-                "open-history-card";
+            cardLine.innerHTML = "";
 
-            cardDiv.innerText =
-                card;
+            visibleCards.forEach(card => {
+                const cardDiv =
+                    document.createElement("div");
 
-            container.appendChild(
-                cardDiv
-            );
-        });
-    }
+                cardDiv.className =
+                    "discard-history-card";
 
+                cardDiv.innerText =
+                    card;
 
-    popup.style.display =
-        "flex";
+                if (
+                    card &&
+                    (
+                        card.includes("♥") ||
+                        card.includes("♦")
+                    )
+                ) {
+                    cardDiv.style.color = "#e00000";
+                }
+                else {
+                    cardDiv.style.color = "#111111";
+                }
+
+                cardLine.appendChild(
+                    cardDiv
+                );
+            });
+
+            const showNavigation =
+                pageCount > 1;
+
+            prevBtn.style.display =
+                showNavigation ? "flex" : "none";
+
+            nextBtn.style.display =
+                showNavigation ? "flex" : "none";
+
+            if (showNavigation) {
+                prevBtn.disabled = page <= 0;
+                nextBtn.disabled =
+                    page >= pageCount - 1;
+
+                pageLabel.textContent =
+                    `Page ${page + 1} / ${pageCount}`;
+            }
+            else {
+                pageLabel.textContent = "";
+            }
+        }
+
+        prevBtn.addEventListener(
+            "click",
+            function(e) {
+                e.stopPropagation();
+
+                if (page > 0) {
+                    page--;
+                    renderPage();
+                }
+            }
+        );
+
+        nextBtn.addEventListener(
+            "click",
+            function(e) {
+                e.stopPropagation();
+
+                if (page < pageCount - 1) {
+                    page++;
+                    renderPage();
+                }
+            }
+        );
+
+        renderPage();
+    });
 }
-
 
 function closeOpenPileHistory()
 {
