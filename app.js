@@ -3,9 +3,13 @@
 // =========================
 
 
+
+
 const SUPABASE_URL ='https://dbfycihbcosuxxkrmbhl.supabase.co';
 
 const SUPABASE_KEY ='sb_publishable_aOyXtAbzrrX0Z9jPAU1qEA_0ZnK35BX';
+
+
 
 
 
@@ -97,13 +101,53 @@ let state = {
   pickedCard: null,
   participatedInDeal : false,
   drawInProgress: false,
-  myTurnPickAnimation: false
+  myTurnPickAnimation: false,
+  pickAnimationTurnKey: null,
+  pickAnimationEligible: false,
+  pickAnimationStartTimer: null
 };
 
 
 
 const pickupSound = new Audio("pickup.mp3");
 const discardSound = new Audio("discard.mp3");
+
+
+// =====================================================
+// PICK CARD ANIMATION CONTROL
+// One place to start/stop the turn-pick pulse.
+// =====================================================
+function stopPickCardAnimation() {
+
+    state.myTurnPickAnimation = false;
+
+    if (state.pickAnimationStartTimer) {
+        clearTimeout(state.pickAnimationStartTimer);
+        state.pickAnimationStartTimer = null;
+    }
+
+    document
+        .getElementById("openVisual")
+        ?.classList.remove("pick-card-pulse");
+
+    document
+        .getElementById("stockCard")
+        ?.classList.remove("pick-card-pulse");
+}
+
+
+function startPickCardAnimation() {
+
+    state.myTurnPickAnimation = true;
+
+    document
+        .getElementById("openVisual")
+        ?.classList.add("pick-card-pulse");
+
+    document
+        .getElementById("stockCard")
+        ?.classList.add("pick-card-pulse");
+}
 
 
 
@@ -2506,6 +2550,12 @@ function resetSettlementControls() {
 async function startNextDeal()
 {
 
+    // Never carry the previous turn's pick animation
+    // into the result/next-deal flow.
+    state.pickAnimationEligible = false;
+    state.pickAnimationTurnKey = null;
+    stopPickCardAnimation();
+
     if (state.tableCompleted)
     {
         return;
@@ -3289,15 +3339,8 @@ async function draw(source, targetGroup = 5) {
         // STOP PICK CARD ANIMATION
         // Card was successfully picked
         // =================================================
-        state.myTurnPickAnimation = false;
-
-        document
-            .getElementById("openVisual")
-            .classList.remove("pick-card-pulse");
-
-        document
-            .getElementById("stockCard")
-            .classList.remove("pick-card-pulse");
+        state.pickAnimationEligible = false;
+        stopPickCardAnimation();
 
             pickupSound.currentTime = 0;
 
@@ -3384,6 +3427,10 @@ async function dropCurrentDeal()
         return;
     }
 
+    // Drop ends the pick phase immediately.
+    state.pickAnimationEligible = false;
+    stopPickCardAnimation();
+
     const { data, error } =
         await supabaseClient.rpc(
             "crdg_drop_player",
@@ -3400,15 +3447,7 @@ async function dropCurrentDeal()
     }
 
     
-        state.myTurnPickAnimation = false;
-
-        document
-            .getElementById("openVisual")
-            .classList.remove("pick-card-pulse");
-
-        document
-            .getElementById("stockCard")
-            .classList.remove("pick-card-pulse");
+    stopPickCardAnimation();
 
     await loadSessionInfo();
     await loadPlayers();
@@ -3426,10 +3465,6 @@ async function dropCurrentDeal()
 // ==========================================
 
 function startMyTurnVibration() {
-
-    if (!("vibrate" in navigator)) {
-        return;
-    }
 
     // Vibrate once when it becomes my turn
     navigator.vibrate(300);
@@ -3545,6 +3580,10 @@ async function discard() {
         data[0].status === "success"
     ) 
     {
+
+        // Discard completes this player's turn.
+        state.pickAnimationEligible = false;
+        stopPickCardAnimation();
 
         discardSound.currentTime = 0;
         discardSound.play().catch(() => {});
@@ -4236,41 +4275,16 @@ async function loadSessionInfo() {
     state.declarationEndAt =  data.declaration_end_at;
     state.observationEndAt =  data.observation_end_at;
 
-    // =====================================================
-        // MY TURN PICK ANIMATION
-        // =====================================================
-        if (
-            state.currentTurnSeat === state.seatNo &&
-            state.hand.length === 13 &&
-            !state.pickedCard
-        ) {
-            state.myTurnPickAnimation = true;
-                // Mobile vibration
-            startMyTurnVibration();
-        }
-
-
-        // =====================================================
-        // START PICK CARD ANIMATION
-        // =====================================================
-        if (state.myTurnPickAnimation) {
-
-            document
-                .getElementById("openVisual")
-                .classList.add("pick-card-pulse");
-
-            document
-                .getElementById("stockCard")
-                .classList.add("pick-card-pulse");
-        }
-
-
     if (
             data.last_event_type === "TURN_TIMEOUT" &&
             data.last_event_user_id === state.userId &&
             data.last_event_time &&
             state.lastHandledTimeoutEvent !== data.last_event_time
         ) {
+
+            // Auto timeout / middle drop ends the pick phase.
+            state.pickAnimationEligible = false;
+            stopPickCardAnimation();
             state.lastHandledTimeoutEvent =
                 data.last_event_time;
 
@@ -4308,7 +4322,122 @@ async function loadSessionInfo() {
     await loadPlayers(players);
 
 
-  state.turnStartedAt =    new Date(
+    // =====================================================
+    // PICK CARD ANIMATION
+    //
+    // Blink ONLY when:
+    //   1. It is this player's current turn.
+    //   2. This turn has not already completed its pick/action.
+    //   3. No declaration/result/drop/completion is active.
+    //
+    // A short delay is used whenever a NEW turn is detected.
+    // This prevents the pulse from appearing during the
+    // initial/new-deal card distribution animation.
+    // =====================================================
+
+    const currentTurnKey =
+        String(state.deal_no ?? "") +
+        "|" +
+        String(state.currentTurnSeat ?? "") +
+        "|" +
+        String(data.turn_started_at ?? data.turn_end_at ?? "");
+
+    const turnChanged =
+        state.pickAnimationTurnKey !== currentTurnKey;
+
+    if (turnChanged) {
+
+        state.pickAnimationTurnKey =
+            currentTurnKey;
+
+        // A genuine new turn starts a fresh pick phase.
+        state.pickAnimationEligible = true;
+    }
+
+
+    const myPlayerIsOut =
+        me?.is_out_of_deal === true ||
+        state.isDropped === true ||
+        state.playerStatus === "ELIMINATED";
+
+    const isMyCurrentTurn =
+        Number(state.currentTurnSeat) ===
+        Number(state.seatNo);
+
+    const canShowPickAnimation =
+        state.pickAnimationEligible === true &&
+        isMyCurrentTurn &&
+        !myPlayerIsOut &&
+        !state.declarationMode &&
+        !state.resultWindowOpened &&
+        !state.tableCompleted &&
+        !data.game_completed;
+
+
+    if (!canShowPickAnimation) {
+
+        stopPickCardAnimation();
+
+    }
+    else if (turnChanged) {
+
+        // New turn: wait until the new hand/card-entry animation
+        // has finished before showing the pick pulse.
+        if (state.pickAnimationStartTimer) {
+            clearTimeout(state.pickAnimationStartTimer);
+        }
+
+        const scheduledTurnKey =
+            state.pickAnimationTurnKey;
+
+        state.pickAnimationStartTimer =
+            setTimeout(() => {
+
+                state.pickAnimationStartTimer = null;
+
+                // Re-check everything before starting.
+                const stillSameTurn =
+                    state.pickAnimationTurnKey ===
+                    scheduledTurnKey;
+
+                const stillMyTurn =
+                    Number(state.currentTurnSeat) ===
+                    Number(state.seatNo);
+
+                const stillEligible =
+                    state.pickAnimationEligible === true;
+
+                const stillAllowed =
+                    !state.declarationMode &&
+                    !state.resultWindowOpened &&
+                    !state.tableCompleted &&
+                    state.playerStatus !== "ELIMINATED";
+
+                if (
+                    stillSameTurn &&
+                    stillMyTurn &&
+                    stillEligible &&
+                    stillAllowed
+                ) {
+
+                    startPickCardAnimation();
+
+                    // Mobile vibration only when the pulse
+                    // actually begins for THIS player.
+                    startMyTurnVibration();
+                }
+
+            }, 450);
+
+    }
+    else if (!state.myTurnPickAnimation) {
+
+        // Same active turn after a refresh: keep the pulse alive.
+        startPickCardAnimation();
+    }
+
+
+    state.turnStartedAt =    new Date(
         data.turn_started_at
     ).getTime();
 
@@ -6950,6 +7079,10 @@ async function declareGame() {
     if(!confirm( "Confirm Declaration?" )){
         return;
     }
+
+    // Declaration ends the pick phase immediately.
+    state.pickAnimationEligible = false;
+    stopPickCardAnimation();
 
     const declareCard = singleSelectedCard.card;
 
