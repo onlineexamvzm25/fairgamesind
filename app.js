@@ -3,9 +3,14 @@
 // =========================
 
 
+
+
 const SUPABASE_URL ='https://dbfycihbcosuxxkrmbhl.supabase.co';
 
 const SUPABASE_KEY ='sb_publishable_aOyXtAbzrrX0Z9jPAU1qEA_0ZnK35BX';
+
+
+
 
 
 
@@ -97,7 +102,9 @@ let state = {
   pickedCard: null,
   participatedInDeal : false,
   drawInProgress: false,
-  myTurnPickAnimation: false
+  myTurnPickAnimation: false,
+  registeredUserId: null,
+  activeGameRegistered: false
 };
 
 
@@ -5762,88 +5769,46 @@ function getRank(card){
 // =========================
 async function joinTable() {
 
-    // =================================================
-    // Get values
-    //
-    // New Friends flow:
-    // values come from localStorage
-    //
-    // Old/manual flow:
-    // values come from the existing HTML inputs
-    // =================================================
-
-    let tableId =
-        localStorage.getItem("crdg_table");
-
-    let nickname =
-        localStorage.getItem("crdg_nickname");
-
-
-    // -----------------------------------------------
-    // If not coming from tablepage.html,
-    // use existing Join screen fields
-    // -----------------------------------------------
+    let tableId = localStorage.getItem("crdg_table");
+    let nickname = localStorage.getItem("crdg_nickname");
 
     if (!tableId) {
-
-        tableId =
-            document.getElementById("tableIdInput").value;
+        tableId = document.getElementById("tableIdInput").value;
     }
 
     if (!nickname) {
-
-        nickname =
-            document.getElementById("nickname").value;
+        nickname = document.getElementById("nickname").value;
     }
 
-
-    tableId =
-        parseInt(tableId);
-
-    nickname =
-        (nickname || "").trim();
-
-
-    // -----------------------------------------------
-    // Existing static password
-    // -----------------------------------------------
+    tableId = parseInt(tableId);
+    nickname = (nickname || "").trim();
 
     const password = "5E2D";
 
+    // --------------------------------------------------
+    // LOGIN SESSION
+    // --------------------------------------------------
 
-    // -----------------------------------------------
-    // Existing UUID identity
-    // -----------------------------------------------
+    const sessionToken =
+        localStorage.getItem("crdgn_session_token");
 
-    // -----------------------------------------------
-// // REGISTERED ACCOUNT → GAME USER ID
-// -----------------------------------------------
-
-        const sessionToken =
-            localStorage.getItem("crdgn_session_token");
-
-
-        const gameType =
-    (
-        localStorage.getItem("crdg_game_type") ||
-        "FRIENDS"
+    const gameType = (
+        localStorage.getItem("crdg_game_type") || "FRIENDS"
     ).toUpperCase();
 
-        if (!sessionToken) {
+    if (!sessionToken) {
 
-            alert(
-                "Please login before joining a Friends game."
-            );
+        alert("Please login before joining a Friends game.");
 
-            return;
-        }
+        return;
+    }
 
+    // --------------------------------------------------
+    // GET / CREATE PERMANENT GAME USER ID
+    // --------------------------------------------------
 
-        // Get / create the permanent Friends game-user mapping
-        const {
-            data: mappingData,
-            error: mappingError
-        } = await supabaseClient.rpc(
+    const { data: mappingData, error: mappingError } =
+        await supabaseClient.rpc(
             "crdgn_get_or_create_game_user_id",
             {
                 p_session_token: sessionToken,
@@ -5851,75 +5816,65 @@ async function joinTable() {
             }
         );
 
+    const mappingResult =
+        Array.isArray(mappingData)
+            ? mappingData[0]
+            : mappingData;
 
-        const mappingResult =
-            Array.isArray(mappingData)
-                ? mappingData[0]
-                : mappingData;
+    if (mappingError) {
 
-
-        // Mapping error
-        if (mappingError) {
-
-            console.error(
-                "Friends account mapping error:",
-                mappingError
-            );
-
-            alert(
-                mappingError.message ||
-                "Unable to prepare your Friends game account."
-            );
-
-            return;
-        }
-
-
-        // Mapping result validation
-        if (
-            !mappingResult ||
-            mappingResult.success !== true ||
-            !mappingResult.game_user_id
-        ) {
-
-            console.error(
-                "Invalid Friends account mapping result:",
-                mappingResult
-            );
-
-            alert(
-                mappingResult?.message ||
-                "Unable to prepare your Friends game account."
-            );
-
-            return;
-        }
-
-
-        // This is the EXISTING crdg game UUID.
-        // Do NOT use the registered user_id here.
-        const userId =
-            mappingResult.game_user_id;
-
-
-        console.log(
-            "FRIENDS ACCOUNT MAPPING:",
-            {
-                registered_user_id:
-                    mappingResult.user_id,
-
-                game_user_id:
-                    mappingResult.game_user_id,
-
-                game_type:
-                    mappingResult.game_type
-            }
+        console.error(
+            "GAME USER MAPPING ERROR:",
+            mappingError
         );
 
+        alert(
+            mappingError.message ||
+            "Unable to identify game user."
+        );
 
-    // -----------------------------------------------
-    // Basic validation
-    // -----------------------------------------------
+        return;
+    }
+
+    if (
+        !mappingResult ||
+        mappingResult.success !== true ||
+        !mappingResult.game_user_id
+    ) {
+
+        console.error(
+            "INVALID GAME USER MAPPING:",
+            mappingResult
+        );
+
+        alert(
+            mappingResult?.message ||
+            "Unable to identify game user."
+        );
+
+        return;
+    }
+
+    // --------------------------------------------------
+    // REGISTERED ACCOUNT USER ID
+    // --------------------------------------------------
+
+    const userId = mappingResult.game_user_id;
+
+    state.registeredUserId = mappingResult.user_id;
+
+    console.log(
+        "FRIENDS ACCOUNT MAPPING:",
+        {
+            registeredUserId: state.registeredUserId,
+            gameUserId: userId,
+            gameType: gameType
+        }
+    );
+
+    // --------------------------------------------------
+    // VALIDATE TABLE / NICKNAME
+    // --------------------------------------------------
 
     if (
         !tableId ||
@@ -5928,20 +5883,20 @@ async function joinTable() {
     ) {
 
         alert("Invalid Table ID");
+
         return;
     }
-
 
     if (!nickname) {
 
         alert("Please enter player name");
+
         return;
     }
 
-
-    // =================================================
-    // JOIN RPC
-    // =================================================
+    // --------------------------------------------------
+    // JOIN / RECONNECT EXISTING PLAYER
+    // --------------------------------------------------
 
     const { data, error } =
         await supabaseClient.rpc(
@@ -5954,59 +5909,64 @@ async function joinTable() {
             }
         );
 
-
     const joinResult =
         data?.[0];
 
-
-    // -----------------------------------------------
-    // RPC error
-    // -----------------------------------------------
+    // --------------------------------------------------
+    // JOIN ERROR
+    // --------------------------------------------------
 
     if (error) {
 
         console.error(
-            "Join error:",
+            "JOIN TABLE ERROR:",
             error
         );
 
         alert(
             error.message ||
-            "Join failed"
+            "Unable to join table."
         );
 
         return;
     }
 
-
     if (!joinResult) {
 
-        alert("Join failed");
+        console.error(
+            "JOIN TABLE RETURNED NO RESULT"
+        );
+
+        alert("Join failed.");
+
         return;
     }
 
-
-    // -----------------------------------------------
-    // Check result
-    // -----------------------------------------------
+    // --------------------------------------------------
+    // ACCEPT ONLY SUCCESS / RECONNECTED
+    // --------------------------------------------------
 
     if (
         joinResult.status !== "success" &&
         joinResult.status !== "reconnected"
     ) {
 
+        console.error(
+            "JOIN TABLE FAILED:",
+            joinResult
+        );
+
         alert(
             joinResult.message ||
-            "Unable to join table"
+            "Unable to join table."
         );
 
         return;
     }
 
-
-    // =================================================
-    // SAVE STATE
-    // =================================================
+    // --------------------------------------------------
+    // SAVE PLAYER STATE
+    // --------------------------------------------------
 
     state.userId =
         joinResult.user_id;
@@ -6023,7 +5983,6 @@ async function joinTable() {
     state.fixedSeatNo =
         Number(joinResult.fixed_seat_no);
 
-
     localStorage.setItem(
         "crdg_user_id",
         state.userId
@@ -6039,14 +5998,16 @@ async function joinTable() {
         nickname
     );
 
-
-    // =================================================
-    // RECONNECT
-    // =================================================
+    // --------------------------------------------------
+    // CHECK RECONNECT
+    // --------------------------------------------------
 
     const isReconnect =
         joinResult.status === "reconnected";
 
+    // ==================================================
+    // RECONNECT EXISTING ACTIVE GAME
+    // ==================================================
 
     if (
         isReconnect &&
@@ -6056,73 +6017,70 @@ async function joinTable() {
         state.sessionId =
             Number(joinResult.session_id);
 
+        localStorage.setItem(
+            "crdg_session_id",
+            String(state.sessionId)
+        );
+
+        console.log(
+            "RECONNECT SESSION SAVED:",
+            state.sessionId
+        );
+
         state.joined = true;
 
+        // --------------------------------------------------
+        // IMPORTANT:
+        // Use the existing enterGame() initialization.
+        //
+        // This removes the "hidden" class from #app,
+        // loads game type,
+        // loads game state,
+        // loads session info,
+        // loads players,
+        // renders hand,
+        // calculates score,
+        // and subscribes to realtime updates.
+        // --------------------------------------------------
+
+
+
 
         document
-            .getElementById("joinScreen")
-            .style.display = "none";
+    .getElementById("joinScreen")
+    .classList.add("hidden");
 
+document
+    .getElementById("lobbyScreen")
+    .classList.add("hidden");
 
-        document
-            .getElementById("lobbyScreen")
-            .style.display = "none";
-
-
-        document
-            .getElementById("app")
-            .style.display = "block";
-
-
-        await loadGame();
-        await loadSessionInfo();
-        await loadPlayers();
+await enterGame();
 
         return;
     }
 
-
-    // =================================================
-    // NORMAL LOBBY
-    // =================================================
+    // ==================================================
+    // NORMAL NEW JOIN
+    // ==================================================
 
     state.joined = true;
-
-
-    document
-        .getElementById("joinScreen")
-        .classList.add("hidden");
-
-
-    document
-        .getElementById("lobbyScreen")
-        .classList.remove("hidden");
 
 
     document
         .getElementById("lobbyTableId")
         .innerText = tableId;
 
-
     document
         .getElementById("lobbySeat")
-        .innerText =
-            state.seatNo;
-
-
-    // -----------------------------------------------
-    // Existing lobby flow
-    // -----------------------------------------------
+        .innerText = state.seatNo;
 
     await postJoinFlow();
 
     loadLobbyState();
 
-
     clearInterval(
         state.lobbyTimerHandle
     );
-
 
     state.lobbyTimerHandle =
         setInterval(
@@ -7162,7 +7120,7 @@ async function hostStartGame() {
 async function enterGame(){
 
   if (gameEntered) return;
-   gameEntered = true;
+  gameEntered = true;
 
   clearInterval(state.lobbyTimerHandle);
 
@@ -7178,19 +7136,84 @@ async function enterGame(){
     .getElementById("tableIdDisplay")
     .innerText = state.tableId;
 
-    await loadTopGameType();
+  await loadTopGameType();
+
+  await loadGame();
+
+  await loadSessionInfo();
+
+  await loadPlayers();
+
+  renderHand();
+
+  calculateDealScore();
+
+  // NEW: save / refresh active game pointer
+    if (!state.activeGameRegistered) {
+        await setActiveGame();
+    }
+  subscribeRealtime();
+}
 
 
-    await loadGame();
-   
-    await loadSessionInfo();
+async function setActiveGame() {
 
-    await loadPlayers();
-    renderHand();
-    calculateDealScore();
 
-    subscribeRealtime();
+  const sessionToken =
+    localStorage.getItem("crdgn_session_token");
 
+  if (!sessionToken) {
+    console.warn("Active game: session token not found");
+    return;
+  }
+
+
+  console.log("ACTIVE GAME ID CHECK:", {
+    registeredUserId: state.registeredUserId,
+    gameUserId: state.userId,
+    tableId: state.tableId,
+    sessionId: state.sessionId
+});
+
+  const { data, error } =
+    await supabaseClient.rpc(
+      "crdgn_set_active_game",
+      {
+        p_session_token: sessionToken,
+        p_game_user_id: state.userId,
+        p_table_id: state.tableId,
+        p_session_id: state.sessionId
+      }
+    );
+
+  if (error) {
+    console.error(
+      "Active game save failed:",
+      error
+    );
+    return;
+  }
+
+  if (!data || data.length === 0) {
+    console.warn("Active game: no response");
+    return;
+  }
+
+  const result = data[0];
+
+  if (!result.success) {
+    console.warn(
+      "Active game not saved:",
+      result.message
+    );
+    return;
+  }
+
+  console.log(
+    "Active game saved:",
+    result
+  );
+  state.activeGameRegistered = true;
 }
 
 
@@ -8152,19 +8175,22 @@ function clearCurrentDealUI()
 
 window.onload = () => {
 
-  const savedTable = localStorage.getItem("crdg_table");
-  const savedUser = localStorage.getItem("crdg_user_id");
+    const savedTable =
+        localStorage.getItem("crdg_table");
 
-  // only restore minimal state, DO NOT ENTER GAME
-  if (savedTable && savedUser) {
-    state.tableId = parseInt(savedTable);
-    state.userId = savedUser;
-  }
+    const savedUser =
+        localStorage.getItem("crdg_user_id");
 
-  // ALWAYS show login screen first
-  document.getElementById("joinScreen").classList.remove("hidden");
-  document.getElementById("lobbyScreen").classList.add("hidden");
-  document.getElementById("app").classList.add("hidden");
+    // Restore only the minimum state.
+    // Do NOT change screen visibility here.
+    if (savedTable && savedUser) {
+
+        state.tableId =
+            parseInt(savedTable);
+
+        state.userId =
+            savedUser;
+    }
 };
 
 

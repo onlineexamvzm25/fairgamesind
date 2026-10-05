@@ -82,7 +82,12 @@
 
         </div>
 
-
+        <button
+            id="activeGameBtn"
+            onclick="resumeActiveGame()"
+            style="display:none;">
+            Active Game
+        </button>
         <button
             class="profile-button"
             onclick="openProfile()"
@@ -639,6 +644,15 @@
 </div>
 
 
+<div id="activeGameInfoBox" class="active-game-box" style="display:none;">
+    <div class="active-game-content">
+        <h3>Active Game</h3>
+
+        <div id="activeGameDetails"></div>
+
+        <button onclick="closeActiveGameInfo()">Close</button>
+    </div>
+</div>
 
 
     <script src="homepage.js"></script>

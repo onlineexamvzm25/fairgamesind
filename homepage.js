@@ -362,6 +362,123 @@ async function openProfile() {
         formatDate(
             profile.created_at
         );
+
+    //await loadActiveGame();
+}
+
+
+let activeGameData = null;
+
+async function loadActiveGame() {
+
+    const token = getSessionToken();
+    if (!token) return;
+
+    const registeredUserId = localStorage.getItem("crdgn_user_id");
+    if (!registeredUserId) return;
+
+    const { data, error } = await supabaseClient
+        .from("crdgn_active_games")
+        .select(`
+            active_game_id,
+            user_id,
+            game_user_id,
+            display_name,
+            table_id,
+            session_id,
+            seat_no,
+            fixed_seat_no,
+            status,
+            created_at,
+            updated_at
+        `)
+        .eq("user_id", registeredUserId)
+        .eq("status", "active")
+        .maybeSingle();
+
+    if (error) {
+        console.error("ACTIVE GAME LOAD ERROR:", error);
+        return;
+    }
+
+    activeGameData = data;
+
+    const btn = document.getElementById("activeGameBtn");
+
+    if (!data) {
+        console.log("NO ACTIVE GAME FOUND");
+        btn.style.display = "none";
+        return;
+    }
+
+    console.log("ACTIVE GAME FOUND:", data);
+
+    btn.style.display = "block";
+
+
+    const { data: gameState, error: gameStateError } =
+    await supabaseClient.rpc("crdg_get_game_state", {
+        p_session_id: activeGameData.session_id,
+        p_user_id: activeGameData.game_user_id
+    });
+
+console.log("ACTIVE GAME STATE:", gameState);
+console.log("ACTIVE GAME STATE ERROR:", gameStateError);
+
+
+}
+
+
+function resumeActiveGame() {
+
+    if (!activeGameData) {
+        alert("No active game found.");
+        return;
+    }
+
+    // Save the exact game identity required by existing joinTable()
+    localStorage.setItem(
+        "crdg_table",
+        String(activeGameData.table_id)
+    );
+
+    localStorage.setItem(
+        "crdg_nickname",
+        activeGameData.display_name
+    );
+
+    // Keep the existing game user ID
+    localStorage.setItem(
+        "crdg_user_id",
+        activeGameData.game_user_id
+    );
+
+    // Go through the EXISTING tablepage reconnect flow
+    window.location.href = "friends.html";
+}
+
+function showActiveGameInfo() {
+
+    if (!activeGameData) return;
+
+    const details = document.getElementById("activeGameDetails");
+
+    details.innerHTML = `
+        <p><strong>Player:</strong> ${activeGameData.display_name}</p>
+        <p><strong>Table ID:</strong> ${activeGameData.table_id}</p>
+        <p><strong>Session ID:</strong> ${activeGameData.session_id}</p>
+        <p><strong>Seat No:</strong> ${activeGameData.seat_no}</p>
+        <p><strong>Fixed Seat:</strong> ${activeGameData.fixed_seat_no}</p>
+        <p><strong>Status:</strong> ${activeGameData.status}</p>
+    `;
+
+    document.getElementById("activeGameInfoBox").style.display = "flex";
+}
+
+
+function closeActiveGameInfo() {
+
+    document.getElementById("activeGameInfoBox").style.display = "none";
 }
 
 
@@ -960,6 +1077,7 @@ function escapeHtml(
         // complete profile has been loaded successfully.
         const profileLoaded =
             await loadProfileFirst();
+        await loadActiveGame();
 
         if (profileLoaded) {
 
