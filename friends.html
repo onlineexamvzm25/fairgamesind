@@ -237,6 +237,95 @@
         font-weight: 500;
     }
 }
+
+
+/* =========================================================
+   GAME CONNECTION STATUS
+   Small status indicator beside DECLARE / DROP.
+========================================================= */
+.connection-status {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    min-width: 28px;
+    height: 42px;
+    margin-left: 4px;
+    white-space: nowrap;
+    pointer-events: none;
+    font-weight: 900;
+}
+
+.connection-wifi-icon {
+    width: 24px;
+    height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.connection-wifi-icon svg {
+    width: 24px;
+    height: 24px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.connection-status.online {
+    color: #20d46b;
+}
+
+.connection-status.offline {
+    color: #ff334f;
+}
+
+.connection-offline-text {
+    display: none;
+    font-size: 13px;
+    letter-spacing: .7px;
+}
+
+.connection-status.offline .connection-offline-text {
+    display: inline-block;
+    animation: connectionOfflineBlink .85s ease-in-out infinite;
+}
+
+@keyframes connectionOfflineBlink {
+    0%, 100% { opacity: 1; transform: translateX(0); }
+    50% { opacity: .28; transform: translateX(1px); }
+}
+
+.connection-status.offline .connection-wifi-icon {
+    animation: connectionWifiPulse .9s ease-in-out infinite;
+}
+
+@keyframes connectionWifiPulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: .45; transform: scale(.92); }
+}
+
+@media screen and (max-width: 700px) {
+    .connection-status {
+        gap: 3px;
+        min-width: 24px;
+        height: 38px;
+        margin-left: 2px;
+    }
+
+    .connection-wifi-icon,
+    .connection-wifi-icon svg {
+        width: 21px;
+        height: 21px;
+    }
+
+    .connection-offline-text {
+        font-size: 10px;
+        letter-spacing: .4px;
+    }
+}
 </style>
 
 
@@ -1357,22 +1446,9 @@
             ⏱ <span id="turnTimer">40</span>
         </div>
 
-
         <div class="topbar-section topbar-history">
-
-          <button id="btnHistory" type="button">
-              HISTORY
-          </button>
-
-          <button
-              id="btnGameRefresh"
-              type="button"
-              onclick="refreshGame()"
-              title="Reconnect and refresh game">
-              ↻
-          </button>
-
-      </div>
+            <button id="btnHistory" type="button">HISTORY</button>
+        </div>
 
         </header>
 
@@ -1452,6 +1528,31 @@
                 onclick="dropCurrentDeal()">
                 DROP
             </button>
+
+            <!-- CONNECTION STATUS -->
+            <div
+                id="connectionStatus"
+                class="connection-status online"
+                title="Connected">
+
+                <span
+                    id="connectionWifiIcon"
+                    class="connection-wifi-icon"
+                    aria-hidden="true">
+                    <svg viewBox="0 0 24 24" focusable="false">
+                        <path d="M2.5 8.8a16.8 16.8 0 0 1 19 0" />
+                        <path d="M5.8 12.5a11.4 11.4 0 0 1 12.4 0" />
+                        <path d="M9.1 16.1a6.1 6.1 0 0 1 5.8 0" />
+                        <circle cx="12" cy="20" r="1.25" />
+                    </svg>
+                </span>
+
+                <span
+                    id="connectionOfflineText"
+                    class="connection-offline-text">
+                    OFFLINE
+                </span>
+            </div>
 
             <div id="declarationTimer"></div>
 
@@ -1801,7 +1902,43 @@
 
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-  <script src="app.js"></script>
+  <script>
+// =========================================================
+// CONNECTION STATUS UI
+// Uses the existing 7-second connection monitor when present.
+// Falls back to browser network state before the monitor starts.
+// =========================================================
+(function () {
+    function updateConnectionStatusUI() {
+        const el = document.getElementById("connectionStatus");
+        if (!el) return;
+
+        let offline = !navigator.onLine;
+
+        try {
+            if (typeof networkOffline !== "undefined") {
+                offline = Boolean(networkOffline);
+            }
+        } catch (e) {
+            // Keep browser network state as fallback.
+        }
+
+        el.classList.toggle("offline", offline);
+        el.classList.toggle("online", !offline);
+        el.title = offline
+            ? "Offline — checking connection"
+            : "Connected";
+    }
+
+    window.addEventListener("online", updateConnectionStatusUI);
+    window.addEventListener("offline", updateConnectionStatusUI);
+
+    updateConnectionStatusUI();
+    setInterval(updateConnectionStatusUI, 500);
+})();
+</script>
+
+<script src="app.js"></script>
   <script src="responsive.js"></script>
 </body>
 </html>
