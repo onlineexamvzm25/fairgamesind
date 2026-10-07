@@ -4,13 +4,9 @@
 
 
 
-
 const SUPABASE_URL ='https://dbfycihbcosuxxkrmbhl.supabase.co';
 
 const SUPABASE_KEY ='sb_publishable_aOyXtAbzrrX0Z9jPAU1qEA_0ZnK35BX';
-
-
-
 
 
 
@@ -3726,6 +3722,8 @@ function subscribeRealtime() {
         });
 }
 
+
+
 async function handleTableCompleted(data)
 {
     // Prevent duplicate execution
@@ -5761,6 +5759,207 @@ function getRank(card){
 
 }
 
+
+// ==================================================
+// MANUAL GAME REFRESH / RECONNECT
+// ==================================================
+
+let refreshInProgress = false;
+
+// ==================================================
+// NETWORK / SUPABASE AVAILABILITY MONITOR
+// ==================================================
+let networkOffline = false;
+let networkMonitorHandle = null;
+
+async function checkSupabaseAvailability() {
+
+    if (!navigator.onLine) {
+        return false;
+    }
+
+    try {
+
+        const controller = new AbortController();
+
+        const timeoutHandle = setTimeout(
+            () => controller.abort(),
+            5000
+        );
+
+        // Any HTTP response means Supabase is reachable.
+        // Only a real fetch/network failure is treated as offline.
+        await fetch(
+            SUPABASE_URL + "/rest/v1/",
+            {
+                method: "GET",
+                cache: "no-store",
+                signal: controller.signal
+            }
+        );
+
+        clearTimeout(timeoutHandle);
+
+        return true;
+
+    } catch (error) {
+
+        console.warn(
+            "SUPABASE AVAILABILITY CHECK FAILED:",
+            error?.message || error
+        );
+
+        return false;
+    }
+}
+
+async function checkNetworkAndReconnect() {
+
+    if (refreshInProgress) {
+        return;
+    }
+
+    const available = await checkSupabaseAvailability();
+
+    // Connection unavailable: remember the state and wait.
+    if (!available) {
+
+        if (!networkOffline) {
+            networkOffline = true;
+            console.warn(
+                "NETWORK OFFLINE: waiting for connection..."
+            );
+        }
+
+        return;
+    }
+
+    // Connection has returned after an offline period.
+    if (networkOffline) {
+
+        console.log(
+            "NETWORK AVAILABLE: automatic game refresh starting..."
+        );
+
+        try {
+
+            const refreshed = await refreshGame();
+
+            if (!refreshed) {
+                throw new Error(
+                    "Game refresh did not complete successfully."
+                );
+            }
+
+            networkOffline = false;
+
+            console.log(
+                "NETWORK RESTORED: game refresh completed."
+            );
+
+        } catch (error) {
+
+            console.error(
+                "NETWORK RESTORE REFRESH FAILED:",
+                error
+            );
+
+            // Keep true so the next 7-second check retries.
+            networkOffline = true;
+        }
+    }
+}
+
+function startNetworkMonitor() {
+
+    if (networkMonitorHandle) {
+        return;
+    }
+
+    console.log(
+        "NETWORK MONITOR STARTED: checking every 7 seconds"
+    );
+
+    // Initial check, then every 7 seconds.
+    checkNetworkAndReconnect();
+
+    networkMonitorHandle = setInterval(
+        checkNetworkAndReconnect,
+        7000
+    );
+}
+
+async function refreshGame() {
+
+    if (refreshInProgress) {
+        return;
+    }
+
+    refreshInProgress = true;
+
+    console.log("=================================");
+    console.log("MANUAL GAME REFRESH START");
+    console.log("=================================");
+
+    try {
+
+        // Reuse the existing JOIN / RECONNECT flow
+        await joinTable();
+
+        // If reconnect returned us to the existing game,
+        // explicitly reload the authoritative server state.
+        if (
+            state.sessionId &&
+            state.userId &&
+            gameEntered
+        ) {
+
+            console.log(
+                "REFRESH: Reloading server game state..."
+            );
+
+            await loadGame();
+
+            await loadSessionInfo();
+
+            await loadPlayers();
+
+            renderHand();
+
+            calculateDealScore();
+
+            console.log(
+                "REFRESH: Game state restored."
+            );
+
+            return true;
+        }
+
+        // Nothing to refresh. Treat as unsuccessful for the
+        // automatic network recovery path.
+        return false;
+
+    }
+    catch (error) {
+
+        console.error(
+            "MANUAL GAME REFRESH ERROR:",
+            error
+        );
+
+        return false;
+
+    }
+    finally {
+
+        refreshInProgress = false;
+
+        console.log(
+            "MANUAL GAME REFRESH END"
+        );
+    }
+}
+
 // =========================
 // JOIN TABLE (FIXED)
 // =========================
@@ -5998,95 +6197,54 @@ async function joinTable() {
         nickname
     );
 
-    // --------------------------------------------------
-    // CHECK RECONNECT
-    // --------------------------------------------------
+// --------------------------------------------------
+// CHECK RECONNECT
+// --------------------------------------------------
 
-    const isReconnect =
-        joinResult.status === "reconnected";
+const isReconnect =
+    joinResult.status === "reconnected";
 
-    // ==================================================
-    // RECONNECT EXISTING ACTIVE GAME
-    // ==================================================
+// ==================================================
+// RECONNECT EXISTING ACTIVE GAME
+// ==================================================
 
-    if (
-        isReconnect &&
-        joinResult.session_id
-    ) {
+if (
+    isReconnect &&
+    joinResult.session_id
+) {
 
-        state.sessionId =
-            Number(joinResult.session_id);
+    state.sessionId =
+        Number(joinResult.session_id);
 
-        localStorage.setItem(
-            "crdg_session_id",
-            String(state.sessionId)
-        );
-
-        console.log(
-            "RECONNECT SESSION SAVED:",
-            state.sessionId
-        );
-
-        state.joined = true;
-
-        // --------------------------------------------------
-        // IMPORTANT:
-        // Use the existing enterGame() initialization.
-        //
-        // This removes the "hidden" class from #app,
-        // loads game type,
-        // loads game state,
-        // loads session info,
-        // loads players,
-        // renders hand,
-        // calculates score,
-        // and subscribes to realtime updates.
-        // --------------------------------------------------
-
-
-
-
-        document
-    .getElementById("joinScreen")
-    .classList.add("hidden");
-
-document
-    .getElementById("lobbyScreen")
-    .classList.add("hidden");
-
-await enterGame();
-
-        return;
-    }
-
-    // ==================================================
-    // NORMAL NEW JOIN
-    // ==================================================
+    localStorage.setItem(
+        "crdg_session_id",
+        String(state.sessionId)
+    );
 
     state.joined = true;
 
+    // Hide join/lobby screens
+    document
+        .getElementById("joinScreen")
+        .classList.add("hidden");
 
     document
-        .getElementById("lobbyTableId")
-        .innerText = tableId;
+        .getElementById("lobbyScreen")
+        .classList.add("hidden");
 
-    document
-        .getElementById("lobbySeat")
-        .innerText = state.seatNo;
+    // Normal reconnect:
+    // initialize the game.
+    //
+    // Manual refresh:
+    // refreshGame() will reload the state itself.
+    if (!refreshInProgress) {
 
-    await postJoinFlow();
+        await enterGame();
 
-    loadLobbyState();
+    }
 
-    clearInterval(
-        state.lobbyTimerHandle
-    );
-
-    state.lobbyTimerHandle =
-        setInterval(
-            loadLobbyState,
-            1000
-        );
+    return;
+}
 }
 
 function startTurnTimer() {
@@ -7144,6 +7302,9 @@ async function enterGame(){
 
   await loadPlayers();
 
+  startTurnTimer();
+  updateActionButtons();
+
   renderHand();
 
   calculateDealScore();
@@ -7153,6 +7314,10 @@ async function enterGame(){
         await setActiveGame();
     }
   subscribeRealtime();
+
+  // Automatic network/Supabase recovery starts only after
+  // the game screen has been successfully entered.
+  startNetworkMonitor();
 }
 
 
@@ -8196,6 +8361,99 @@ window.onload = () => {
 
 
 
+// =====================================================
+// RESTORE MY TABLE SEAT
+// =====================================================
+async function restoreMyTableSeat() {
+
+    const savedSeat =
+        localStorage.getItem("crdg_seat_no");
+
+    const savedFixedSeat =
+        localStorage.getItem("crdg_fixed_seat_no");
+
+    if (
+        savedSeat !== null &&
+        savedFixedSeat !== null &&
+        Number.isFinite(Number(savedSeat)) &&
+        Number.isFinite(Number(savedFixedSeat))
+    ) {
+        state.seatNo = Number(savedSeat);
+        state.fixedSeatNo = Number(savedFixedSeat);
+
+        console.log(
+            "RESTORED MY SEAT FROM LOCAL STORAGE:",
+            {
+                seatNo: state.seatNo,
+                fixedSeatNo: state.fixedSeatNo
+            }
+        );
+
+        return true;
+    }
+
+    // Fallback for older localStorage / older tablepage.
+    const {
+        data: players,
+        error
+    } = await supabaseClient.rpc(
+        "crdg_get_lobby_players",
+        {
+            p_table_id: state.tableId
+        }
+    );
+
+    if (error) {
+        console.error(
+            "RESTORE MY SEAT ERROR:",
+            error
+        );
+        return false;
+    }
+
+    const me = players?.find(
+        player =>
+            String(player.user_id).toLowerCase() ===
+            String(state.userId).toLowerCase()
+    );
+
+    if (!me) {
+        console.error(
+            "RESTORE MY SEAT: Current player not found.",
+            {
+                userId: state.userId,
+                tableId: state.tableId
+            }
+        );
+        return false;
+    }
+
+    state.seatNo = Number(me.seat_no);
+    state.fixedSeatNo = Number(me.fixed_seat_no);
+
+    localStorage.setItem(
+        "crdg_seat_no",
+        String(state.seatNo)
+    );
+
+    localStorage.setItem(
+        "crdg_fixed_seat_no",
+        String(state.fixedSeatNo)
+    );
+
+    console.log(
+        "RESTORED MY SEAT FROM SERVER:",
+        {
+            seatNo: state.seatNo,
+            fixedSeatNo: state.fixedSeatNo
+        }
+    );
+
+    return true;
+}
+
+
+
 async function postJoinFlow() {
 
   const { data } = await supabaseClient.rpc(
@@ -8228,60 +8486,138 @@ async function postJoinFlow() {
 // =====================================================
 // FRIENDS PAGE AUTO JOIN
 // =====================================================
-
 document.addEventListener(
     "DOMContentLoaded",
     async function () {
 
-        const tableId =
-            localStorage.getItem("crdg_table");
-
-        const nickname =
-            localStorage.getItem("crdg_nickname");
+        const joinMode =
+            localStorage.getItem("crdg_join_mode");
 
 
-        // ---------------------------------------------
-        // Only auto-join when coming from tablepage
-        // ---------------------------------------------
+        // =================================================
+        // NEW TABLE / NORMAL TABLEPAGE FLOW
+        // =================================================
 
-        if (
-            !tableId ||
-            !nickname
-        ) {
+        if (joinMode === "new") {
+
+            const tableId =
+                localStorage.getItem("crdg_table");
+
+            const nickname =
+                localStorage.getItem("crdg_nickname");
+
+            if (
+                !tableId ||
+                !nickname
+            ) {
+                return;
+            }
+
+            state.tableId =
+                parseInt(tableId);
+
+            state.nickname =
+                nickname;
+
+            state.userId =
+                localStorage.getItem("crdg_user_id");
+
+            // Restore the exact seat BEFORE entering the lobby/game.
+            // tablepage already joined this player, so do not join again.
+            await restoreMyTableSeat();
+
+            state.joined = true;
+
+            // ---------------------------------------------
+            // Restore lobby display values
+            // ---------------------------------------------
+
+            document
+                .getElementById("lobbyTableId")
+                .innerText = state.tableId;
+
+            document
+                .getElementById("lobbySeat")
+                .innerText = state.seatNo;
+
+            await postJoinFlow();
+
+
+            // Consume the one-time mode.
+            localStorage.removeItem(
+                "crdg_join_mode"
+            );
+
             return;
         }
 
 
-        // ---------------------------------------------
-        // Make old join-screen fields contain values
-        // ---------------------------------------------
+        // =================================================
+        // ACTIVE GAME RECOVERY
+        // =================================================
 
-        const tableInput =
-            document.getElementById("tableIdInput");
+        if (joinMode === "active") {
 
-        const nicknameInput =
-            document.getElementById("nickname");
+            const tableId =
+                localStorage.getItem("crdg_table");
+
+            const nickname =
+                localStorage.getItem("crdg_nickname");
+
+            if (
+                !tableId ||
+                !nickname
+            ) {
+                return;
+            }
 
 
-        if (tableInput) {
+            const tableInput =
+                document.getElementById(
+                    "tableIdInput"
+                );
 
-            tableInput.value =
-                tableId;
+            const nicknameInput =
+                document.getElementById(
+                    "nickname"
+                );
+
+
+            if (tableInput) {
+                tableInput.value =
+                    tableId;
+            }
+
+            if (nicknameInput) {
+                nicknameInput.value =
+                    nickname;
+            }
+
+
+            // IMPORTANT:
+            // Active game MUST use the existing
+            // reconnect logic.
+
+            await joinTable();
+
+
+            // Consume the one-time handoff mode.
+
+            localStorage.removeItem(
+                "crdg_join_mode"
+            );
+
+            return;
         }
 
 
-        if (nicknameInput) {
-
-            nicknameInput.value =
-                nickname;
-        }
-
-
-        // ---------------------------------------------
-        // Automatically join
-        // ---------------------------------------------
-
-        await joinTable();
+        // =================================================
+        // NO AUTOMATIC JOIN
+        // =================================================
+        //
+        // Manual Join button continues to use
+        // the existing joinTable() function.
+        //
 
     }
 );

@@ -2,11 +2,11 @@
 // SUPABASE INIT
 // =========================
 
-
-
-   const SUPABASE_URL ='https://dbfycihbcosuxxkrmbhl.supabase.co';
+const SUPABASE_URL ='https://dbfycihbcosuxxkrmbhl.supabase.co';
 
 const SUPABASE_KEY ='sb_publishable_aOyXtAbzrrX0Z9jPAU1qEA_0ZnK35BX';
+
+
 
 // =====================================================
 // TABLE GAME TYPE
@@ -637,6 +637,17 @@ async function createTable() {
             playerName
         );
 
+        // Save the exact seat assigned by crdg_join_table.
+        localStorage.setItem(
+            "crdg_seat_no",
+            String(joinResult.seat_no)
+        );
+
+        localStorage.setItem(
+            "crdg_fixed_seat_no",
+            String(joinResult.fixed_seat_no)
+        );
+
 
         localStorage.setItem(
             "crdg_host",
@@ -752,6 +763,15 @@ async function createTable() {
         // -----------------------------------------
         // Go to waiting room
         // -----------------------------------------
+
+        // -----------------------------------------
+// Go to waiting room
+// -----------------------------------------
+
+        localStorage.setItem(
+            "crdg_join_mode",
+            "new"
+        );
 
         window.location.href =
             "friends.html";
@@ -1178,6 +1198,17 @@ async function createPointsTable() {
             pointsGameUserId
         );
 
+        // Save the exact seat assigned by crdg_join_table.
+        localStorage.setItem(
+            "crdg_seat_no",
+            String(joinResult.seat_no)
+        );
+
+        localStorage.setItem(
+            "crdg_fixed_seat_no",
+            String(joinResult.fixed_seat_no)
+        );
+
 
         // -----------------------------------------
         // SUCCESS
@@ -1213,6 +1244,10 @@ async function createPointsTable() {
         // GO TO EXISTING FRIENDS WAITING ROOM
         // -----------------------------------------
 
+        localStorage.setItem(
+            "crdg_join_mode",
+            "new"
+        );
         window.location.href = "friends.html";
 
     }
@@ -1439,9 +1474,30 @@ async function joinFriendTable() {
             playerName
         );
 
+        // Save the exact seat assigned by crdg_join_table.
+        localStorage.setItem(
+            "crdg_seat_no",
+            String(joinResult.seat_no)
+        );
+
+        localStorage.setItem(
+            "crdg_fixed_seat_no",
+            String(joinResult.fixed_seat_no)
+        );
+
         localStorage.setItem(
             "crdg_host",
             "false"
+        );
+
+
+        // -----------------------------------------
+        // Tell friends.html this is a NEW TABLE JOIN
+        // -----------------------------------------
+
+        localStorage.setItem(
+            "crdg_join_mode",
+            "new"
         );
 
 
