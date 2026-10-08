@@ -12,6 +12,7 @@ const SUPABASE_KEY ='sb_publishable_aOyXtAbzrrX0Z9jPAU1qEA_0ZnK35BX';
 
 
 
+
 const supabaseClient =
 supabase.createClient(
 SUPABASE_URL,
@@ -1872,6 +1873,13 @@ function startObservationTimer()
 
 
     // --------------------------------------------------
+    // Reset POINTS offline-check flag
+    // --------------------------------------------------
+
+    state.pointsOfflineCheckDone = false;
+
+
+    // --------------------------------------------------
     // No observation end time
     // --------------------------------------------------
 
@@ -1881,7 +1889,7 @@ function startObservationTimer()
     }
 
 
-    function updateObservationTimer()
+    async function updateObservationTimer()
     {
         if (!state.observationEndAt)
         {
@@ -1910,6 +1918,53 @@ function startObservationTimer()
             "Observation (" +
             seconds +
             "s)";
+
+
+        // --------------------------------------------------
+        // POINTS:
+        // Check offline players at 5 seconds
+        // --------------------------------------------------
+
+        if (
+            typeof GAME_TYPE !== "undefined" &&
+            GAME_TYPE === "POINTS" &&
+            seconds === 5 &&
+            !state.pointsOfflineCheckDone
+        )
+        {
+            state.pointsOfflineCheckDone = true;
+
+            console.log(
+                "POINTS: 5-second offline check started."
+            );
+
+
+            const {
+                data,
+                error
+            } = await supabaseClient.rpc(
+                "crdgp_mark_offline_points_players",
+                {
+                    p_session_id: state.sessionId
+                }
+            );
+
+
+            if (error)
+            {
+                console.error(
+                    "POINTS: Offline player check failed:",
+                    error
+                );
+            }
+            else
+            {
+                console.log(
+                    "POINTS: Offline players marked:",
+                    data
+                );
+            }
+        }
 
 
         // --------------------------------------------------
@@ -3735,6 +3790,9 @@ async function handleTableCompleted(data)
 
     state.tableCompleted = true;
 
+    // POINTS heartbeat is no longer required.
+    stopPointsHeartbeat();
+
     // Stop timers
     clearInterval(
         state.turnTimerInterval
@@ -5556,6 +5614,8 @@ async function loadGame() {
         !state.eliminationScreenShown
     )
     {
+        stopPointsHeartbeat();
+
         state.eliminationScreenShown = true;
         handleEliminatedPlayer();
     }
@@ -5767,127 +5827,146 @@ function getRank(card){
 let refreshInProgress = false;
 
 // ==================================================
-// NETWORK / SUPABASE AVAILABILITY MONITOR
+// POINTS : PLAYER HEARTBEAT
 // ==================================================
-let networkOffline = false;
-let networkMonitorHandle = null;
 
-async function checkSupabaseAvailability() {
+let pointsHeartbeatHandle = null;
+let pointsHeartbeatInProgress = false;
 
-    if (!navigator.onLine) {
-        return false;
+async function sendPointsHeartbeat() {
+
+    // POINTS ONLY
+    if (
+        typeof GAME_TYPE === "undefined" ||
+        GAME_TYPE !== "POINTS"
+    ) {
+        return;
     }
+
+    // No heartbeat after table/game is over.
+    if (
+        state.tableCompleted ||
+        state.isEliminated ||
+        state.playerStatus === "ELIMINATED"
+    ) {
+        return;
+    }
+
+    // During an actual network outage, let the existing
+    // 7-second network monitor handle recovery.
+    if (typeof networkOffline !== "undefined" && networkOffline) {
+        return;
+    }
+
+    if (
+        !state.tableId ||
+        !state.userId
+    ) {
+        return;
+    }
+
+    if (pointsHeartbeatInProgress) {
+        return;
+    }
+
+    pointsHeartbeatInProgress = true;
 
     try {
 
-        const controller = new AbortController();
+        const { data, error } =
+            await supabaseClient.rpc(
+                "crdgp_update_heartbeat",
+                {
+                    p_user_id: state.userId,
+                    p_table_id: state.tableId
+                }
+            );
 
-        const timeoutHandle = setTimeout(
-            () => controller.abort(),
-            5000
-        );
+        if (error) {
 
-        // Any HTTP response means Supabase is reachable.
-        // Only a real fetch/network failure is treated as offline.
-        await fetch(
-            SUPABASE_URL + "/rest/v1/",
-            {
-                method: "GET",
-                cache: "no-store",
-                signal: controller.signal
-            }
-        );
-
-        clearTimeout(timeoutHandle);
-
-        return true;
-
-    } catch (error) {
-
-        console.warn(
-            "SUPABASE AVAILABILITY CHECK FAILED:",
-            error?.message || error
-        );
-
-        return false;
-    }
-}
-
-async function checkNetworkAndReconnect() {
-
-    if (refreshInProgress) {
-        return;
-    }
-
-    const available = await checkSupabaseAvailability();
-
-    // Connection unavailable: remember the state and wait.
-    if (!available) {
-
-        if (!networkOffline) {
-            networkOffline = true;
             console.warn(
-                "NETWORK OFFLINE: waiting for connection..."
-            );
-        }
-
-        return;
-    }
-
-    // Connection has returned after an offline period.
-    if (networkOffline) {
-
-        console.log(
-            "NETWORK AVAILABLE: automatic game refresh starting..."
-        );
-
-        try {
-
-            const refreshed = await refreshGame();
-
-            if (!refreshed) {
-                throw new Error(
-                    "Game refresh did not complete successfully."
-                );
-            }
-
-            networkOffline = false;
-
-            console.log(
-                "NETWORK RESTORED: game refresh completed."
-            );
-
-        } catch (error) {
-
-            console.error(
-                "NETWORK RESTORE REFRESH FAILED:",
+                "POINTS HEARTBEAT ERROR:",
                 error
             );
 
-            // Keep true so the next 7-second check retries.
-            networkOffline = true;
+            return;
         }
+
+        if (data !== true) {
+
+            console.warn(
+                "POINTS HEARTBEAT: player row not updated.",
+                {
+                    tableId: state.tableId,
+                    userId: state.userId,
+                    result: data
+                }
+            );
+
+            return;
+        }
+
+        console.log(
+            "POINTS HEARTBEAT OK:",
+            new Date().toISOString()
+        );
+
+    }
+    catch (error) {
+
+        console.warn(
+            "POINTS HEARTBEAT EXCEPTION:",
+            error
+        );
+
+    }
+    finally {
+
+        pointsHeartbeatInProgress = false;
     }
 }
 
-function startNetworkMonitor() {
 
-    if (networkMonitorHandle) {
+function stopPointsHeartbeat() {
+
+    if (pointsHeartbeatHandle) {
+
+        clearInterval(
+            pointsHeartbeatHandle
+        );
+
+        pointsHeartbeatHandle = null;
+    }
+}
+
+
+function startPointsHeartbeat() {
+
+    // Always prevent duplicate heartbeat timers.
+    stopPointsHeartbeat();
+
+    // POINTS ONLY.
+    if (
+        typeof GAME_TYPE === "undefined" ||
+        GAME_TYPE !== "POINTS"
+    ) {
         return;
     }
 
     console.log(
-        "NETWORK MONITOR STARTED: checking every 7 seconds"
+        "POINTS HEARTBEAT STARTED: every 3 seconds"
     );
 
-    // Initial check, then every 7 seconds.
-    checkNetworkAndReconnect();
+    // Send one immediately, then every 3 seconds.
+    sendPointsHeartbeat();
 
-    networkMonitorHandle = setInterval(
-        checkNetworkAndReconnect,
-        7000
-    );
+    pointsHeartbeatHandle =
+        setInterval(
+            sendPointsHeartbeat,
+            3000
+        );
 }
+
 
 async function refreshGame() {
 
@@ -5931,13 +6010,7 @@ async function refreshGame() {
             console.log(
                 "REFRESH: Game state restored."
             );
-
-            return true;
         }
-
-        // Nothing to refresh. Treat as unsuccessful for the
-        // automatic network recovery path.
-        return false;
 
     }
     catch (error) {
@@ -5946,8 +6019,6 @@ async function refreshGame() {
             "MANUAL GAME REFRESH ERROR:",
             error
         );
-
-        return false;
 
     }
     finally {
@@ -7313,11 +7384,11 @@ async function enterGame(){
     if (!state.activeGameRegistered) {
         await setActiveGame();
     }
+
   subscribeRealtime();
 
-  // Automatic network/Supabase recovery starts only after
-  // the game screen has been successfully entered.
-  startNetworkMonitor();
+  // POINTS ONLY: maintain server heartbeat.
+  startPointsHeartbeat();
 }
 
 
