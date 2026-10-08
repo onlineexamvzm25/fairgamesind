@@ -2386,130 +2386,213 @@ async function onObservationTimerExpired()
     }
 
 
-            // --------------------------------------------------
-            // POINTS GAME
-            //
-            // Stop after the current deal.
-            // DO NOT automatically start the next deal.
-            //
-            // The POINTS settlement / NEXT DEAL flow
-            // will be handled separately.
-            // --------------------------------------------------
+    // --------------------------------------------------
+    // POINTS GAME
+    //
+    // 1. Settle the completed deal
+    // 2. Eliminate offline players marked at 5 seconds
+    // 3. Check whether the table is completed
+    // 4. Otherwise start the next deal
+    // --------------------------------------------------
 
-            // --------------------------------------------------
-        // POINTS GAME
-        //
-        // 1. Settle the completed deal
-        // 2. Check whether the table is completed
-        // 3. Otherwise start the next deal
+    if (
+        typeof GAME_TYPE !== "undefined" &&
+        GAME_TYPE === "POINTS"
+    ) {
+
+        console.log(
+            "POINTS: Observation timer expired. Settling deal..."
+        );
+
+
+        // --------------------------------------------------
+        // SETTLE CURRENT DEAL
         // --------------------------------------------------
 
-        if (
-            typeof GAME_TYPE !== "undefined" &&
-            GAME_TYPE === "POINTS"
-        ) {
-
-            console.log(
-                "POINTS: Observation timer expired. Settling deal..."
-            );
-
-
-            // --------------------------------------------------
-            // SETTLE CURRENT DEAL
-            // --------------------------------------------------
-
-            const {
-                data: settlementData,
-                error: settlementError
-            } =
-            await supabaseClient.rpc(
-                "crdgp_settle_points_deal",
-                {
-                    p_session_id:
-                        state.sessionId
-                }
-            );
-
-
-            if (settlementError)
+        const {
+            data: settlementData,
+            error: settlementError
+        } =
+        await supabaseClient.rpc(
+            "crdgp_settle_points_deal",
             {
-                console.error(
-                    "POINTS settlement failed:",
-                    settlementError
-                );
-
-                return;
-            }
-
-
-            console.log(
-                "POINTS settlement result:",
-                settlementData
-            );
-
-
-            // --------------------------------------------------
-            // RELOAD SESSION AFTER SETTLEMENT
-            // --------------------------------------------------
-
-            const {
-                data: settledSession,
-                error: settledSessionError
-            } =
-            await supabaseClient
-                .from("crdg_game_sessions")
-                .select("*")
-                .eq(
-                    "session_id",
+                p_session_id:
                     state.sessionId
-                )
-                .single();
-
-
-            if (settledSessionError)
-            {
-                console.error(
-                    "POINTS post-settlement session check failed:",
-                    settledSessionError
-                );
-
-                return;
             }
+        );
 
 
-            // --------------------------------------------------
-            // TABLE COMPLETED?
-            // --------------------------------------------------
-
-            if (
-                settledSession.game_completed === true
-            )
-            {
-                console.log(
-                    "POINTS: Table completed after settlement."
-                );
-
-                handleTableCompleted(
-                    settledSession
-                );
-
-                return;
-            }
-
-
-            // --------------------------------------------------
-            // TABLE NOT COMPLETED
-            // START NEXT DEAL
-            // --------------------------------------------------
-
-            console.log(
-                "POINTS: Settlement completed. Starting next deal..."
+        if (settlementError)
+        {
+            console.error(
+                "POINTS settlement failed:",
+                settlementError
             );
-
-            await startNextDeal();
 
             return;
         }
+
+
+        console.log(
+            "POINTS settlement result:",
+            settlementData
+        );
+
+
+        // --------------------------------------------------
+        // RELOAD SESSION AFTER SETTLEMENT
+        // --------------------------------------------------
+
+        const {
+            data: settledSession,
+            error: settledSessionError
+        } =
+        await supabaseClient
+            .from("crdg_game_sessions")
+            .select("*")
+            .eq(
+                "session_id",
+                state.sessionId
+            )
+            .single();
+
+
+        if (settledSessionError)
+        {
+            console.error(
+                "POINTS post-settlement session check failed:",
+                settledSessionError
+            );
+
+            return;
+        }
+
+
+        // --------------------------------------------------
+        // TABLE COMPLETED?
+        // --------------------------------------------------
+
+        if (
+            settledSession.game_completed === true
+        )
+        {
+            console.log(
+                "POINTS: Table completed after settlement."
+            );
+
+            handleTableCompleted(
+                settledSession
+            );
+
+            return;
+        }
+
+
+        // --------------------------------------------------
+        // ELIMINATE FLAGGED OFFLINE PLAYERS
+        //
+        // Players marked at the 5-second observation
+        // checkpoint are eliminated only AFTER the
+        // current deal has been settled.
+        // --------------------------------------------------
+
+        console.log(
+            "POINTS: Checking flagged offline players before next deal..."
+        );
+
+
+        const {
+            data: eliminatedCount,
+            error: eliminationError
+        } =
+        await supabaseClient.rpc(
+            "crdgp_eliminate_flagged_points_players",
+            {
+                p_session_id:
+                    state.sessionId
+            }
+        );
+
+
+        if (eliminationError)
+        {
+            console.error(
+                "POINTS: Offline player elimination failed:",
+                eliminationError
+            );
+
+            return;
+        }
+
+
+        console.log(
+            "POINTS: Offline players eliminated:",
+            eliminatedCount
+        );
+
+
+        // --------------------------------------------------
+        // RELOAD SESSION AFTER ELIMINATION
+        // --------------------------------------------------
+
+        const {
+            data: postEliminationSession,
+            error: postEliminationError
+        } =
+        await supabaseClient
+            .from("crdg_game_sessions")
+            .select("*")
+            .eq(
+                "session_id",
+                state.sessionId
+            )
+            .single();
+
+
+        if (postEliminationError)
+        {
+            console.error(
+                "POINTS post-elimination session check failed:",
+                postEliminationError
+            );
+
+            return;
+        }
+
+
+        // --------------------------------------------------
+        // TABLE COMPLETED AFTER ELIMINATION?
+        // --------------------------------------------------
+
+        if (
+            postEliminationSession.game_completed === true
+        )
+        {
+            console.log(
+                "POINTS: Table completed after offline elimination."
+            );
+
+            handleTableCompleted(
+                postEliminationSession
+            );
+
+            return;
+        }
+
+
+        // --------------------------------------------------
+        // START NEXT DEAL
+        // --------------------------------------------------
+
+        console.log(
+            "POINTS: Settlement and offline elimination completed. Starting next deal..."
+        );
+
+
+        await startNextDeal();
+
+        return;
+    }
 
 
     // --------------------------------------------------
