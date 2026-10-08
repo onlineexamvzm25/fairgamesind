@@ -2335,7 +2335,6 @@ async function exitPointsTable()
     }
 }
 
-
 async function onObservationTimerExpired()
 {
     
@@ -2391,8 +2390,9 @@ async function onObservationTimerExpired()
     //
     // 1. Settle the completed deal
     // 2. Eliminate offline players marked at 5 seconds
-    // 3. Check whether the table is completed
-    // 4. Otherwise start the next deal
+    // 3. Check remaining active players
+    // 4. If only one remains → finish table
+    // 5. Otherwise → start next deal
     // --------------------------------------------------
 
     if (
@@ -2469,7 +2469,7 @@ async function onObservationTimerExpired()
 
 
         // --------------------------------------------------
-        // TABLE COMPLETED?
+        // TABLE COMPLETED AFTER SETTLEMENT?
         // --------------------------------------------------
 
         if (
@@ -2532,48 +2532,128 @@ async function onObservationTimerExpired()
 
 
         // --------------------------------------------------
-        // RELOAD SESSION AFTER ELIMINATION
+        // CHECK REMAINING ACTIVE PLAYERS
         // --------------------------------------------------
 
         const {
-            data: postEliminationSession,
-            error: postEliminationError
+            data: remainingPlayers,
+            error: remainingPlayersError
         } =
         await supabaseClient
-            .from("crdg_game_sessions")
-            .select("*")
+            .from("crdg_table_players")
+            .select("user_id, seat_no")
             .eq(
-                "session_id",
-                state.sessionId
+                "table_id",
+                state.tableId
             )
-            .single();
+            .eq(
+                "is_active",
+                true
+            )
+            .eq(
+                "is_eliminated",
+                false
+            );
 
 
-        if (postEliminationError)
+        if (remainingPlayersError)
         {
             console.error(
-                "POINTS post-elimination session check failed:",
-                postEliminationError
+                "POINTS: Failed to check remaining players:",
+                remainingPlayersError
             );
 
             return;
         }
 
 
+        console.log(
+            "POINTS: Remaining active players:",
+            remainingPlayers.length
+        );
+
+
         // --------------------------------------------------
-        // TABLE COMPLETED AFTER ELIMINATION?
+        // ONLY ONE PLAYER REMAINS
+        //
+        // Finish table directly.
+        // DO NOT start another deal.
         // --------------------------------------------------
 
         if (
-            postEliminationSession.game_completed === true
+            remainingPlayers.length <= 1
         )
         {
             console.log(
-                "POINTS: Table completed after offline elimination."
+                "POINTS: Only one active player remains. Finishing table..."
             );
 
+
+            const {
+                data: finishData,
+                error: finishError
+            } =
+            await supabaseClient.rpc(
+                "crdg_finish_table",
+                {
+                    p_session_id:
+                        state.sessionId
+                }
+            );
+
+
+            if (finishError)
+            {
+                console.error(
+                    "POINTS: Table finish failed:",
+                    finishError
+                );
+
+                return;
+            }
+
+
+            console.log(
+                "POINTS: Table finished:",
+                finishData
+            );
+
+
+            // --------------------------------------------------
+            // RELOAD FINAL SESSION
+            // --------------------------------------------------
+
+            const {
+                data: finalSession,
+                error: finalSessionError
+            } =
+            await supabaseClient
+                .from("crdg_game_sessions")
+                .select("*")
+                .eq(
+                    "session_id",
+                    state.sessionId
+                )
+                .single();
+
+
+            if (finalSessionError)
+            {
+                console.error(
+                    "POINTS: Final session reload failed:",
+                    finalSessionError
+                );
+
+                return;
+            }
+
+
+            // --------------------------------------------------
+            // SHOW TABLE COMPLETED WINDOW
+            // --------------------------------------------------
+
             handleTableCompleted(
-                postEliminationSession
+                finalSession
             );
 
             return;
@@ -2581,6 +2661,7 @@ async function onObservationTimerExpired()
 
 
         // --------------------------------------------------
+        // MORE THAN ONE PLAYER REMAINS
         // START NEXT DEAL
         // --------------------------------------------------
 
