@@ -5991,6 +5991,129 @@ function getRank(card){
 let refreshInProgress = false;
 
 // ==================================================
+// ==================================================
+// NETWORK / SUPABASE AVAILABILITY MONITOR
+// ==================================================
+let networkOffline = false;
+let networkMonitorHandle = null;
+
+async function checkSupabaseAvailability() {
+
+    if (!navigator.onLine) {
+        return false;
+    }
+
+    try {
+
+        const controller = new AbortController();
+
+        const timeoutHandle = setTimeout(
+            () => controller.abort(),
+            5000
+        );
+
+        // Any HTTP response means Supabase is reachable.
+        // Only a real fetch/network failure is treated as offline.
+        await fetch(
+            SUPABASE_URL + "/rest/v1/",
+            {
+                method: "GET",
+                cache: "no-store",
+                signal: controller.signal
+            }
+        );
+
+        clearTimeout(timeoutHandle);
+
+        return true;
+
+    } catch (error) {
+
+        console.warn(
+            "SUPABASE AVAILABILITY CHECK FAILED:",
+            error?.message || error
+        );
+
+        return false;
+    }
+}
+
+async function checkNetworkAndReconnect() {
+
+    if (refreshInProgress) {
+        return;
+    }
+
+    const available = await checkSupabaseAvailability();
+
+    // Connection unavailable: remember the state and wait.
+    if (!available) {
+
+        if (!networkOffline) {
+            networkOffline = true;
+            console.warn(
+                "NETWORK OFFLINE: waiting for connection..."
+            );
+        }
+
+        return;
+    }
+
+    // Connection has returned after an offline period.
+    if (networkOffline) {
+
+        console.log(
+            "NETWORK AVAILABLE: automatic game refresh starting..."
+        );
+
+        try {
+
+            const refreshed = await refreshGame();
+
+            if (!refreshed) {
+                throw new Error(
+                    "Game refresh did not complete successfully."
+                );
+            }
+
+            networkOffline = false;
+
+            console.log(
+                "NETWORK RESTORED: game refresh completed."
+            );
+
+        } catch (error) {
+
+            console.error(
+                "NETWORK RESTORE REFRESH FAILED:",
+                error
+            );
+
+            // Keep true so the next 7-second check retries.
+            networkOffline = true;
+        }
+    }
+}
+
+function startNetworkMonitor() {
+
+    if (networkMonitorHandle) {
+        return;
+    }
+
+    console.log(
+        "NETWORK MONITOR STARTED: checking every 7 seconds"
+    );
+
+    // Initial check, then every 7 seconds.
+    checkNetworkAndReconnect();
+
+    networkMonitorHandle = setInterval(
+        checkNetworkAndReconnect,
+        7000
+    );
+}
+
 // POINTS : PLAYER HEARTBEAT
 // ==================================================
 
@@ -6174,7 +6297,11 @@ async function refreshGame() {
             console.log(
                 "REFRESH: Game state restored."
             );
+
+            return true;
         }
+
+        return false;
 
     }
     catch (error) {
@@ -6183,6 +6310,8 @@ async function refreshGame() {
             "MANUAL GAME REFRESH ERROR:",
             error
         );
+
+        return false;
 
     }
     finally {
@@ -7553,6 +7682,9 @@ async function enterGame(){
 
   // POINTS ONLY: maintain server heartbeat.
   startPointsHeartbeat();
+
+  // Automatically reconnect and refresh when network/Supabase returns.
+  startNetworkMonitor();
 }
 
 
