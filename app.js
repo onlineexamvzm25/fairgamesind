@@ -101,7 +101,9 @@ let state = {
   drawInProgress: false,
   myTurnPickAnimation: false,
   registeredUserId: null,
-  activeGameRegistered: false
+  activeGameRegistered: false,
+  groupsLocked : false,
+  groupsDealNo: null
 };
 
 
@@ -1136,27 +1138,6 @@ function groupSelectedCards() {
 
     ensureSixGroups();
 
-    // ==========================================================
-    // GROUPING RULES
-    // ==========================================================
-    // G1-G5 = real user groups.
-    // G6     = overflow / unassigned group.
-    //
-    // A) Selected cards from ONE normal group (G1-G5):
-    //    selected cards stay in their parent group.
-    //
-    // B) Selected cards from MULTIPLE groups:
-    //    there is no parent. Selected cards are assigned to the
-    //    first available group in G1 -> G5.
-    //
-    // C) Selected cards from G6:
-    //    G6 is not a parent. Selected cards are assigned to the
-    //    first available group in G1 -> G5.
-    //
-    // D) Every remaining/unassigned card is redistributed by
-    //    checking availability in strict order G1 -> G6.
-    // ==========================================================
-
     const selected = [];
     const seen = new Set();
 
@@ -1211,11 +1192,52 @@ function groupSelectedCards() {
         sourceNumbers[0] >= 0 &&
         sourceNumbers[0] <= 4;
 
-    // ==========================================================
-    // CASE A: SINGLE NORMAL PARENT G1-G5
-    // ==========================================================
-    if (hasSingleNormalParent) {
+    // SPECIAL CASE:
+    // 3 or more selected cards from 3 or more different groups.
+    // Move only the selected cards to a free group.
+    // Keep every unselected card in its original group.
+    // Skip single-card cleanup below so source groups remain intact.
+    const isThreePlusGroupsCase =
+        selected.length >= 3 &&
+        sourceNumbers.length >= 3;
 
+    if (isThreePlusGroupsCase) {
+
+        // Remove only selected cards from their source groups.
+        sourceGroups.forEach((source, groupNo) => {
+            state.groups[groupNo] = source.cards.filter(
+                (_, index) => !source.selectedIndexes.has(index)
+            );
+        });
+
+        const sourceGroupSet = new Set(sourceNumbers);
+        let selectedTarget = -1;
+
+        // Find the next empty group G1-G5 that is not one of
+        // the selected cards' source groups.
+        for (let g = 0; g < 5; g++) {
+            if (
+                !sourceGroupSet.has(g) &&
+                state.groups[g].length === 0
+            ) {
+                selectedTarget = g;
+                break;
+            }
+        }
+
+        // If no free user group exists, use G6 as the fallback.
+        // Append rather than overwrite any cards already in G6.
+        if (selectedTarget === -1) {
+            selectedTarget = 5;
+        }
+
+        state.groups[selectedTarget].push(
+            ...selected.map(item => item.card)
+        );
+
+    } else if (hasSingleNormalParent) {
+
+        // EXISTING BEHAVIOR — selection from one normal group.
         const parentGroup = sourceNumbers[0];
         const source = sourceGroups.get(parentGroup);
 
@@ -1227,18 +1249,14 @@ function groupSelectedCards() {
             (_, index) => !source.selectedIndexes.has(index)
         );
 
-        // Selected cards stay with their parent.
+        // Selected cards stay in their parent group.
         state.groups[parentGroup] = selectedCards;
 
-        // Remaining cards are now invalid/unassigned.
-        // If only ONE card remains, keep it in G6 so the
-        // user does not see a one-card group.
-        // Otherwise find ONE available group in G1 -> G5,
-        // then put ALL remaining cards into that SAME group.
+        // Preserve existing redistribution behavior.
         let remainingTarget = -1;
 
         if (remainingCards.length === 1) {
-            remainingTarget = 5; // G6
+            remainingTarget = 5;
         } else {
             for (let g = 0; g < 5; g++) {
                 if (state.groups[g].length === 0) {
@@ -1247,24 +1265,20 @@ function groupSelectedCards() {
                 }
             }
 
-            // If no G1-G5 group is available, use G6.
             if (remainingTarget === -1) {
                 remainingTarget = 5;
             }
         }
 
         state.groups[remainingTarget].push(...remainingCards);
-    }
 
-    // ==========================================================
-    // CASE B/C: MULTIPLE GROUPS OR SELECTION FROM G6
-    // ==========================================================
-    else {
+    } else {
 
+        // EXISTING BEHAVIOR — multiple groups / G6 selection.
+        // This branch remains unchanged for the other cases.
         const selectedCards = selected.map(item => item.card);
         const remainingCards = [];
 
-        // Collect all unselected cards from the source groups.
         sourceGroups.forEach((source, groupNo) => {
             source.cards.forEach((card, index) => {
                 if (!source.selectedIndexes.has(index)) {
@@ -1273,17 +1287,10 @@ function groupSelectedCards() {
             });
         });
 
-        // Clear the source groups completely. This is important:
-        // otherwise a source group's remaining cards would prevent
-        // the G1 -> G5 availability search from finding a free group.
         sourceGroups.forEach((source, groupNo) => {
             state.groups[groupNo] = [];
         });
 
-        // --------------------------------------------------------
-        // FIRST assign the SELECTED cards.
-        // No parent exists here, so ALWAYS check G1 -> G5.
-        // --------------------------------------------------------
         let selectedTarget = -1;
 
         for (let g = 0; g < 5; g++) {
@@ -1293,18 +1300,12 @@ function groupSelectedCards() {
             }
         }
 
-        // If all G1-G5 are occupied, G6 is the only safe place.
         if (selectedTarget === -1) {
             selectedTarget = 5;
         }
 
         state.groups[selectedTarget].push(...selectedCards);
 
-        // --------------------------------------------------------
-        // THEN redistribute the remaining cards.
-        // IMPORTANT: check availability ONCE, then keep ALL
-        // remaining cards together in that SAME group.
-        // --------------------------------------------------------
         let remainingTarget = -1;
 
         for (let g = 0; g < 6; g++) {
@@ -1321,28 +1322,20 @@ function groupSelectedCards() {
         state.groups[remainingTarget].push(...remainingCards);
     }
 
-
-
-            // ==========================================
-        // CLEAN SINGLE-CARD GROUPS
-        // ==========================================
-        // Any G1-G5 containing exactly ONE card
-        // is moved to G6.
-        // G6 is the overflow / unassigned group.
-
+    // Keep the existing single-card cleanup for all old cases.
+    // In the new 3+-groups case, do not move remaining cards,
+    // because they must stay in their original groups.
+    if (!isThreePlusGroupsCase) {
         for (let g = 0; g < 5; g++) {
-
             if (
                 state.groups[g] &&
                 state.groups[g].length === 1
             ) {
-
-                const singleCard =
-                    state.groups[g].shift();
-
+                const singleCard = state.groups[g].shift();
                 state.groups[5].push(singleCard);
             }
         }
+    }
 
     clearCardSelection();
 
@@ -1356,6 +1349,36 @@ function groupSelectedCards() {
     renderHand();
     calculateDealScore();
 }
+
+
+function setGroupsLocked(locked) {
+
+    state.groupsLocked = locked;
+
+    // Disable or enable all six card groups.
+    for (let g = 0; g < 6; g++) {
+
+        const groupEl =
+            document.getElementById("group" + g);
+
+        if (groupEl) {
+            groupEl.style.pointerEvents =
+                locked ? "none" : "";
+        }
+    }
+
+    // Remove the GROUP button when locked.
+    if (locked) {
+
+        const groupButton =
+            document.getElementById("groupActionButton");
+
+        if (groupButton) {
+            groupButton.remove();
+        }
+    }
+}
+
 
 
 async function loadTopGameType()
@@ -1817,6 +1840,9 @@ groupEl.appendChild(div);
         });
 
     }
+
+    saveGroupLayout();
+
 
    updateGroupButton();
 
@@ -2786,6 +2812,9 @@ async function startNextDeal()
 
         return;
     }
+
+    // New deal is starting: unlock this player's groups.
+     setGroupsLocked(false);
 
 
     // ==================================================
@@ -5734,164 +5763,311 @@ function updateActionButtons() {
   
 
 
+function getGroupLayoutStorageKey(dealNo = state.groupsDealNo) {
+
+    if (
+        !state.sessionId ||
+        !state.userId ||
+        dealNo == null
+    ) {
+        return null;
+    }
+
+    return (
+        "crdg_group_layout_" +
+        state.sessionId + "_" +
+        state.userId + "_" +
+        dealNo
+    );
+}
+
+
+function saveGroupLayout() {
+
+    const key = getGroupLayoutStorageKey();
+
+    if (!key || !Array.isArray(state.groups)) {
+        return;
+    }
+
+    try {
+        localStorage.setItem(
+            key,
+            JSON.stringify(state.groups)
+        );
+    }
+    catch (error) {
+        console.error("Group layout save failed:", error);
+    }
+}
+
+
+function arrangeHandBySuit(hand) {
+
+    const hearts = [];
+    const spades = [];
+    const diamonds = [];
+    const clubs = [];
+    const jokers = [];
+
+    hand.forEach(card => {
+
+        if (card === "JOKER") {
+            jokers.push(card);
+        }
+        else if (card.includes("♥")) {
+            hearts.push(card);
+        }
+        else if (card.includes("♠")) {
+            spades.push(card);
+        }
+        else if (card.includes("♦")) {
+            diamonds.push(card);
+        }
+        else if (card.includes("♣")) {
+            clubs.push(card);
+        }
+
+    });
+
+    hearts.sort((a, b) => getRank(a) - getRank(b));
+    spades.sort((a, b) => getRank(a) - getRank(b));
+    diamonds.sort((a, b) => getRank(a) - getRank(b));
+    clubs.sort((a, b) => getRank(a) - getRank(b));
+
+    return [
+        hearts,
+        spades,
+        diamonds,
+        clubs,
+        [],
+        jokers
+    ];
+}
+
+
+function reconcileGroupLayout(previousGroups, currentHand) {
+
+    const groups = Array.from(
+        { length: 6 },
+        (_, index) =>
+            Array.isArray(previousGroups?.[index])
+                ? [...previousGroups[index]]
+                : []
+    );
+
+    // Count each card in the authoritative hand.
+    // Counts handle duplicate cards from two decks.
+    const remaining = new Map();
+
+    currentHand.forEach(card => {
+        remaining.set(
+            card,
+            (remaining.get(card) || 0) + 1
+        );
+    });
+
+    // Preserve the group and order of cards still in the hand.
+    const preservedGroups = groups.map(group => {
+
+        const kept = [];
+
+        group.forEach(card => {
+
+            const count = remaining.get(card) || 0;
+
+            if (count > 0) {
+                kept.push(card);
+                remaining.set(card, count - 1);
+            }
+
+        });
+
+        return kept;
+    });
+
+    // Place newly acquired cards into G5.
+    // Keep newly acquired printed jokers in G6.
+    currentHand.forEach(card => {
+
+        const count = remaining.get(card) || 0;
+
+        if (count > 0) {
+
+            const targetGroup =
+                card === "JOKER" ? 5 : 4;
+
+            preservedGroups[targetGroup].push(card);
+
+            remaining.set(card, count - 1);
+        }
+
+    });
+
+    return preservedGroups;
+}
+
+
+
 // =========================
 // LOAD STATE
-
 async function loadGame() {
 
-    if(state.tableCompleted)
-{
-    return;
-}
-
-  const { data, error } = await supabaseClient.rpc(
-    "crdg_get_game_state",
-    {
-      p_session_id: state.sessionId,
-      p_user_id: state.userId
+    if (state.tableCompleted) {
+        return;
     }
-  );
 
-  if (error) return console.error(error);
+    const { data, error } = await supabaseClient.rpc(
+        "crdg_get_game_state",
+        {
+            p_session_id: state.sessionId,
+            p_user_id: state.userId
+        }
+    );
 
-  if (!data) return;
+    if (error) {
+        console.error(error);
+        return;
+    }
 
-  state.hand = data.hand || [];
-  
-  state.playerStatus = data.player_status;
-  state.participatedInDeal =   data.participated_in_deal === true;
+    if (!data) {
+        return;
+    }
 
-  if (state.playerStatus === "ELIMINATED" && !state.eliminatedRefreshStarted)
-{
-    state.eliminatedRefreshStarted = true;
+    // ==========================================
+    // UPDATE PLAYER STATE
+    // ==========================================
 
-    setInterval(async () => {
+    state.hand = data.hand || [];
+    state.playerStatus = data.player_status;
+    state.participatedInDeal =
+        data.participated_in_deal === true;
 
-        await loadSessionInfo();
-        await loadPlayers();
+    // ==========================================
+    // ELIMINATED PLAYER HANDLING
+    // ==========================================
 
-    }, 1000);
-}
+    if (
+        state.playerStatus === "ELIMINATED" &&
+        !state.eliminatedRefreshStarted
+    ) {
+        state.eliminatedRefreshStarted = true;
+
+        setInterval(async () => {
+            await loadSessionInfo();
+            await loadPlayers();
+        }, 1000);
+    }
 
     if (
         state.playerStatus === "ELIMINATED" &&
         !state.eliminationScreenShown
-    )
-    {
+    ) {
         stopPointsHeartbeat();
 
         state.eliminationScreenShown = true;
         handleEliminatedPlayer();
     }
 
-        // ==========================================
-        // INITIAL HAND ORDER
-        // G1-G4 = USER GROUPS
-        // G5    = UNGROUPED CARDS
-        // ==========================================
+    // ==========================================
+    // PRESERVE GROUPS WITHIN THE SAME DEAL
+    // AUTO-ARRANGE ONLY FOR A NEW DEAL
+    // ==========================================
 
-        const spades = [];
-        const hearts = [];
-        const diamonds = [];
-        const clubs = [];
-        const jokers = [];
+    // Read the authoritative deal number because
+    // loadGame() may run before loadSessionInfo().
 
+    const {
+        data: dealInfo,
+        error: dealInfoError
+    } = await supabaseClient
+        .from("crdg_game_sessions")
+        .select("deal_no")
+        .eq("session_id", state.sessionId)
+        .single();
 
-        // ------------------------------------------
-        // Separate cards by suit
-        // ------------------------------------------
+    if (dealInfoError || !dealInfo) {
+        console.error(
+            "Unable to read current deal number:",
+            dealInfoError
+        );
+        return;
+    }
 
-        state.hand.forEach(card => {
+    const currentDealNo = dealInfo.deal_no;
 
-            if (card === "JOKER") {
+    const sameDeal =
+        state.groupsDealNo != null &&
+        String(state.groupsDealNo) ===
+        String(currentDealNo);
 
-                jokers.push(card);
+    let previousGroups = null;
 
+    // First preference: existing groups in memory.
+    if (
+        sameDeal &&
+        Array.isArray(state.groups) &&
+        state.groups.some(
+            group => Array.isArray(group) &&
+                   group.length > 0
+        )
+    ) {
+        previousGroups = state.groups;
+    }
+
+    // Second preference: saved groups from localStorage.
+    if (!previousGroups) {
+
+        const storageKey =
+            getGroupLayoutStorageKey(currentDealNo);
+
+        if (storageKey) {
+            try {
+                const savedLayout =
+                    localStorage.getItem(storageKey);
+
+                if (savedLayout) {
+                    const parsedLayout =
+                        JSON.parse(savedLayout);
+
+                    if (Array.isArray(parsedLayout)) {
+                        previousGroups = parsedLayout;
+                    }
+                }
+            } catch (storageError) {
+                console.error(
+                    "Unable to restore saved groups:",
+                    storageError
+                );
             }
-            else if (card.includes("♥")) {
+        }
+    }
 
-                hearts.push(card);
+    // Restore existing groups or arrange a new deal.
+    if (previousGroups) {
 
-            }
-            else if (card.includes("♠")) {
-
-                spades.push(card);
-
-            }
-            else if (card.includes("♦")) {
-
-                diamonds.push(card);
-
-            }
-            else if (card.includes("♣")) {
-
-                clubs.push(card);
-
-            }
-
-        });
-
-
-        // ------------------------------------------
-        // Sort each suit by rank
-        // A,2,3,4,5,6,7,8,9,10,J,Q,K
-        // ------------------------------------------
-
-        hearts.sort(
-            (a, b) => getRank(a) - getRank(b)
+        state.groups = reconcileGroupLayout(
+            previousGroups,
+            state.hand
         );
 
-        spades.sort(
-            (a, b) => getRank(a) - getRank(b)
-        );
+    } else {
 
-        diamonds.sort(
-            (a, b) => getRank(a) - getRank(b)
-        );
+        state.groups = arrangeHandBySuit(state.hand);
 
-        clubs.sort(
-            (a, b) => getRank(a) - getRank(b)
-        );
+    }
 
+    state.groupsDealNo = currentDealNo;
 
-        // ------------------------------------------
-        // Initial six-group layout
-        // G1 = Hearts
-        // G2 = Spades
-        // G3 = Diamonds
-        // G4 = Clubs
-        // G5 = empty user-created group
-        // G6 = printed Jokers / overflow
-        // Deal jokers stay with their actual suit.
-        // ------------------------------------------
+    // ==========================================
+    // RESET SELECTION AND RENDER
+    // ==========================================
 
-        state.groups = [
-            hearts,        // G1
-            spades,        // G2
-            diamonds,      // G3
-            clubs,         // G4
-            [],            // G5
-            jokers         // G6
-        ];
+    clearCardSelection();
+    state.dragCard = null;
 
-
- //document.getElementById("openVisual").innerText = data.open_pile?.slice(-1)[0] || "-";
-
-//document.getElementById("jokerVisual").innerText = data.joker_card || "-";
-
-  //document.getElementById("stockCard").innerText = data.stock_pile?.length || 0;
-
-    // Clear selection belonging to the old hand
-clearCardSelection();
-state.dragCard = null;
-
-// Display the refreshed database hand
-renderHand();
-
-// Recalculate controls using the refreshed card count
-updateActionButtons();
-
-  
+    renderHand();
+    updateActionButtons();
 }
 
 function getEstimatedTurnServerNow() {
@@ -7849,15 +8025,12 @@ async function startGame() {
 
 
 
+
 async function declareGame() {
 
-  if(state.declarationMode){
-
-    return;
-   }
-
-
-   
+    if (state.declarationMode || state.groupsLocked) {
+        return;
+    }
 
     if (
         Number(state.seatNo) !==
@@ -7885,109 +8058,93 @@ async function declareGame() {
         return;
     }
 
-    // existing declaration code...
-
-
-
-
     const totalCards =
         state.groups.reduce(
             (a, g) => a + g.length,
             0
         );
 
-    if(totalCards !== 14){
-
-        alert(
-            "You must have 14 cards to declare"
-        );
-
+    if (totalCards !== 14) {
+        alert("You must have 14 cards to declare");
         return;
     }
 
     const declareSelection = getSingleSelectedCard();
 
-    if(!declareSelection){
-
-        if (state.selectedCards && state.selectedCards.length > 1) {
-            alert("Please select only one card before declaration.");
-        } else {
-            alert("Please select one card before declaration");
-        }
-
+    if (!declareSelection) {
+        alert("Please select one card before declaration.");
         return;
     }
 
-    if(!confirm( "Confirm Declaration?" )){
+
+    if (!confirm(
+        "Confirm Declaration?\n\n" 
+    )) {
         return;
     }
 
     const declareCard = singleSelectedCard.card;
 
-    // Create copy of groups
+    // Create a copy of the groups.
+    const groupsForDeclaration =
+        JSON.parse(JSON.stringify(state.groups));
 
-      const groupsForDeclaration =
-          JSON.parse(
-              JSON.stringify(state.groups)
-          );
+    // Remove the selected declaration card from the copy.
+    groupsForDeclaration[
+        declareSelection.group
+    ].splice(
+        declareSelection.index,
+        1
+    );
 
-      // Remove selected card
+    const {
+        data: scoreData,
+        error: scoreError
+    } = await supabaseClient.rpc(
+        "crdg_calculate_running_score",
+        {
+            p_groups: groupsForDeclaration,
+            p_joker_card: state.jokerCard
+        }
+    );
 
-      groupsForDeclaration[
-          declareSelection.group
-      ].splice(
-          declareSelection.index,
-          1
-      );
+    if (scoreError) {
+        console.error(scoreError);
+        return;
+    }
 
-          
-        const { data, error } =
-        await supabaseClient.rpc(
-            "crdg_calculate_running_score",
+    const declarationScore = Number(scoreData || 0);
+
+    if (declarationScore === 0) {
+
+        alert("VALID DECLARATION");
+
+        const {
+            data: declarationData,
+            error: declarationError
+        } = await supabaseClient.rpc(
+            "crdg_submit_declaration",
             {
+                p_session_id: state.sessionId,
+                p_table_id: state.tableId,
+                p_user_id: state.userId,
+                p_declare_card: declareCard,
                 p_groups: groupsForDeclaration,
                 p_joker_card: state.jokerCard
             }
         );
 
-    if(error){
+        if (declarationError) {
+            console.error(declarationError);
+            return;
+        }
 
-        console.error(error);
+        if (declarationData?.[0]?.status === "valid") {
 
-        return;
-    }
+            // Lock this player's groups after server confirmation.
+            setGroupsLocked(true);
 
-    const declarationScore = Number(data || 0);
-    const declarationStatus =  data?.[0]?.status;
-
-    //const declarationScore =  0;
-
-    if(declarationScore === 0){
-
-          alert(
-              "VALID DECLARATION"
-          );
-
-
-            const declareCard = singleSelectedCard.card;
-
-            const { data, error } =
-                await supabaseClient.rpc(
-                    "crdg_submit_declaration",
-                    {
-                        p_session_id: state.sessionId,
-                        p_table_id: state.tableId,
-                        p_user_id: state.userId,
-                        p_declare_card: declareCard,
-                        p_groups: groupsForDeclaration,
-                        p_joker_card: state.jokerCard
-                    }
-                );
-
-            if(data?.[0]?.status === "valid")
-            {
-            // NOW remove from actual UI
-
+            // Remove the declaration card from the actual UI.
             state.groups[
                 declareSelection.group
             ].splice(
@@ -7999,51 +8156,41 @@ async function declareGame() {
 
             renderHand();
 
-            calculateDealScore();
+            await calculateDealScore();
         }
 
-            if(error){
+    } else {
 
-                console.error(error);
-
-                return;
-            }
-
-
-      }
-      else{
-
-         alert("OOPS...! INVALID DECLARATION");
-
+        alert("OOPS...! INVALID DECLARATION");
 
         state.isInvalidDeclaration = true;
         state.isDropped = true;
         state.dropType = "INVALID_DECLARE";
-        const declareCard = singleSelectedCard.card;
 
-        const { data, error } =
-            await supabaseClient.rpc(
-                "crdg_submit_declaration",
-                {
-                    p_session_id: state.sessionId,
-                    p_table_id: state.tableId,
-                    p_user_id: state.userId,
-                    p_declare_card: declareCard,
-                    p_groups: groupsForDeclaration,
-                    p_joker_card: state.jokerCard
-                }
-            );
+        const {
+            data,
+            error
+        } = await supabaseClient.rpc(
+            "crdg_submit_declaration",
+            {
+                p_session_id: state.sessionId,
+                p_table_id: state.tableId,
+                p_user_id: state.userId,
+                p_declare_card: declareCard,
+                p_groups: groupsForDeclaration,
+                p_joker_card: state.jokerCard
+            }
+        );
 
-            renderHand();
-
-        if(error){
+        if (error) {
             console.error(error);
             return;
         }
+
+        renderHand();
     }
-
-
 }
+
 
 
 
@@ -8059,14 +8206,16 @@ async function calculateDealScore() {
         );
 
     if (error) {
-
         console.error(error);
-
-        return;
+        return null;
     }
 
+    const score = Number(data || 0);
+
     document.getElementById("dealScore").innerText =
-        "Deal Score : " + (data || 0);
+        "Deal Score : " + score;
+
+    return score;
 }
 
 function getCardValue(card) {
