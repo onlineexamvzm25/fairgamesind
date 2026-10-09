@@ -638,16 +638,6 @@ async function createTable() {
             playerName
         );
 
-        // Save the exact seat assigned by crdg_join_table.
-        localStorage.setItem(
-            "crdg_seat_no",
-            String(joinResult.seat_no)
-        );
-
-        localStorage.setItem(
-            "crdg_fixed_seat_no",
-            String(joinResult.fixed_seat_no)
-        );
 
 
         localStorage.setItem(
@@ -709,6 +699,18 @@ async function createTable() {
 
             return;
         }
+
+        
+        // Save the exact seat assigned by crdg_join_table.
+        localStorage.setItem(
+            "crdg_seat_no",
+            String(joinResult.seat_no)
+        );
+
+        localStorage.setItem(
+            "crdg_fixed_seat_no",
+            String(joinResult.fixed_seat_no)
+        );
 
 
         // -----------------------------------------
