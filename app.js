@@ -103,7 +103,8 @@ let state = {
   registeredUserId: null,
   activeGameRegistered: false,
   groupsLocked : false,
-  groupsDealNo: null
+  groupsDealNo: null,
+  declarerWaitingWindowShown: false
 };
 
 
@@ -4440,6 +4441,34 @@ function getTableCardHTML(card) {
 }
 
 
+function showDeclarerWaitingWindow() {
+
+    hideBaseTableHand();
+
+    const timer = document.getElementById("observationTimer");
+    if (timer) {
+        timer.innerText = "Waiting for players...";
+    }
+
+    const container = document.getElementById("dealResultsContainer");
+    if (container) {
+        container.innerHTML = `
+            <div style="padding:24px;text-align:center;font-size:16px;font-weight:bold;">
+                Valid declaration accepted.<br><br>
+                Waiting for the other players' declaration timers to finish...
+            </div>
+        `;
+    }
+
+    const modal = document.getElementById("dealResultModal");
+    if (modal) {
+        modal.style.display = "block";
+    }
+
+    state.declarerWaitingWindowShown = true;
+}
+
+
 async function loadSessionInfo() {
 
     if (state.tableCompleted) {
@@ -4630,9 +4659,33 @@ async function loadSessionInfo() {
     state.declarationMode =
     data.declaration_started || false;
 
+    const iAmValidDeclarer =
+        state.declarationMode &&
+        data.declaration_user_id &&
+        String(data.declaration_user_id).toLowerCase() ===
+            String(state.userId).toLowerCase();
+
+    // The valid declarer moves to the waiting/observation screen
+    // immediately. The actual observation countdown still starts
+    // only when the server marks deal_results_ready.
+    if (
+        iAmValidDeclarer &&
+        data.deal_results_ready !== true &&
+        !state.resultWindowOpened &&
+        !state.declarerWaitingWindowShown
+    ) {
+        showDeclarerWaitingWindow();
+    }
+
+    if (
+        data.deal_results_ready === true
+    ) {
+        state.declarerWaitingWindowShown = false;
+    }
 
      if(
           state.declarationMode &&
+          !iAmValidDeclarer &&
           !state.declarationTimerStarted
       ){
 
@@ -5782,6 +5835,89 @@ function getGroupLayoutStorageKey(dealNo = state.groupsDealNo) {
 }
 
 
+
+let declarationBackupSaveTimer = null;
+
+function scheduleDeclarationBackupSave() {
+
+    // Only save while the declaration countdown is active.
+    if (
+        !state.sessionId ||
+        !state.tableId ||
+        !state.userId ||
+        !state.declarationMode ||
+        !state.declarationTimerStarted ||
+        !state.declarationEndAt ||
+        state.resultWindowOpened ||
+        state.groupsLocked
+    ) {
+        return;
+    }
+
+    const remaining =
+        new Date(state.declarationEndAt).getTime() -
+        Date.now();
+
+    if (remaining <= 0) {
+        return;
+    }
+
+    // Combine rapid card movements into one database update.
+    clearTimeout(declarationBackupSaveTimer);
+
+    declarationBackupSaveTimer = setTimeout(
+        async function () {
+
+            // Recheck before making the request.
+            if (
+                !state.declarationMode ||
+                !state.declarationTimerStarted ||
+                state.resultWindowOpened ||
+                !state.groups
+            ) {
+                return;
+            }
+
+            const remainingNow =
+                new Date(state.declarationEndAt).getTime() -
+                Date.now();
+
+            if (remainingNow <= 0) {
+                return;
+            }
+
+            const groupsToSave =
+                JSON.parse(JSON.stringify(state.groups));
+
+            const { data, error } =
+                await supabaseClient.rpc(
+                    "crdg_save_declaration_backup",
+                    {
+                        p_session_id: state.sessionId,
+                        p_table_id: state.tableId,
+                        p_user_id: state.userId,
+                        p_groups: groupsToSave
+                    }
+                );
+
+            if (error) {
+                console.error(
+                    "Declaration backup save failed:",
+                    error
+                );
+                return;
+            }
+
+            console.log(
+                "Declaration backup saved:",
+                data
+            );
+        },
+        500
+    );
+}
+
+
 function saveGroupLayout() {
 
     const key = getGroupLayoutStorageKey();
@@ -5797,9 +5933,16 @@ function saveGroupLayout() {
         );
     }
     catch (error) {
-        console.error("Group layout save failed:", error);
+        console.error(
+            "Group layout save failed:",
+            error
+        );
     }
+
+    // New: save to Supabase only during declaration countdown.
+    scheduleDeclarationBackupSave();
 }
+
 
 
 function arrangeHandBySuit(hand) {
@@ -5995,6 +6138,48 @@ async function loadGame() {
     }
 
     const currentDealNo = dealInfo.deal_no;
+
+    // A valid declaration uses 14 cards temporarily, but the selected
+    // declaration card is not part of the player's final 13-card hand.
+    // Remember that card per session/player/deal so refreshes cannot add it back.
+    const declarationStorageKey =
+        "crdg_valid_declaration_" +
+        state.sessionId + "_" +
+        state.userId + "_" +
+        currentDealNo;
+
+    let savedDeclaration = null;
+
+    try {
+        const savedDeclarationText =
+            localStorage.getItem(declarationStorageKey);
+
+        if (savedDeclarationText) {
+            savedDeclaration = JSON.parse(savedDeclarationText);
+        }
+    } catch (declarationStorageError) {
+        console.error(
+            "Unable to restore valid declaration:",
+            declarationStorageError
+        );
+    }
+
+    if (
+        savedDeclaration?.valid === true &&
+        typeof savedDeclaration.card === "string"
+    ) {
+        // Remove exactly one physical occurrence; duplicate cards can exist
+        // because the game uses two decks.
+        const declaredCardIndex = state.hand.indexOf(
+            savedDeclaration.card
+        );
+
+        if (declaredCardIndex >= 0) {
+            state.hand.splice(declaredCardIndex, 1);
+        }
+
+        setGroupsLocked(true);
+    }
 
     const sameDeal =
         state.groupsDealNo != null &&
@@ -6238,9 +6423,7 @@ async function checkNetworkAndReconnect() {
     // Connection has returned after an offline period.
     if (networkOffline) {
 
-        console.log(
-            "NETWORK AVAILABLE: automatic game refresh starting..."
-        );
+    
 
         try {
 
@@ -6254,9 +6437,7 @@ async function checkNetworkAndReconnect() {
 
             networkOffline = false;
 
-            console.log(
-                "NETWORK RESTORED: game refresh completed."
-            );
+            
 
         } catch (error) {
 
@@ -6277,9 +6458,7 @@ function startNetworkMonitor() {
         return;
     }
 
-    console.log(
-        "NETWORK MONITOR STARTED: checking every 7 seconds"
-    );
+    
 
     // Initial check, then every 7 seconds.
     checkNetworkAndReconnect();
@@ -6369,10 +6548,7 @@ async function sendPointsHeartbeat() {
             return;
         }
 
-        console.log(
-            "POINTS HEARTBEAT OK:",
-            new Date().toISOString()
-        );
+        
 
     }
     catch (error) {
@@ -6416,9 +6592,7 @@ function startPointsHeartbeat() {
         return;
     }
 
-    console.log(
-        "POINTS HEARTBEAT STARTED: every 3 seconds"
-    );
+    
 
     // Send one immediately, then every 3 seconds.
     sendPointsHeartbeat();
@@ -6438,10 +6612,6 @@ async function refreshGame() {
     }
 
     refreshInProgress = true;
-
-    console.log("=================================");
-    console.log("MANUAL GAME REFRESH START");
-    console.log("=================================");
 
     try {
 
@@ -6470,9 +6640,7 @@ async function refreshGame() {
 
             calculateDealScore();
 
-            console.log(
-                "REFRESH: Game state restored."
-            );
+            
 
             return true;
         }
@@ -8141,8 +8309,68 @@ async function declareGame() {
 
         if (declarationData?.[0]?.status === "valid") {
 
+            // Finalize the valid declarer's score immediately.
+            // This does not start Observation; the database will
+            // open results after all remaining players finish their
+            // declaration phase.
+            const {
+                data: finalGroupsData,
+                error: finalGroupsError
+            } = await supabaseClient.rpc(
+                "crdg_submit_final_groups",
+                {
+                    p_session_id: state.sessionId,
+                    p_table_id: state.tableId,
+                    p_user_id: state.userId,
+                    p_groups: groupsForDeclaration,
+                    p_joker_card: state.jokerCard
+                }
+            );
+
+            if (finalGroupsError) {
+                console.error(
+                    "Valid declarer finalization failed:",
+                    finalGroupsError
+                );
+            } else {
+                console.log(
+                    "Valid declarer finalized immediately:",
+                    finalGroupsData
+                );
+            }
+
+            // Persist the successful declaration card for this deal.
+            // loadGame() uses this marker to keep the 14th card out after
+            // manual refresh, automatic refresh, or reconnect.
+            try {
+                const declarationStorageKey =
+                    "crdg_valid_declaration_" +
+                    state.sessionId + "_" +
+                    state.userId + "_" +
+                    state.groupsDealNo;
+
+                localStorage.setItem(
+                    declarationStorageKey,
+                    JSON.stringify({
+                        valid: true,
+                        card: declareCard
+                    })
+                );
+            } catch (declarationStorageError) {
+                console.error(
+                    "Unable to save valid declaration:",
+                    declarationStorageError
+                );
+            }
+
             // Lock this player's groups after server confirmation.
             setGroupsLocked(true);
+
+            // Remove the declaration card from the actual UI and hand.
+            const declaredHandIndex = state.hand.indexOf(declareCard);
+            if (declaredHandIndex >= 0) {
+                state.hand.splice(declaredHandIndex, 1);
+            }
 
             // Remove the declaration card from the actual UI.
             state.groups[
@@ -8157,6 +8385,23 @@ async function declareGame() {
             renderHand();
 
             await calculateDealScore();
+
+            // Do not run the declarer's declaration countdown.
+            state.declarationMode = true;
+            state.declarationTimerStarted = true;
+
+            if (state.declarationTimerInterval) {
+                clearInterval(state.declarationTimerInterval);
+                state.declarationTimerInterval = null;
+            }
+
+            const declarationTimerLabel =
+                document.getElementById("declarationTimer");
+            if (declarationTimerLabel) {
+                declarationTimerLabel.innerText = "";
+            }
+
+            showDeclarerWaitingWindow();
         }
 
     } else {
