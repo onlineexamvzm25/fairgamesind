@@ -4726,8 +4726,18 @@ async function loadSessionInfo() {
             return;
         }
         
+        
         state.declarationEndAt = declarationEndAt;
-        state.declarationTimerStarted =  true;
+        state.declarationTimerStarted = true;
+
+        // Save the player's current arrangement immediately.
+        // Do not wait for the player to move a card again.
+        if (
+            Array.isArray(state.groups) &&
+            !state.groupsLocked
+        ) {
+            scheduleDeclarationBackupSave();
+        }
 
         if (
             state.declarationEndAt &&
@@ -4735,6 +4745,7 @@ async function loadSessionInfo() {
         ) {
             startDeclarationTimer();
         }
+
 
       }
 
