@@ -8222,64 +8222,91 @@ async function enterGame(){
 
 
 async function setActiveGame() {
+    const sessionToken =
+        localStorage.getItem("crdgn_session_token");
 
+    if (!sessionToken) {
+        console.warn("Active game: session token not found");
+        return;
+    }
 
-  const sessionToken =
-    localStorage.getItem("crdgn_session_token");
+    // Recover account mapping if this entry path did not set it.
+    if (!state.registeredUserId) {
+        const gameType = (
+            localStorage.getItem("crdg_game_type") || "FRIENDS"
+        ).toUpperCase();
 
-  if (!sessionToken) {
-    console.warn("Active game: session token not found");
-    return;
-  }
+        const {
+            data: mappingData,
+            error: mappingError
+        } = await supabaseClient.rpc(
+            "crdgn_get_or_create_game_user_id",
+            {
+                p_session_token: sessionToken,
+                p_game_type: gameType
+            }
+        );
 
+        const mappingResult = Array.isArray(mappingData)
+            ? mappingData[0]
+            : mappingData;
 
-  console.log("ACTIVE GAME ID CHECK:", {
-    registeredUserId: state.registeredUserId,
-    gameUserId: state.userId,
-    tableId: state.tableId,
-    sessionId: state.sessionId
-});
+        if (mappingError) {
+            console.error(
+                "ACTIVE GAME ACCOUNT MAPPING ERROR:",
+                mappingError
+            );
+            return;
+        }
 
-  const { data, error } =
-    await supabaseClient.rpc(
-      "crdgn_set_active_game",
-      {
-        p_session_token: sessionToken,
-        p_game_user_id: state.userId,
-        p_table_id: state.tableId,
-        p_session_id: state.sessionId
-      }
+        if (!mappingResult?.success || !mappingResult.user_id) {
+            console.error(
+                "ACTIVE GAME ACCOUNT ID NOT FOUND:",
+                mappingResult
+            );
+            return;
+        }
+
+        state.registeredUserId = mappingResult.user_id;
+    }
+
+    console.log("ACTIVE GAME ID CHECK:", {
+        registeredUserId: state.registeredUserId,
+        gameUserId: state.userId,
+        tableId: state.tableId,
+        sessionId: state.sessionId
+    });
+
+    const { data, error } = await supabaseClient.rpc(
+        "crdgn_set_active_game",
+        {
+            p_session_token: sessionToken,
+            p_game_user_id: state.userId,
+            p_table_id: state.tableId,
+            p_session_id: state.sessionId
+        }
     );
 
-  if (error) {
-    console.error(
-      "Active game save failed:",
-      error
-    );
-    return;
-  }
+    if (error) {
+        console.error("Active game save failed:", error);
+        return;
+    }
 
-  if (!data || data.length === 0) {
-    console.warn("Active game: no response");
-    return;
-  }
+    const result = Array.isArray(data) ? data[0] : data;
 
-  const result = data[0];
+    if (!result?.success) {
+        console.warn(
+            "Active game not saved:",
+            result?.message || "No successful response",
+            result
+        );
+        return;
+    }
 
-  if (!result.success) {
-    console.warn(
-      "Active game not saved:",
-      result.message
-    );
-    return;
-  }
-
-  console.log(
-    "Active game saved:",
-    result
-  );
-  state.activeGameRegistered = true;
+    console.log("Active game saved:", result);
+    state.activeGameRegistered = true;
 }
+
 
 
 async function startGame() {

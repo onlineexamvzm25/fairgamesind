@@ -371,12 +371,18 @@ let activeGameData = null;
 
 async function loadActiveGame() {
 
+    const btn = document.getElementById("activeGameBtn");
+    activeGameData = null;
+    if (btn) btn.style.display = "none";
+
     const token = getSessionToken();
     if (!token) return;
 
     const registeredUserId = localStorage.getItem("crdgn_user_id");
     if (!registeredUserId) return;
 
+    // Keep the existing active-game lookup, but safely choose the most
+    // recently updated active record if older duplicate records exist.
     const { data, error } = await supabaseClient
         .from("crdgn_active_games")
         .select(`
@@ -394,6 +400,8 @@ async function loadActiveGame() {
         `)
         .eq("user_id", registeredUserId)
         .eq("status", "active")
+        .order("updated_at", { ascending: false })
+        .limit(1)
         .maybeSingle();
 
     if (error) {
@@ -403,17 +411,14 @@ async function loadActiveGame() {
 
     activeGameData = data;
 
-    const btn = document.getElementById("activeGameBtn");
-
     if (!data) {
         console.log("NO ACTIVE GAME FOUND");
-        btn.style.display = "none";
         return;
     }
 
     console.log("ACTIVE GAME FOUND:", data);
 
-    btn.style.display = "block";
+    if (btn) btn.style.display = "block";
 
 
     const { data: gameState, error: gameStateError } =
