@@ -104,7 +104,8 @@ let state = {
   activeGameRegistered: false,
   groupsLocked : false,
   groupsDealNo: null,
-  declarerWaitingWindowShown: false
+   declarerWaitingWindowShown: false,
+   declarerWaitingTimerInterval: null
 };
 
 
@@ -4447,15 +4448,18 @@ function showDeclarerWaitingWindow() {
 
     const timer = document.getElementById("observationTimer");
     if (timer) {
-        timer.innerText = "Waiting for players...";
+        timer.innerText = "Waiting...";
     }
 
     const container = document.getElementById("dealResultsContainer");
     if (container) {
         container.innerHTML = `
-            <div style="padding:24px;text-align:center;font-size:16px;font-weight:bold;">
-                Valid declaration accepted.<br><br>
-                Waiting for the other players' declaration timers to finish...
+            <div class="declarer-waiting-message">
+                <div class="declarer-waiting-title">Valid declaration accepted ✓</div>
+                <div>Waiting for the other players' declaration timers to finish...</div>
+                <div class="declarer-waiting-countdown-line">
+                    Declaration timer: <strong><span id="declarerWaitingCountdown">--</span>s</strong>
+                </div>
             </div>
         `;
     }
@@ -4466,6 +4470,35 @@ function showDeclarerWaitingWindow() {
     }
 
     state.declarerWaitingWindowShown = true;
+
+    if (state.declarerWaitingTimerInterval) {
+        clearInterval(state.declarerWaitingTimerInterval);
+        state.declarerWaitingTimerInterval = null;
+    }
+
+    const updateCountdown = () => {
+        const countdown = document.getElementById("declarerWaitingCountdown");
+        if (!countdown) {
+            if (state.declarerWaitingTimerInterval) {
+                clearInterval(state.declarerWaitingTimerInterval);
+                state.declarerWaitingTimerInterval = null;
+            }
+            return;
+        }
+
+        const endTime = state.declarationEndAt
+            ? new Date(state.declarationEndAt).getTime()
+            : NaN;
+        const seconds = Number.isFinite(endTime)
+            ? Math.max(0, Math.ceil((endTime - Date.now()) / 1000))
+            : null;
+
+        countdown.innerText = seconds === null ? "--" : String(seconds);
+        countdown.classList.toggle("timer-finished", seconds === 0);
+    };
+
+    updateCountdown();
+    state.declarerWaitingTimerInterval = setInterval(updateCountdown, 250);
 }
 
 
@@ -8685,8 +8718,30 @@ async function checkSettlementEligibility() {
 }
 
 
+function getObservationResultCardHTML(card, cardClass) {
+    if (card === "JOKER") {
+        return `<div class="${cardClass}"><span class="result-card-printed-joker">JOKER</span></div>`;
+    }
+
+    const value = String(card ?? "");
+    const suit = value.slice(-1);
+    const rank = value.slice(0, -1);
+
+    return `
+        <div class="${cardClass}">
+            <span class="result-card-rank">${rank}</span>
+            <span class="result-card-suit">${suit}</span>
+        </div>
+    `;
+}
+
 async function loadDealResults()
 {
+    if (state.declarerWaitingTimerInterval) {
+        clearInterval(state.declarerWaitingTimerInterval);
+        state.declarerWaitingTimerInterval = null;
+    }
+
     if(state.resultWindowLoaded)
     {
         return;
@@ -8906,11 +8961,7 @@ async function loadDealResults()
                             " joker-highlight";
                     }
 
-                    html += `
-                        <div class="${cardClass}">
-                        ${card}
-                        </div>
-                    `;
+                    html += getObservationResultCardHTML(card, cardClass);
                 });
 
                 html += `</div>`;
@@ -8937,11 +8988,7 @@ async function loadDealResults()
                     cardClass += " joker-highlight";
                 }
 
-                html += `
-                   <div class="${cardClass}">
-                    ${card}
-                   </div>
-                `;
+                html += getObservationResultCardHTML(card, cardClass);
             });
             }
 
