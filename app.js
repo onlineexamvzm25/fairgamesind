@@ -4659,12 +4659,26 @@ async function loadSessionInfo() {
     state.declarationMode =
     data.declaration_started || false;
 
+
     const iAmValidDeclarer =
         state.declarationMode &&
         data.declaration_user_id &&
         String(data.declaration_user_id).toLowerCase() ===
             String(state.userId).toLowerCase();
 
+    
+    if (
+        state.declarationMode &&
+        data.deal_results_ready !== true
+    ) {
+        startDeclarationTimeoutMonitor();
+    }
+    else {
+        stopDeclarationTimeoutMonitor();
+    }
+
+
+    
     // The valid declarer moves to the waiting/observation screen
     // immediately. The actual observation countdown still starts
     // only when the server marks deal_results_ready.
@@ -5837,6 +5851,111 @@ function getGroupLayoutStorageKey(dealNo = state.groupsDealNo) {
 
 
 let declarationBackupSaveTimer = null;
+let declarationTimeoutMonitorInterval = null;
+let declarationTimeoutProcessorRunning = false;
+
+
+async function checkDeclarationTimeout() {
+
+    if (
+        !state.sessionId ||
+        !state.tableId ||
+        !state.declarationMode ||
+        state.resultWindowOpened ||
+        state.tableCompleted
+    ) {
+        return;
+    }
+
+    if (!state.declarationEndAt) {
+        return;
+    }
+
+    const deadline =
+        new Date(state.declarationEndAt).getTime();
+
+    if (!Number.isFinite(deadline) || Date.now() < deadline) {
+        return;
+    }
+
+    if (declarationTimeoutProcessorRunning) {
+        return;
+    }
+
+    declarationTimeoutProcessorRunning = true;
+
+    try {
+
+        const { data, error } =
+            await supabaseClient.rpc(
+                "crdg_process_declaration_timeout",
+                {
+                    p_session_id: state.sessionId,
+                    p_table_id: state.tableId
+                }
+            );
+
+        if (error) {
+            console.error(
+                "Declaration timeout processing failed:",
+                error
+            );
+            return;
+        }
+
+        console.log(
+            "Declaration timeout processed:",
+            data
+        );
+
+        // Reload authoritative server state.
+        // If all players are accounted for,
+        // loadSessionInfo() opens the result/observation flow.
+        await loadSessionInfo();
+        await loadPlayers();
+
+    }
+    catch (error) {
+
+        console.error(
+            "Declaration timeout monitor error:",
+            error
+        );
+
+    }
+    finally {
+
+        declarationTimeoutProcessorRunning = false;
+
+    }
+}
+
+
+function startDeclarationTimeoutMonitor() {
+
+    if (declarationTimeoutMonitorInterval) {
+        return;
+    }
+
+    declarationTimeoutMonitorInterval =
+        setInterval(
+            checkDeclarationTimeout,
+            1000
+        );
+
+    // Check immediately as well.
+    checkDeclarationTimeout();
+}
+
+
+function stopDeclarationTimeoutMonitor() {
+
+    if (declarationTimeoutMonitorInterval) {
+        clearInterval(declarationTimeoutMonitorInterval);
+        declarationTimeoutMonitorInterval = null;
+    }
+}
+
 
 function scheduleDeclarationBackupSave() {
 
@@ -6090,27 +6209,23 @@ async function loadGame() {
     // ELIMINATED PLAYER HANDLING
     // ==========================================
 
-    if (
-        state.playerStatus === "ELIMINATED" &&
-        !state.eliminatedRefreshStarted
-    ) {
-        state.eliminatedRefreshStarted = true;
+    
+        if (state.playerStatus === "ELIMINATED") {
 
-        setInterval(async () => {
-            await loadSessionInfo();
-            await loadPlayers();
-        }, 1000);
-    }
+            console.log(
+                "Player is eliminated. Redirecting to home."
+            );
 
-    if (
-        state.playerStatus === "ELIMINATED" &&
-        !state.eliminationScreenShown
-    ) {
-        stopPointsHeartbeat();
+            stopPointsHeartbeat();
 
-        state.eliminationScreenShown = true;
-        handleEliminatedPlayer();
-    }
+            state.eliminationScreenShown = true;
+
+            handleEliminatedPlayer();
+
+            // Do not continue loading the old hand or deal.
+            return;
+        }
+
 
     // ==========================================
     // PRESERVE GROUPS WITHIN THE SAME DEAL
@@ -6316,16 +6431,46 @@ async function syncTurnClock() {
 
 
 
-function handleEliminatedPlayer()
-{
+
+function handleEliminatedPlayer() {
+
+    if (state.eliminationRedirecting) {
+        return;
+    }
+
+    state.eliminationRedirecting = true;
     state.myTurn = false;
 
+    // Stop all game timers.
     clearInterval(state.turnTimerInterval);
-    state.turnTimerInterval = null; //MAH
+    state.turnTimerInterval = null;
 
-    document.getElementById("dropBtn").disabled = true;
-    document.getElementById("btnDeclare").disabled = true;
-    document.getElementById("btnDiscard").disabled = true;
+    clearInterval(state.observationTimerInterval);
+    state.observationTimerInterval = null;
+
+    clearInterval(state.declarationTimerInterval);
+    state.declarationTimerInterval = null;
+
+    // Stop the declaration-timeout monitor from Step 1.
+    if (typeof stopDeclarationTimeoutMonitor === "function") {
+        stopDeclarationTimeoutMonitor();
+    }
+
+    stopPointsHeartbeat();
+
+    // Remove stale game pointers so the app does not
+    // automatically reconnect to the eliminated table.
+    localStorage.removeItem("crdg_table");
+    localStorage.removeItem("crdg_session_id");
+
+    // Keep the player's account, game-user ID and nickname.
+    // Only clear the old table/session reference.
+
+    console.log(
+        "Eliminated player: returning to home screen."
+    );
+
+    window.location.replace("index.html");
 }
 
 
