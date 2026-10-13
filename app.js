@@ -4557,11 +4557,67 @@ async function loadSessionInfo() {
             }
         }
 
+    // Detect a genuine server-side deal transition. The Friends Pool
+    // worker can start the next deal without this browser running
+    // startNextDeal(), so realtime must refresh the authoritative hand.
+    const previousDealNo = state.deal_no;
+    const dealChanged =
+        !IS_POINTS &&
+        previousDealNo != null &&
+        String(previousDealNo) !== String(data.deal_no);
+
     state.dealerSeat = Number(data.dealer_seat);
     state.currentTurnSeat = Number(data.current_turn_seat);
     state.deal_no = data.deal_no;
-    state.declarationEndAt =  data.declaration_end_at;
-    state.observationEndAt =  data.observation_end_at;
+    state.declarationEndAt = data.declaration_end_at;
+    state.observationEndAt = data.observation_end_at;
+
+    if (dealChanged) {
+        console.log(
+            "Friends Pool: new deal detected; refreshing current player's hand",
+            previousDealNo,
+            "->",
+            data.deal_no
+        );
+
+        // Clear only deal-specific client state. Keep identity, seat,
+        // connection, and active-table/resume state untouched.
+        clearInterval(state.turnTimerInterval);
+        state.turnTimerInterval = null;
+        clearInterval(state.declarationTimerInterval);
+        state.declarationTimerInterval = null;
+        clearInterval(state.observationTimerInterval);
+        state.observationTimerInterval = null;
+        stopDeclarationTimeoutMonitor();
+        clearInterval(state.declarerWaitingTimerInterval);
+        state.declarerWaitingTimerInterval = null;
+
+        state.declarationMode = false;
+        state.declarationTimerStarted = false;
+        state.resultWindowOpened = false;
+        state.resultWindowLoaded = false;
+        state.ignoreResultWindow = false;
+        state.declarerWaitingWindowShown = false;
+        state.isInvalidDeclaration = false;
+        state.isDropped = false;
+        state.dropType = null;
+        state.pickedCard = null;
+        state.myTurnPickAnimation = false;
+        state.lastTurnSeat = null;
+
+        setGroupsLocked(false);
+        clearCardSelection();
+
+        const resultModal = document.getElementById("dealResultModal");
+        if (resultModal) resultModal.style.display = "none";
+
+        const resultsContainer = document.getElementById("dealResultsContainer");
+        if (resultsContainer) resultsContainer.innerHTML = "";
+
+        // loadGame() fetches crdg_get_game_state and rebuilds this player's
+        // hand/groups for data.deal_no; its storage keys are deal-specific.
+        await loadGame();
+    }
 
     // =====================================================
         // MY TURN PICK ANIMATION
