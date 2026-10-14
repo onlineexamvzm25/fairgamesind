@@ -1344,7 +1344,7 @@ async function joinFriendTable() {
             await supabaseClient
                 .from("crdg_game_tables")
                 .select(
-                    "table_id,status"
+                    "table_id,status,game_mode"
                 )
                 .eq(
                     "table_id",
@@ -1378,6 +1378,35 @@ async function joinFriendTable() {
             return;
         }
 
+
+        // ---------------------------------------------
+        // Verify selected game type matches this table.
+        // POINTS pages may join only POINTS tables;
+        // Friends/Pool pages may join only FRIENDS tables.
+        // ---------------------------------------------
+
+        const actualGameMode =
+            String(table.game_mode || "").trim().toUpperCase();
+
+        if (IS_POINTS && actualGameMode !== "POINTS") {
+
+            showMessage(
+                "Table not available for Points",
+                true
+            );
+
+            return;
+        }
+
+        if (!IS_POINTS && actualGameMode !== "FRIENDS") {
+
+            showMessage(
+                "Table not available for Pool",
+                true
+            );
+
+            return;
+        }
 
         if (table.status !== "waiting") {
 

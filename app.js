@@ -8557,7 +8557,7 @@ async function declareGame() {
 
     if (declarationScore === 0) {
 
-        alert("VALID DECLARATION");
+       // alert("VALID DECLARATION");
 
         const {
             data: declarationData,
@@ -9003,10 +9003,12 @@ async function loadDealResults()
         }
 
 
+        // Invalid declarers must remain visible in the observation
+        // window with the exact groups they submitted. Only ordinary
+        // drops/mid-drops and eliminated players hide their cards.
         if(
             row.drop_type === "DROP" ||
             row.drop_type === "MID_DROP" ||
-            row.drop_type === "INVALID_DECLARE" ||
             row.player_status === "ELIMINATED"
         )
         {
@@ -9089,7 +9091,10 @@ async function loadDealResults()
        <td>
         ${
             showCards &&
-            (row.grouped_hand || row.original_hand)
+            (
+                (Array.isArray(row.grouped_hand) && row.grouped_hand.length > 0) ||
+                (Array.isArray(row.original_hand) && row.original_hand.length > 0)
+            )
             ? html
             : (
                 row.drop_type === "DROP"

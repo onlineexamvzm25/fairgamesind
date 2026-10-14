@@ -6307,11 +6307,6 @@ async function declareGame() {
 
     if(declarationScore === 0){
 
-          alert(
-              "VALID DECLARATION"
-          );
-
-
             const declareCard = state.selectedCard.card;
 
             const { data, error } =
