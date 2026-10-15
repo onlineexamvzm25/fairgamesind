@@ -3719,6 +3719,98 @@ function clearCardSelection() {
     state.selectedCard = null;
 }
 
+
+
+let dealBackupTimer = null;
+let dealBackupInProgress = false;
+
+function stopDealBackupTimer() {
+    if (dealBackupTimer !== null) {
+        clearInterval(dealBackupTimer);
+        dealBackupTimer = null;
+    }
+
+    console.log("Deal backup timer stopped.");
+}
+
+function startDealBackupTimer() {
+    // Start only once for this browser's current deal.
+    if (dealBackupTimer !== null) {
+        return;
+    }
+
+    if (
+        !state.sessionId ||
+        !state.tableId ||
+        !state.userId ||
+        state.declarationMode ||
+        state.groupsLocked
+    ) {
+        return;
+    }
+
+    console.log("Deal backup timer started: every 10 seconds.");
+
+    // First save occurs after 10 seconds.
+    dealBackupTimer = setInterval(async function () {
+
+        if (
+            dealBackupInProgress ||
+            !state.sessionId ||
+            !state.tableId ||
+            !state.userId ||
+            state.declarationMode ||
+            state.groupsLocked ||
+            state.resultWindowOpened
+        ) {
+            if (
+                state.declarationMode ||
+                state.resultWindowOpened
+            ) {
+                stopDealBackupTimer();
+            }
+
+            return;
+        }
+
+        dealBackupInProgress = true;
+
+        try {
+            // Copy the latest card groups.
+            const groupsToSave =
+                JSON.parse(JSON.stringify(state.groups));
+
+            const { data, error } =
+                await supabaseClient.rpc(
+                    "crdg_save_declaration_backup",
+                    {
+                        p_session_id: state.sessionId,
+                        p_table_id: state.tableId,
+                        p_user_id: state.userId,
+                        p_groups: groupsToSave
+                    }
+                );
+
+            if (error) {
+                console.error(
+                    "Deal backup save failed:",
+                    error
+                );
+                return;
+            }
+
+            console.log(
+                "Deal backup saved. Server-calculated score:",
+                data
+            );
+
+        } finally {
+            dealBackupInProgress = false;
+        }
+
+    }, 10000);
+}
+
 // =========================
 // DISCARD
 // =========================
@@ -3851,9 +3943,12 @@ async function discard() {
         updateActionButtons();
 
         renderHand();
-        calculateDealScore();
 
-       // await loadSessionInfo();
+        await calculateDealScore();
+
+        // Start the periodic backup after the first successful discard.
+        // Subsequent discards won't create additional timers.
+        startDealBackupTimer();
     }
 
 
@@ -4055,6 +4150,22 @@ async function handleTableCompleted(data)
     {
         dealResultModal.style.display = "none";
     }
+
+    
+        stopDealBackupTimer();
+
+        const { error: backupCleanupError } = await supabaseClient
+            .from("crdg_declaration_backups")
+            .delete()
+            .eq("session_id", state.sessionId);
+
+        if (backupCleanupError) {
+            console.error(
+                "Table-completion backup cleanup failed:",
+                backupCleanupError
+            );
+        }
+
 
     await completeFriendsGamePayout();
 
@@ -4748,6 +4859,17 @@ async function loadSessionInfo() {
     state.declarationMode =
     data.declaration_started || false;
 
+    
+    // Stop regular 10-second backups as soon as any player declares.
+    if (
+        state.declarationMode ||
+        data.deal_results_ready === true ||
+        data.game_completed === true
+    ) {
+        stopDealBackupTimer();
+    }
+
+
 
     const iAmValidDeclarer =
         state.declarationMode &&
@@ -4885,7 +5007,9 @@ async function loadSessionInfo() {
 
             loadDealResults();
 
-            await checkSettlementEligibility();
+            if (typeof GAME_TYPE === "FRIENDS"){
+              await checkSettlementEligibility();
+            }
 
             const {
                 data: observationEndAt,
@@ -6603,6 +6727,8 @@ let refreshInProgress = false;
 let networkOffline = false;
 let networkMonitorHandle = null;
 
+
+
 async function checkSupabaseAvailability() {
 
     if (!navigator.onLine) {
@@ -6610,7 +6736,6 @@ async function checkSupabaseAvailability() {
     }
 
     try {
-
         const controller = new AbortController();
 
         const timeoutHandle = setTimeout(
@@ -6618,20 +6743,21 @@ async function checkSupabaseAvailability() {
             5000
         );
 
-        // Any HTTP response means Supabase is reachable.
-        // Only a real fetch/network failure is treated as offline.
-        await fetch(
-            SUPABASE_URL + "/rest/v1/",
-            {
-                method: "GET",
-                cache: "no-store",
-                signal: controller.signal
-            }
-        );
+        try {
+            const { error } = await supabaseClient
+                .from("crdg_game_sessions")
+                .select("session_id")
+                .limit(1)
+                .abortSignal(controller.signal);
 
-        clearTimeout(timeoutHandle);
+            // A successful query means Supabase is reachable.
+            // An authorization or permission error still means
+            // the server responded and is reachable.
+            return true;
 
-        return true;
+        } finally {
+            clearTimeout(timeoutHandle);
+        }
 
     } catch (error) {
 
@@ -6643,6 +6769,8 @@ async function checkSupabaseAvailability() {
         return false;
     }
 }
+
+
 
 async function checkNetworkAndReconnect() {
 
@@ -9003,12 +9131,10 @@ async function loadDealResults()
         }
 
 
-        // Invalid declarers must remain visible in the observation
-        // window with the exact groups they submitted. Only ordinary
-        // drops/mid-drops and eliminated players hide their cards.
         if(
             row.drop_type === "DROP" ||
             row.drop_type === "MID_DROP" ||
+            row.drop_type === "INVALID_DECLARE" ||
             row.player_status === "ELIMINATED"
         )
         {
@@ -9091,10 +9217,7 @@ async function loadDealResults()
        <td>
         ${
             showCards &&
-            (
-                (Array.isArray(row.grouped_hand) && row.grouped_hand.length > 0) ||
-                (Array.isArray(row.original_hand) && row.original_hand.length > 0)
-            )
+            (row.grouped_hand || row.original_hand)
             ? html
             : (
                 row.drop_type === "DROP"
