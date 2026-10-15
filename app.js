@@ -9131,9 +9131,7 @@ async function loadDealResults()
 
         if(
             row.drop_type === "DROP" ||
-            row.drop_type === "MID_DROP" ||
-            row.drop_type === "INVALID_DECLARE" ||
-            row.player_status === "ELIMINATED"
+            row.drop_type === "MID_DROP" 
         )
         {
             showCards = false;
