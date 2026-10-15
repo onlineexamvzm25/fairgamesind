@@ -4947,7 +4947,7 @@ async function loadSessionInfo() {
             Array.isArray(state.groups) &&
             !state.groupsLocked
         ) {
-            scheduleDeclarationBackupSave();
+           // scheduleDeclarationBackupSave();
         }
 
         if (
@@ -6283,7 +6283,7 @@ function saveGroupLayout() {
     }
 
     // New: save to Supabase only during declaration countdown.
-    scheduleDeclarationBackupSave();
+   // scheduleDeclarationBackupSave();
 }
 
 
