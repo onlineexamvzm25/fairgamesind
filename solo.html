@@ -287,6 +287,56 @@
     margin-bottom: -3px;
   }
 }
+
+/* Solo connection indicator and manual refresh button */
+.solo-connection-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 9px;
+    border-radius: 14px;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+    border: 1px solid #b8d9c0;
+    color: #176b35;
+    background: #e9f8ee;
+}
+.solo-connection-status .solo-connection-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+    display: inline-block;
+}
+.solo-connection-status.offline {
+    color: #a52323;
+    background: #fff0f0;
+    border-color: #efb4b4;
+}
+#btnGameRefresh {
+    border: 1px solid #888;
+    border-radius: 8px;
+    padding: 7px 10px;
+    cursor: pointer;
+    font-weight: 700;
+}
+#btnGameRefresh:disabled {
+    opacity: .55;
+    cursor: wait;
+}
+@media (max-width: 600px) {
+    .topbar-history {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+    }
+    #btnGameRefresh {
+        padding: 6px 8px;
+    }
+}
+
 </style>
 
 </head>
@@ -397,7 +447,12 @@
     </div>
 
     <div class="topbar-history">
-        <button id="btnHistory">History</button>
+        <button id="btnHistory" type="button">History</button>
+        <span id="connectionStatus" class="solo-connection-status online" title="Checking connection">
+            <span class="solo-connection-dot"></span>
+            <span id="connectionStatusText">ONLINE</span>
+        </span>
+       
     </div>
 
 </header>
@@ -847,5 +902,53 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
  <script src="solo.js?v=20260910"></script>
   <script src="responsive.js"></script>
+
+<script>
+(function () {
+    function updateSoloConnectionStatus() {
+        const badge = document.getElementById("connectionStatus");
+        const label = document.getElementById("connectionStatusText");
+        if (!badge || !label) return;
+
+        let offline = !navigator.onLine;
+        try {
+            if (typeof networkOffline !== "undefined" && networkOffline) offline = true;
+        } catch (e) {}
+
+        badge.classList.toggle("offline", offline);
+        badge.classList.toggle("online", !offline);
+        badge.title = offline ? "Offline — waiting for connection" : "Connection available";
+        label.textContent = offline ? "OFFLINE" : "ONLINE";
+    }
+    window.addEventListener("online", updateSoloConnectionStatus);
+    window.addEventListener("offline", updateSoloConnectionStatus);
+    updateSoloConnectionStatus();
+    setInterval(updateSoloConnectionStatus, 500);
+})();
+</script>
+
+
+<script>
+(function () {
+    const button = document.getElementById("btnGameRefresh");
+    if (!button) return;
+    button.addEventListener("click", async function () {
+        const originalText = button.textContent;
+        button.disabled = true;
+        button.textContent = "Refreshing…";
+        try {
+            if (typeof refreshGame === "function") {
+                await refreshGame();
+            }
+        } finally {
+            setTimeout(() => {
+                button.disabled = false;
+                button.textContent = originalText;
+            }, 800);
+        }
+    });
+})();
+</script>
+
 </body>
 </html>

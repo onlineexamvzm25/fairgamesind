@@ -5582,6 +5582,9 @@ async function joinTable() {
             await loadGame();
             await loadSessionInfo();
             await loadPlayers();
+            renderHand();
+            updateActionButtons();
+            return;
 
            // subscribeRealtime();
 
@@ -5610,6 +5613,115 @@ async function joinTable() {
   await postJoinFlow();
   loadLobbyState();
   state.lobbyTimerHandle = setInterval(loadLobbyState, 1000);
+}
+
+
+// ==================================================
+// SOLO NETWORK / SUPABASE AVAILABILITY MONITOR
+// Reuses Solo's existing join/reconnect and game-state functions.
+// ==================================================
+let refreshInProgress = false;
+let networkOffline = false;
+let networkMonitorHandle = null;
+
+async function checkSupabaseAvailability() {
+    if (!navigator.onLine) return false;
+
+    let timeoutHandle;
+    try {
+        const controller = new AbortController();
+        timeoutHandle = setTimeout(() => controller.abort(), 5000);
+
+        // Any HTTP response means the Supabase endpoint is reachable.
+        await fetch(SUPABASE_URL + "/rest/v1/", {
+            method: "GET",
+            cache: "no-store",
+            signal: controller.signal
+        });
+        return true;
+    } catch (error) {
+        console.warn("SOLO SUPABASE AVAILABILITY CHECK FAILED:", error?.message || error);
+        return false;
+    } finally {
+        if (timeoutHandle) clearTimeout(timeoutHandle);
+    }
+}
+
+async function refreshGame() {
+    if (refreshInProgress) return false;
+    if (!state.sessionId || !state.tableId || !state.userId || state.tableCompleted) return false;
+
+    refreshInProgress = true;
+    try {
+        // The player is already in this Solo session. Do not call joinTable()
+        // here: that function uses the join-screen table/password and can
+        // incorrectly report "table not found" after a temporary disconnection.
+        await loadGame();
+        await loadSessionInfo();
+        await loadPlayers();
+
+        if (state.tableCompleted || !state.sessionId) return false;
+
+        renderHand();
+        updateActionButtons();
+
+        // If the computer owns the turn, retry its action after reconnect.
+        // loadSessionInfo() may have attempted the RPC while the connection
+        // was still recovering; this retry prevents the computer turn freezing.
+        if (
+            typeof GAME_TYPE !== "undefined" &&
+            GAME_TYPE === "SOLO" &&
+            Number(state.currentTurnSeat) === Number(state.computerSeat)
+        ) {
+            setTimeout(() => {
+                if (!computerTurnRunning && !state.tableCompleted && !state.declarationMode) {
+                    playSoloComputerTurn();
+                }
+            }, 5500);
+        }
+
+        // Stop lobby polling once an active game session exists.
+        if (state.lobbyTimerHandle) {
+            clearInterval(state.lobbyTimerHandle);
+            state.lobbyTimerHandle = null;
+        }
+
+        return true;
+    } catch (error) {
+        console.error("SOLO GAME REFRESH ERROR:", error);
+        return false;
+    } finally {
+        refreshInProgress = false;
+    }
+}
+
+async function checkNetworkAndReconnect() {
+    if (refreshInProgress || state.tableCompleted || !state.sessionId || !state.userId) return;
+
+    const available = await checkSupabaseAvailability();
+    if (!available) {
+        if (!networkOffline) console.warn("SOLO NETWORK OFFLINE: waiting for connection...");
+        networkOffline = true;
+        return;
+    }
+
+    if (networkOffline) {
+        const refreshed = await refreshGame();
+        if (refreshed) {
+            networkOffline = false;
+            console.log("SOLO NETWORK RESTORED: game state refreshed.");
+        } else {
+            // Keep offline flag set so the next check retries.
+            networkOffline = true;
+            console.warn("SOLO NETWORK RESTORE REFRESH FAILED; will retry.");
+        }
+    }
+}
+
+function startNetworkMonitor() {
+    if (networkMonitorHandle) return;
+    checkNetworkAndReconnect();
+    networkMonitorHandle = setInterval(checkNetworkAndReconnect, 7000);
 }
 
 function startTurnTimer() {
@@ -6042,6 +6154,16 @@ async function loadPlayers(playersData = null) {
 
 async function loadLobbyState() {
 
+  // Do not keep querying the lobby once a game session is active.
+  if (state.sessionId || state.tableCompleted) {
+    if (state.lobbyTimerHandle) {
+      clearInterval(state.lobbyTimerHandle);
+      state.lobbyTimerHandle = null;
+    }
+    return;
+  }
+
+  try {
   const { data, error } =
     await supabaseClient.rpc(
       "crdg_get_table_state",
@@ -6132,6 +6254,9 @@ players.forEach(p => {
         await enterGame();
     }
 }
+  } catch (error) {
+    console.error("Solo lobby state request failed:", error);
+  }
 }
 
 
@@ -7625,6 +7750,9 @@ await loadPlayers();
 // -----------------------------------------
 
 subscribeRealtime();
+
+// Automatically reconnect Solo after network/Supabase connectivity returns.
+startNetworkMonitor();
 
 
 // -----------------------------------------
