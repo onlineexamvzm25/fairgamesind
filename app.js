@@ -6728,7 +6728,6 @@ let networkOffline = false;
 let networkMonitorHandle = null;
 
 
-
 async function checkSupabaseAvailability() {
 
     if (!navigator.onLine) {
@@ -6736,6 +6735,7 @@ async function checkSupabaseAvailability() {
     }
 
     try {
+
         const controller = new AbortController();
 
         const timeoutHandle = setTimeout(
@@ -6743,21 +6743,20 @@ async function checkSupabaseAvailability() {
             5000
         );
 
-        try {
-            const { error } = await supabaseClient
-                .from("crdg_game_sessions")
-                .select("session_id")
-                .limit(1)
-                .abortSignal(controller.signal);
+        // Any HTTP response means Supabase is reachable.
+        // Only a real fetch/network failure is treated as offline.
+        await fetch(
+            SUPABASE_URL + "/rest/v1/",
+            {
+                method: "GET",
+                cache: "no-store",
+                signal: controller.signal
+            }
+        );
 
-            // A successful query means Supabase is reachable.
-            // An authorization or permission error still means
-            // the server responded and is reachable.
-            return true;
+        clearTimeout(timeoutHandle);
 
-        } finally {
-            clearTimeout(timeoutHandle);
-        }
+        return true;
 
     } catch (error) {
 
@@ -6769,7 +6768,6 @@ async function checkSupabaseAvailability() {
         return false;
     }
 }
-
 
 
 async function checkNetworkAndReconnect() {
