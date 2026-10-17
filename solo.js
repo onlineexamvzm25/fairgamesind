@@ -75,7 +75,9 @@ let state = {
   pickedCard: null,
   participatedInDeal : false,
   drawInProgress: false,
-  myTurnPickDone: false
+  myTurnPickDone: false,
+  dealAnimationPending: false,
+  dealAnimationKey: null
 };
 
 
@@ -2387,6 +2389,7 @@ async function startNextDeal()
             // Fresh DB hand must be loaded first.
             // ------------------------------------------
 
+            await prepareDealDistributionAnimation();
             await loadGame();
 
 
@@ -2409,6 +2412,7 @@ async function startNextDeal()
             // ------------------------------------------
 
             renderHand();
+            await runDealDistributionAnimation();
 
 
             state.ignoreResultWindow =
@@ -5228,6 +5232,123 @@ function updateActionButtons() {
   
 
 
+// ==========================================================
+// SOLO NEW-DEAL DISTRIBUTION ANIMATION + SOUND
+// Cards stay hidden until all flying cards finish (< 1 sec).
+// deal.mp3 must be hosted beside solo.html / solo.js.
+// ==========================================================
+async function prepareDealDistributionAnimation() {
+    state.dealAnimationPending = false;
+    state.dealAnimationKey = null;
+
+    if (!state.sessionId || !state.userId) return false;
+
+    // Read the authoritative deal number before loading/rendering the hand.
+    const { data, error } = await supabaseClient
+        .from("crdg_game_sessions")
+        .select("deal_no")
+        .eq("session_id", state.sessionId)
+        .single();
+
+    if (error || !data || data.deal_no == null) {
+        if (error) console.warn("Could not prepare Solo deal animation:", error);
+        return false;
+    }
+
+    state.deal_no = data.deal_no;
+    const key = `crdg_solo_deal_animation_${state.sessionId}_${state.userId}_${state.deal_no}`;
+
+    try {
+        if (localStorage.getItem(key) === "1") return false;
+    } catch (error) {
+        // Storage can be unavailable in some WebViews; animation can still run.
+    }
+
+    state.dealAnimationKey = key;
+    state.dealAnimationPending = true;
+    document.body.classList.add("crdg-solo-dealing");
+    return true;
+}
+
+async function runDealDistributionAnimation() {
+    if (!state.dealAnimationPending) return;
+
+    const hand = document.getElementById("my-hand");
+    const stock = document.getElementById("stockCard");
+    const targets = hand ? Array.from(hand.querySelectorAll(".card")) : [];
+
+    if (!stock || targets.length === 0) {
+        document.body.classList.remove("crdg-solo-dealing");
+        state.dealAnimationPending = false;
+        return;
+    }
+
+    const stockRect = stock.getBoundingClientRect();
+    const stockCenterX = stockRect.left + stockRect.width / 2;
+    const stockCenterY = stockRect.top + stockRect.height / 2;
+    const duration = 350;
+    const stagger = 35;
+    const audioUrl = new URL("deal.mp3", document.baseURI).href;
+    const animationPromises = [];
+
+    targets.forEach((target, index) => {
+        const targetRect = target.getBoundingClientRect();
+        const flyCard = document.createElement("div");
+        flyCard.className = "crdg-solo-deal-fly-card";
+        flyCard.setAttribute("aria-hidden", "true");
+        flyCard.style.left = `${stockCenterX - stockRect.width / 2}px`;
+        flyCard.style.top = `${stockCenterY - stockRect.height / 2}px`;
+        flyCard.style.width = `${stockRect.width}px`;
+        flyCard.style.height = `${stockRect.height}px`;
+        document.body.appendChild(flyCard);
+
+        const dx = targetRect.left - (stockCenterX - stockRect.width / 2);
+        const dy = targetRect.top - (stockCenterY - stockRect.height / 2);
+        const sx = targetRect.width / Math.max(stockRect.width, 1);
+        const sy = targetRect.height / Math.max(stockRect.height, 1);
+
+        const animation = flyCard.animate(
+            [
+                { transform: "translate(0, 0) scale(1, 1)", opacity: 1 },
+                { transform: `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`, opacity: 0.95, offset: 0.88 },
+                { transform: `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`, opacity: 0 }
+            ],
+            {
+                duration,
+                delay: index * stagger,
+                easing: "cubic-bezier(.22,.75,.25,1)",
+                fill: "forwards"
+            }
+        );
+
+        animationPromises.push(
+            animation.finished.catch(() => {}).then(() => flyCard.remove())
+        );
+
+        // One short deal sound for each card, staggered with the flight.
+        window.setTimeout(() => {
+            try {
+                const sound = new Audio(audioUrl);
+                sound.volume = 0.3;
+                sound.play().catch(() => {});
+            } catch (_) {}
+        }, index * stagger);
+    });
+
+    await Promise.all(animationPromises);
+
+    document.body.classList.remove("crdg-solo-dealing");
+    state.dealAnimationPending = false;
+
+    try {
+        if (state.dealAnimationKey) {
+            localStorage.setItem(state.dealAnimationKey, "1");
+        }
+    } catch (error) {}
+
+    state.dealAnimationKey = null;
+}
+
 // =========================
 // LOAD STATE
 
@@ -6280,12 +6401,14 @@ async function enterGame(){
     .getElementById("tableIdDisplay")
     .innerText = state.tableId;
 
+    await prepareDealDistributionAnimation();
     await loadGame();
    
     await loadSessionInfo();
 
     await loadPlayers();
     renderHand();
+    await runDealDistributionAnimation();
     calculateDealScore();
 
     subscribeRealtime();
@@ -7738,11 +7861,14 @@ document
 // LOAD THE STARTED GAME
 // -----------------------------------------
 
+await prepareDealDistributionAnimation();
 await loadGame();
 
 await loadSessionInfo();
 
 await loadPlayers();
+renderHand();
+await runDealDistributionAnimation();
 
 
 // -----------------------------------------
