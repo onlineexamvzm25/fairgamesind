@@ -31,10 +31,7 @@ const GAME_TYPE =
         ) || "FRIENDS"
     ).toUpperCase();
 
-console.log(
-    "CURRENT GAME TYPE:",
-    GAME_TYPE
-);
+
 
 const IS_POINTS =
     GAME_TYPE === "POINTS";
@@ -105,7 +102,8 @@ let state = {
   groupsLocked : false,
   groupsDealNo: null,
    declarerWaitingWindowShown: false,
-   declarerWaitingTimerInterval: null
+   declarerWaitingTimerInterval: null,
+   resultWindowLoaded : false
 };
 
 
@@ -1432,11 +1430,6 @@ async function loadTopGameType()
                 ")";
         }
 
-        console.log(
-            "POINTS top game:",
-            "Points(80 x " + multiplier + ")"
-        );
-
         return;
     }
 
@@ -2143,10 +2136,6 @@ async function exitPointsTable()
         // SETTLEMENT → ELIMINATION → PLAYER COUNT
         // --------------------------------------------------
 
-        console.log(
-            "POINTS: Exit requested. Settling current deal first..."
-        );
-
 
         const {
             data,
@@ -2226,9 +2215,7 @@ async function exitPointsTable()
             result.table_completed === true
         )
         {
-            console.log(
-                "POINTS: Exit completed table."
-            );
+
 
 
             // Reload session so handleTableCompleted
@@ -2271,12 +2258,6 @@ async function exitPointsTable()
         // --------------------------------------------------
         // TABLE CONTINUES
         // --------------------------------------------------
-
-        console.log(
-            "POINTS: Exit successful. " +
-            "Remaining players:",
-            result.remaining_players
-        );
 
 
         // The exiting player should not
@@ -2428,10 +2409,6 @@ async function onObservationTimerExpired()
         GAME_TYPE === "POINTS"
     ) {
 
-        console.log(
-            "POINTS: Observation timer expired. Settling deal..."
-        );
-
 
         // --------------------------------------------------
         // SETTLE CURRENT DEAL
@@ -2461,10 +2438,7 @@ async function onObservationTimerExpired()
         }
 
 
-        console.log(
-            "POINTS settlement result:",
-            settlementData
-        );
+    
 
 
         // --------------------------------------------------
@@ -2504,9 +2478,7 @@ async function onObservationTimerExpired()
             settledSession.game_completed === true
         )
         {
-            console.log(
-                "POINTS: Table completed after settlement."
-            );
+            
 
             handleTableCompleted(
                 settledSession
@@ -2523,10 +2495,6 @@ async function onObservationTimerExpired()
         // checkpoint are eliminated only AFTER the
         // current deal has been settled.
         // --------------------------------------------------
-
-        console.log(
-            "POINTS: Checking flagged offline players before next deal..."
-        );
 
 
         const {
@@ -2551,12 +2519,6 @@ async function onObservationTimerExpired()
 
             return;
         }
-
-
-        console.log(
-            "POINTS: Offline players eliminated:",
-            eliminatedCount
-        );
 
 
         // --------------------------------------------------
@@ -2595,10 +2557,7 @@ async function onObservationTimerExpired()
         }
 
 
-        console.log(
-            "POINTS: Remaining active players:",
-            remainingPlayers.length
-        );
+        
 
 
         // --------------------------------------------------
@@ -2612,9 +2571,6 @@ async function onObservationTimerExpired()
             remainingPlayers.length <= 1
         )
         {
-            console.log(
-                "POINTS: Only one active player remains. Finishing table..."
-            );
 
 
             const {
@@ -2641,10 +2597,7 @@ async function onObservationTimerExpired()
             }
 
 
-            console.log(
-                "POINTS: Table finished:",
-                finishData
-            );
+            
 
 
             // --------------------------------------------------
@@ -2692,10 +2645,6 @@ async function onObservationTimerExpired()
         // MORE THAN ONE PLAYER REMAINS
         // START NEXT DEAL
         // --------------------------------------------------
-
-        console.log(
-            "POINTS: Settlement and offline elimination completed. Starting next deal..."
-        );
 
 
         await startNextDeal();
@@ -3609,9 +3558,6 @@ async function draw(source, targetGroup = 5) {
 
         state.drawInProgress = false;
 
-        console.log(
-            "DRAW lock released."
-        );
     }
 }
 
@@ -3729,8 +3675,6 @@ function stopDealBackupTimer() {
         clearInterval(dealBackupTimer);
         dealBackupTimer = null;
     }
-
-    console.log("Deal backup timer stopped.");
 }
 
 function startDealBackupTimer() {
@@ -4438,12 +4382,6 @@ async function completeFriendsGamePayout()
         }
 
 
-        console.log(
-            "Starting Friends Rummy payout...",
-            state.sessionId
-        );
-
-
         const {
             data,
             error
@@ -4471,12 +4409,6 @@ async function completeFriendsGamePayout()
         }
 
 
-        console.log(
-            "Friends game payout result:",
-            data
-        );
-
-
         if(
             data &&
             data.length > 0
@@ -4488,20 +4420,6 @@ async function completeFriendsGamePayout()
 
             if(result.success)
             {
-                console.log(
-                    "Payout completed:",
-                    result.message
-                );
-
-                console.log(
-                    "POT:",
-                    result.total_pot
-                );
-
-                console.log(
-                    "Paid players:",
-                    result.paid_players
-                );
 
 
                 if(result.already_paid)
@@ -4684,12 +4602,6 @@ async function loadSessionInfo() {
     state.observationEndAt = data.observation_end_at;
 
     if (dealChanged) {
-        console.log(
-            "Friends Pool: new deal detected; refreshing current player's hand",
-            previousDealNo,
-            "->",
-            data.deal_no
-        );
 
         // Clear only deal-specific client state. Keep identity, seat,
         // connection, and active-table/resume state untouched.
@@ -4947,7 +4859,7 @@ async function loadSessionInfo() {
             Array.isArray(state.groups) &&
             !state.groupsLocked
         ) {
-           // scheduleDeclarationBackupSave();
+            scheduleDeclarationBackupSave();
         }
 
         if (
@@ -6127,11 +6039,6 @@ async function checkDeclarationTimeout() {
             return;
         }
 
-        console.log(
-            "Declaration timeout processed:",
-            data
-        );
-
         // Reload authoritative server state.
         // If all players are accounted for,
         // loadSessionInfo() opens the result/observation flow.
@@ -6283,7 +6190,7 @@ function saveGroupLayout() {
     }
 
     // New: save to Supabase only during declaration countdown.
-   // scheduleDeclarationBackupSave();
+    scheduleDeclarationBackupSave();
 }
 
 
@@ -6436,9 +6343,6 @@ async function loadGame() {
     
         if (state.playerStatus === "ELIMINATED") {
 
-            console.log(
-                "Player is eliminated. Redirecting to home."
-            );
 
             stopPointsHeartbeat();
 
@@ -6690,11 +6594,7 @@ function handleEliminatedPlayer() {
     // Keep the player's account, game-user ID and nickname.
     // Only clear the old table/session reference.
 
-    console.log(
-        "Eliminated player: returning to home screen."
-    );
-
-    window.location.replace("index.html");
+    window.location.replace("homepage.html");
 }
 
 
@@ -6997,10 +6897,6 @@ async function refreshGame() {
             gameEntered
         ) {
 
-            console.log(
-                "REFRESH: Reloading server game state..."
-            );
-
             await loadGame();
 
             await loadSessionInfo();
@@ -7032,10 +6928,6 @@ async function refreshGame() {
     finally {
 
         refreshInProgress = false;
-
-        console.log(
-            "MANUAL GAME REFRESH END"
-        );
     }
 }
 
@@ -7140,15 +7032,6 @@ async function joinTable() {
     const userId = mappingResult.game_user_id;
 
     state.registeredUserId = mappingResult.user_id;
-
-    console.log(
-        "FRIENDS ACCOUNT MAPPING:",
-        {
-            registeredUserId: state.registeredUserId,
-            gameUserId: userId,
-            gameType: gameType
-        }
-    );
 
     // --------------------------------------------------
     // VALIDATE TABLE / NICKNAME
@@ -8197,20 +8080,6 @@ async function hostStartGame() {
             // POINTS START SUCCESS
             // =================================================
 
-            console.log(
-                "POINTS GAME STARTED:",
-                {
-                    session_id:
-                        result.session_id,
-
-                    status:
-                        result.status,
-
-                    message:
-                        result.message
-                }
-            );
-
 
             state.sessionId =
                 result.session_id;
@@ -8312,17 +8181,6 @@ async function hostStartGame() {
         // =================================================
         // FRIENDS START SUCCESS
         // =================================================
-
-        console.log(
-            "FRIENDS GAME STARTED:",
-            {
-                session_id:
-                    result.session_id,
-
-                charged_players:
-                    result.charged_players
-            }
-        );
 
 
         state.sessionId =
@@ -8452,13 +8310,6 @@ async function setActiveGame() {
         state.registeredUserId = mappingResult.user_id;
     }
 
-    console.log("ACTIVE GAME ID CHECK:", {
-        registeredUserId: state.registeredUserId,
-        gameUserId: state.userId,
-        tableId: state.tableId,
-        sessionId: state.sessionId
-    });
-
     const { data, error } = await supabaseClient.rpc(
         "crdgn_set_active_game",
         {
@@ -8484,8 +8335,6 @@ async function setActiveGame() {
         );
         return;
     }
-
-    console.log("Active game saved:", result);
     state.activeGameRegistered = true;
 }
 
@@ -8565,17 +8414,6 @@ async function startGame() {
         return false;
     }
 
-
-    console.log(
-        "FRIENDS AUTO START SUCCESS:",
-        {
-            session_id:
-                result.session_id,
-
-            charged_players:
-                result.charged_players
-        }
-    );
 
 
     state.sessionId =
@@ -8725,17 +8563,18 @@ async function declareGame() {
                 }
             );
 
-            if (finalGroupsError) {
-                console.error(
-                    "Valid declarer finalization failed:",
-                    finalGroupsError
-                );
-            } else {
-                console.log(
-                    "Valid declarer finalized immediately:",
-                    finalGroupsData
-                );
-            }
+
+
+            console.log("DECLARATION SNAPSHOT CHECK", {
+    declareCard,
+    groupsForDeclaration,
+    groupedCardCount: groupsForDeclaration.reduce(
+        (total, group) => total + group.length,
+        0
+    ),
+    finalGroupsError
+});
+            
 
             // Persist the successful declaration card for this deal.
             // loadGame() uses this marker to keep the 14th card out after
@@ -8978,6 +8817,11 @@ async function loadDealResults()
         return;
     }
 
+    console.log(
+    "OBSERVATION RESULTS:",
+    JSON.stringify(data, null, 2)
+);
+
 
     const jokerCard = state.jokerCard || "";
 
@@ -9063,7 +8907,6 @@ async function loadDealResults()
             }
 
             pointsTableId = Number(sessionInfo.table_id);
-            console.log("POINTS result table ID:", pointsTableId);
 
             const { data: multiplierData, error: multiplierError } =
                 await supabaseClient.rpc("crdgp_get_multiplier", {
@@ -9076,7 +8919,6 @@ async function loadDealResults()
             }
 
             pointsMultiplier = Number(multiplierData) || 1;
-            console.log("POINTS result multiplier:", pointsMultiplier);
         }
 
 
@@ -9552,14 +9394,6 @@ async function restoreMyTableSeat() {
         state.seatNo = Number(savedSeat);
         state.fixedSeatNo = Number(savedFixedSeat);
 
-        console.log(
-            "RESTORED MY SEAT FROM LOCAL STORAGE:",
-            {
-                seatNo: state.seatNo,
-                fixedSeatNo: state.fixedSeatNo
-            }
-        );
-
         return true;
     }
 
@@ -9612,13 +9446,6 @@ async function restoreMyTableSeat() {
         String(state.fixedSeatNo)
     );
 
-    console.log(
-        "RESTORED MY SEAT FROM SERVER:",
-        {
-            seatNo: state.seatNo,
-            fixedSeatNo: state.fixedSeatNo
-        }
-    );
 
     return true;
 }
