@@ -103,7 +103,10 @@ let state = {
   groupsDealNo: null,
    declarerWaitingWindowShown: false,
    declarerWaitingTimerInterval: null,
-   resultWindowLoaded : false
+   resultWindowLoaded : false,
+  dealAnimationPending: false,
+  dealAnimationRenderActive: false,
+  dealAnimationInProgress: false
 };
 
 
@@ -1476,8 +1479,180 @@ async function loadTopGameType()
 // =========================
 // RENDER HAND
 // =========================
+
+// =====================================================
+// NEW-DEAL CARD DISTRIBUTION ANIMATION + SOUND
+// Visual only: uses the server-dealt hand and never calls
+// any database/RPC function.
+// =====================================================
+// Audio file is hosted beside friends.html/app.js on GitHub Pages.
+// The Android WebView loads this same hosted path, so keep deal.mp3 in that folder.
+
+function crdgDealAnimationKey() {
+    if (
+        !state.sessionId ||
+        !state.userId ||
+        state.deal_no == null
+    ) {
+        return null;
+    }
+
+    return `crdg_deal_animation_${state.sessionId}_${state.userId}_${state.deal_no}`;
+}
+
+function shouldAnimateCurrentDeal() {
+    if (!state.dealAnimationPending) {
+        return false;
+    }
+
+    const key = crdgDealAnimationKey();
+
+    if (!key) {
+        return false;
+    }
+
+    try {
+        // Do not replay an animation already completed for this deal.
+        if (localStorage.getItem(key) === "1") {
+            state.dealAnimationPending = false;
+            return false;
+        }
+
+        localStorage.setItem(key, "pending");
+    } catch (error) {
+        // Continue even if browser storage is unavailable.
+    }
+
+    return true;
+}
+
+
+function playDealTick() {
+    try {
+        const audioUrl = new URL("pickup.mp3", document.baseURI).href;
+        const audio = new Audio(audioUrl);
+        audio.preload = "auto";
+        audio.volume = 0.35;
+        audio.play().catch(() => {
+            // WebView/browser audio may require a prior user interaction.
+        });
+    } catch (e) {
+        // Missing/blocked audio must never stop the card animation.
+    }
+}
+
+async function playDealDistributionAnimation(reserved = false) {
+    if (state.dealAnimationInProgress) return;
+
+    const key = crdgDealAnimationKey();
+    if (!key) return;
+
+    try {
+        if (!reserved && localStorage.getItem(key)) return;
+        // The key may already contain "pending" from shouldAnimateCurrentDeal().
+        // Replace it with the completed/started marker before flight begins.
+        localStorage.setItem(key, "1");
+    } catch (e) {
+        // Continue with the current animation if localStorage is unavailable.
+    }
+
+    const stock = document.getElementById("stockCard");
+    const cards = Array.from(document.querySelectorAll("#my-hand .card"));
+    if (!stock || cards.length === 0) {
+        cards.forEach(card => {
+            card.classList.remove("deal-card-hidden", "card-enter");
+            card.classList.add("card-show");
+        });
+        return;
+    }
+
+    state.dealAnimationInProgress = true;
+    const sourceRect = stock.getBoundingClientRect();
+    const reducedMotion = window.matchMedia &&
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    if (reducedMotion || typeof Element.prototype.animate !== "function") {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        cards.forEach(card => {
+            card.classList.remove("deal-card-hidden", "card-enter");
+            card.classList.add("card-show");
+        });
+        state.dealAnimationInProgress = false;
+        return;
+    }
+
+    const flightPromises = [];
+    const cardWidth =  Math.max(32, Math.min(112, cards[0].getBoundingClientRect().width || 70));
+    const cardHeight = Math.max(48, Math.min(165, cards[0].getBoundingClientRect().height || 100));
+
+    cards.forEach((target, index) => {
+        const targetRect = target.getBoundingClientRect();
+        const flyer = document.createElement("div");
+        flyer.className = "crdg-deal-fly-card";
+        flyer.setAttribute("aria-hidden", "true");
+        flyer.style.left = sourceRect.left + "px";
+        flyer.style.top = sourceRect.top + "px";
+        flyer.style.width = cardWidth + "px";
+        flyer.style.height = cardHeight + "px";
+        document.body.appendChild(flyer);
+
+        const dx = targetRect.left - sourceRect.left;
+        const dy = targetRect.top - sourceRect.top;
+        const rotate = ((index % 5) - 2) * 2.2;
+        const delay = index * 35;
+        const duration = 350;
+
+        const animation = flyer.animate([
+            {
+                transform: "translate3d(0,0,0) scale(.52) rotate(0deg)",
+                opacity: 0.98,
+                offset: 0
+            },
+            {
+                transform: `translate3d(${dx * 0.58}px,${dy * 0.58 - 22}px,0) scale(.82) rotate(${rotate * 1.6}deg)`,
+                opacity: 1,
+                offset: 0.62
+            },
+            {
+                transform: `translate3d(${dx}px,${dy}px,0) scale(1) rotate(${rotate}deg)`,
+                opacity: 1,
+                offset: 1
+            }
+        ], {
+            duration: 420,
+            delay,
+            easing: "cubic-bezier(.2,.72,.22,1)",
+            fill: "forwards"
+        });
+
+        const flight = animation.finished.catch(() => {}).then(() => {
+            flyer.remove();
+        });
+
+        flightPromises.push(flight);
+        window.setTimeout(playDealTick, delay);
+    });
+
+    // Keep every real card hidden until the complete distribution animation ends.
+    await Promise.all(flightPromises);
+
+    cards.forEach(card => {
+        card.classList.remove("deal-card-hidden", "card-enter");
+        card.classList.add("card-show");
+    });
+
+    state.dealAnimationInProgress = false;
+}
+
+// Called only when a live deal transition is detected. Initial page loads
+// and ordinary reconnects do not set this flag.
+function queueDealDistributionAnimation() {
+    state.dealAnimationPending = true;
+}
+
 function renderHand() {
 
+    const animateDealThisRender = state.dealAnimationRenderActive === true;
 
         const dropStatus =
             document.getElementById("dropStatus");
@@ -1586,6 +1761,10 @@ function renderHand() {
 
             div.className =
                 "card card-enter";
+
+            if (animateDealThisRender) {
+                div.classList.add("deal-card-hidden");
+            }
 
             div.draggable = true;
 
@@ -1820,17 +1999,19 @@ function renderHand() {
 
 groupEl.appendChild(div);
 
-            setTimeout(() => {
+            if (!animateDealThisRender) {
+                setTimeout(() => {
 
-                div.classList.remove(
-                    "card-enter"
-                );
+                    div.classList.remove(
+                        "card-enter"
+                    );
 
-                div.classList.add(
-                    "card-show"
-                );
+                    div.classList.add(
+                        "card-show"
+                    );
 
-            }, 30 * index);
+                }, 30 * index);
+            }
 
         });
 
@@ -2974,6 +3155,8 @@ async function startNextDeal()
     // ==================================================
     // ALL ACTIVE PLAYERS LOAD NEW DEAL
     // ==================================================
+
+    queueDealDistributionAnimation();
 
     setTimeout(async () =>
     {
@@ -4606,6 +4789,8 @@ async function loadSessionInfo() {
     state.observationEndAt = data.observation_end_at;
 
     if (dealChanged) {
+
+        queueDealDistributionAnimation();
 
         // Clear only deal-specific client state. Keep identity, seat,
         // connection, and active-table/resume state untouched.
@@ -6498,7 +6683,17 @@ async function loadGame() {
     clearCardSelection();
     state.dragCard = null;
 
+    const animateNewDeal = shouldAnimateCurrentDeal();
+    state.dealAnimationRenderActive = animateNewDeal;
     renderHand();
+    state.dealAnimationRenderActive = false;
+    if (animateNewDeal) {
+        state.dealAnimationPending = false;
+        // Let the DOM finish layout before measuring the stock and hand cards.
+        requestAnimationFrame(() => {
+            playDealDistributionAnimation(true);
+        });
+    }
     updateActionButtons();
 }
 

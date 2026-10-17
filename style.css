@@ -2144,3 +2144,127 @@ body.mobile-game-mode .game-stage {
   #dealResultModal .declarer-waiting-message { gap: 10px; min-height: 150px; padding: 16px 8px; font-size: 13px; }
   #dealResultModal .declarer-waiting-title { font-size: 17px; }
 }
+
+
+/* =====================================================
+   CRDG NEW-DEAL CARD FLIGHT ANIMATION
+   Appended styles; existing hand/group layout unchanged.
+===================================================== */
+.card.deal-card-hidden {
+    opacity: 0 !important;
+    transform: none !important;
+    transition: none !important;
+    pointer-events: none !important;
+}
+
+.crdg-deal-fly-card {
+    position: fixed;
+    z-index: 1000000;
+    pointer-events: none;
+    box-sizing: border-box;
+    border: 2px solid rgba(255,255,255,.96);
+    border-radius: 8px;
+    background:
+        repeating-linear-gradient(45deg, transparent 0 6px, rgba(255,255,255,.10) 6px 8px),
+        repeating-linear-gradient(-45deg, transparent 0 7px, rgba(255,255,255,.08) 7px 9px),
+        linear-gradient(135deg, #245c91, #102b50 55%, #3477aa);
+    box-shadow: 0 5px 16px rgba(0,0,0,.5), inset 0 0 0 3px rgba(255,255,255,.15);
+    transform-origin: center center;
+    will-change: transform, opacity;
+    overflow: hidden;
+}
+
+.crdg-deal-fly-card::before {
+    content: "";
+    position: absolute;
+    inset: 7%;
+    border: 1px solid rgba(255,255,255,.72);
+    border-radius: 5px;
+}
+
+.crdg-deal-fly-card::after {
+    content: "✦";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    color: rgba(255,255,255,.94);
+    font-size: clamp(18px, 3vw, 34px);
+    text-shadow: 0 1px 5px rgba(0,0,0,.5);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .crdg-deal-fly-card {
+        display: none !important;
+    }
+}
+
+
+
+/* =====================================================
+   CRDG NEW-DEAL CARD FLIGHT ANIMATION
+   Fast distribution: target under 1 second total.
+===================================================== */
+
+.card.deal-card-hidden {
+    opacity: 0 !important;
+    transform: none !important;
+    transition: none !important;
+    pointer-events: none !important;
+}
+
+.crdg-deal-fly-card {
+    position: fixed;
+    z-index: 1000000;
+    pointer-events: none;
+    box-sizing: border-box;
+    border: 2px solid rgba(255,255,255,.96);
+    border-radius: 8px;
+
+    background:
+        repeating-linear-gradient(
+            45deg,
+            transparent 0 6px,
+            rgba(255,255,255,.10) 6px 8px
+        ),
+        repeating-linear-gradient(
+            -45deg,
+            transparent 0 7px,
+            rgba(255,255,255,.08) 7px 9px
+        ),
+        linear-gradient(135deg, #245c91, #102b50 55%, #3477aa);
+
+    box-shadow:
+        0 5px 16px rgba(0,0,0,.5),
+        inset 0 0 0 3px rgba(255,255,255,.15);
+
+    transform-origin: center center;
+    will-change: transform, opacity;
+    overflow: hidden;
+}
+
+.crdg-deal-fly-card::before {
+    content: "";
+    position: absolute;
+    inset: 7%;
+    border: 1px solid rgba(255,255,255,.72);
+    border-radius: 5px;
+}
+
+.crdg-deal-fly-card::after {
+    content: "✦";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    color: rgba(255,255,255,.94);
+    font-size: clamp(18px, 3vw, 34px);
+    text-shadow: 0 1px 5px rgba(0,0,0,.5);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .crdg-deal-fly-card {
+        display: none !important;
+    }
+}
+
