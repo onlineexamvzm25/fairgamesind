@@ -6570,6 +6570,9 @@ async function loadGame() {
     }
 
     const currentDealNo = dealInfo.deal_no;
+    // Ensure the deal number is available before building
+// the animation's session/player/deal storage key.
+   state.deal_no = currentDealNo;
 
     // A valid declaration uses 14 cards temporarily, but the selected
     // declaration card is not part of the player's final 13-card hand.
@@ -8431,6 +8434,10 @@ async function enterGame(){
     .innerText = state.tableId;
 
   await loadTopGameType();
+  // Queue the first deal animation.
+// The localStorage check prevents replaying an already animated deal.
+queueDealDistributionAnimation();
+
 
   await loadGame();
 
@@ -8441,7 +8448,7 @@ async function enterGame(){
   startTurnTimer();
   updateActionButtons();
 
-  renderHand();
+  //renderHand();
 
   calculateDealScore();
 
