@@ -1592,6 +1592,18 @@ body.crdg-solo-dealing #my-hand .card {
     transition: none !important;
 }
 
+/* Keep group boxes hidden during the deal too. Their layout remains in
+   place for measuring card destinations, then groups and cards reveal
+   together after renderHand() has synchronized the final hand. */
+body.crdg-solo-dealing #group0,
+body.crdg-solo-dealing #group1,
+body.crdg-solo-dealing #group2,
+body.crdg-solo-dealing #group3,
+body.crdg-solo-dealing #group4,
+body.crdg-solo-dealing #group5 {
+    visibility: hidden !important;
+}
+
 .crdg-solo-deal-fly-card {
     position: fixed;
     z-index: 1000000;

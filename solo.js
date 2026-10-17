@@ -5288,7 +5288,7 @@ async function runDealDistributionAnimation() {
     const stockCenterY = stockRect.top + stockRect.height / 2;
     const duration = 350;
     const stagger = 35;
-    const audioUrl = new URL("deal.mp3", document.baseURI).href;
+    const audioUrl = new URL("discard.mp3", document.baseURI).href;
     const animationPromises = [];
 
     targets.forEach((target, index) => {
@@ -5336,6 +5336,12 @@ async function runDealDistributionAnimation() {
     });
 
     await Promise.all(animationPromises);
+
+    // Synchronize the real hand/group DOM while it is still hidden.
+    // This prevents the empty group containers from flashing between
+    // the flying-card animation and the final grouped cards.
+    renderHand();
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
     document.body.classList.remove("crdg-solo-dealing");
     state.dealAnimationPending = false;
@@ -7839,7 +7845,12 @@ async function startSoloGame  () {
 
         // -----------------------------------------
 // SOLO GAME STARTED DIRECTLY
+// Run this fallback only if postJoinFlow/loadLobbyState has not
+// already entered the game. Otherwise the deal animation plays twice.
 // -----------------------------------------
+
+if (!gameEntered) {
+    gameEntered = true;
 
 document
     .getElementById("joinScreen")
@@ -7877,9 +7888,10 @@ await runDealDistributionAnimation();
 
 subscribeRealtime();
 
+} // End direct-start fallback; enterGame() already handled it if entered earlier.
+
 // Automatically reconnect Solo after network/Supabase connectivity returns.
 startNetworkMonitor();
-
 
 // -----------------------------------------
 // UPDATE BUTTONS / TURN
