@@ -2740,6 +2740,10 @@ async function startNextDeal()
             "dealResultModal"
         ).style.display = "none";
 
+        document.getElementById(
+            "declarationTimer"
+        ).innerText ="";
+
 
         setTimeout(async () =>
         {
