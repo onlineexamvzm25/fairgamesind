@@ -140,6 +140,37 @@ if(!savedUserId){
 let gameEntered = false;
 
 let turnTimerHandle = null;
+// Turn warning: play once when the local player's turn reaches 10 seconds.
+const turnWarningSound = new Audio("pickup.mp3");
+turnWarningSound.preload = "auto";
+turnWarningSound.volume = 0.8;
+let turnWarningPlayedForKey = null;
+
+function playTurnWarningAtTenSeconds(remaining) {
+    if (remaining > 10 || remaining <= 0) return;
+    if (Number(state.seatNo) !== Number(state.currentTurnSeat)) return;
+
+    const turnKey = [
+        state.sessionId || "",
+        state.currentTurnSeat ?? "",
+        state.turnEndAt || ""
+    ].join("|");
+
+    if (turnWarningPlayedForKey === turnKey) return;
+    turnWarningPlayedForKey = turnKey;
+
+    try {
+        turnWarningSound.pause();
+        turnWarningSound.currentTime = 0;
+        const playResult = turnWarningSound.play();
+        if (playResult && typeof playResult.catch === "function") {
+            playResult.catch(() => {});
+        }
+    } catch (_) {
+        // A blocked warning sound must never interrupt the game timer.
+    }
+}
+
 
 let observationTimeRemaining = 30;
 
@@ -7655,6 +7686,8 @@ function startTurnTimer() {
             "turnTimer"
         ).innerText =
             remaining;
+
+        playTurnWarningAtTenSeconds(remaining);
 
         if (remaining <= 0) {
 
