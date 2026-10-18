@@ -140,12 +140,54 @@ if(!savedUserId){
 let gameEntered = false;
 
 let turnTimerHandle = null;
-// Turn countdown: beep once for each displayed second from 10 down to 1.
-const turnWarningSound = new Audio("pickup.mp3");
-turnWarningSound.preload = "auto";
-turnWarningSound.volume = 0.8;
+// Clock-like countdown tick, generated locally (does not use pickup.mp3).
+let turnTickAudioContext = null;
 let turnWarningKey = null;
 let turnWarningLastSecond = null;
+
+function playClockTick() {
+    try {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) return;
+        if (!turnTickAudioContext) turnTickAudioContext = new AudioContextClass();
+
+        const ctx = turnTickAudioContext;
+        const makeTick = (when, frequency, peak) => {
+            const oscillator = ctx.createOscillator();
+            const gain = ctx.createGain();
+            oscillator.type = "sine";
+            oscillator.frequency.setValueAtTime(frequency, when);
+            gain.gain.setValueAtTime(0.0001, when);
+            gain.gain.exponentialRampToValueAtTime(peak, when + 0.004);
+            gain.gain.exponentialRampToValueAtTime(0.0001, when + 0.035);
+            oscillator.connect(gain);
+            gain.connect(ctx.destination);
+            oscillator.start(when);
+            oscillator.stop(when + 0.04);
+        };
+
+        const playTicks = () => {
+            const now = ctx.currentTime + 0.01;
+            // Two tiny clicks create a gentle clock-like "tik-tik".
+            makeTick(now, 1750, 0.12);
+            makeTick(now + 0.085, 1350, 0.085);
+        };
+
+        if (ctx.state === "suspended") {
+            ctx.resume().then(playTicks).catch(() => {});
+        } else {
+            playTicks();
+        }
+    } catch (_) {
+        // Sound must never interrupt the game timer.
+    }
+}
+
+function stopTurnCountdownTicking() {
+    // There is no repeating audio loop; invalidate the current countdown guard.
+    turnWarningKey = null;
+    turnWarningLastSecond = null;
+}
 
 function playTurnWarningAtTenSeconds(remaining) {
     if (remaining > 10 || remaining <= 0) return;
@@ -166,18 +208,7 @@ function playTurnWarningAtTenSeconds(remaining) {
     const second = Math.ceil(remaining);
     if (second > 10 || second < 1 || second === turnWarningLastSecond) return;
     turnWarningLastSecond = second;
-
-    try {
-        // Restart the short sound for each countdown second.
-        turnWarningSound.pause();
-        turnWarningSound.currentTime = 0;
-        const playResult = turnWarningSound.play();
-        if (playResult && typeof playResult.catch === "function") {
-            playResult.catch(() => {});
-        }
-    } catch (_) {
-        // A blocked warning sound must never interrupt the game timer.
-    }
+    playClockTick();
 }
 
 
@@ -4262,6 +4293,7 @@ async function discard() {
         data[0].status === "success"
     ) 
     {
+        stopTurnCountdownTicking();
         // Animate from the original group to the open pile before removing
         // the card from local state and rerendering the hand.
         await animateDiscardCardToOpenPile(cardToRemove);
