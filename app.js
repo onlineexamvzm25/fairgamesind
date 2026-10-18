@@ -169,8 +169,8 @@ function playClockTick() {
         const playTicks = () => {
             const now = ctx.currentTime + 0.01;
             // Two tiny clicks create a gentle clock-like "tik-tik".
-            makeTick(now, 1750, 0.12);
-            makeTick(now + 0.085, 1350, 0.085);
+            makeTick(now, 1750, 0.45);
+            makeTick(now + 0.085, 1350, 0.22);
         };
 
         if (ctx.state === "suspended") {
