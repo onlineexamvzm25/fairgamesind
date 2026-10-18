@@ -145,38 +145,19 @@ let turnTickAudioContext = null;
 let turnWarningKey = null;
 let turnWarningLastSecond = null;
 
+// Physical clock-style countdown sound stored beside the game files.
+const turnTickAudio = new Audio("tiktik.mp3");
+turnTickAudio.preload = "auto";
+turnTickAudio.volume = 1.0;
+
 function playClockTick() {
     try {
-        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-        if (!AudioContextClass) return;
-        if (!turnTickAudioContext) turnTickAudioContext = new AudioContextClass();
-
-        const ctx = turnTickAudioContext;
-        const makeTick = (when, frequency, peak) => {
-            const oscillator = ctx.createOscillator();
-            const gain = ctx.createGain();
-            oscillator.type = "sine";
-            oscillator.frequency.setValueAtTime(frequency, when);
-            gain.gain.setValueAtTime(0.0001, when);
-            gain.gain.exponentialRampToValueAtTime(peak, when + 0.004);
-            gain.gain.exponentialRampToValueAtTime(0.0001, when + 0.035);
-            oscillator.connect(gain);
-            gain.connect(ctx.destination);
-            oscillator.start(when);
-            oscillator.stop(when + 0.04);
-        };
-
-        const playTicks = () => {
-            const now = ctx.currentTime + 0.01;
-            // Two tiny clicks create a gentle clock-like "tik-tik".
-            makeTick(now, 1750, 0.95);
-            makeTick(now + 0.085, 1350, 0.22);
-        };
-
-        if (ctx.state === "suspended") {
-            ctx.resume().then(playTicks).catch(() => {});
-        } else {
-            playTicks();
+        // Restart the short two-click sound once per countdown second.
+        turnTickAudio.pause();
+        turnTickAudio.currentTime = 0;
+        const playResult = turnTickAudio.play();
+        if (playResult && typeof playResult.catch === "function") {
+            playResult.catch(() => {});
         }
     } catch (_) {
         // Sound must never interrupt the game timer.
