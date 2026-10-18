@@ -2218,6 +2218,10 @@ body.mobile-game-mode .game-stage {
     transform-origin: top left !important;
     will-change: transform, opacity;
     transition: none !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    min-height: 0 !important;
+    max-height: none !important;
 }
 
 
@@ -2238,4 +2242,8 @@ body.mobile-game-mode .game-stage {
     transform-origin: top left !important;
     will-change: transform, opacity;
     transition: none !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    min-height: 0 !important;
+    max-height: none !important;
 }
