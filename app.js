@@ -140,11 +140,12 @@ if(!savedUserId){
 let gameEntered = false;
 
 let turnTimerHandle = null;
-// Turn warning: play once when the local player's turn reaches 10 seconds.
+// Turn countdown: beep once for each displayed second from 10 down to 1.
 const turnWarningSound = new Audio("pickup.mp3");
 turnWarningSound.preload = "auto";
 turnWarningSound.volume = 0.8;
-let turnWarningPlayedForKey = null;
+let turnWarningKey = null;
+let turnWarningLastSecond = null;
 
 function playTurnWarningAtTenSeconds(remaining) {
     if (remaining > 10 || remaining <= 0) return;
@@ -156,10 +157,18 @@ function playTurnWarningAtTenSeconds(remaining) {
         state.turnEndAt || ""
     ].join("|");
 
-    if (turnWarningPlayedForKey === turnKey) return;
-    turnWarningPlayedForKey = turnKey;
+    // Reset the countdown guard when a new player's turn starts.
+    if (turnWarningKey !== turnKey) {
+        turnWarningKey = turnKey;
+        turnWarningLastSecond = null;
+    }
+
+    const second = Math.ceil(remaining);
+    if (second > 10 || second < 1 || second === turnWarningLastSecond) return;
+    turnWarningLastSecond = second;
 
     try {
+        // Restart the short sound for each countdown second.
         turnWarningSound.pause();
         turnWarningSound.currentTime = 0;
         const playResult = turnWarningSound.play();
