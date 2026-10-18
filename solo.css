@@ -1645,3 +1645,44 @@ body.crdg-solo-dealing #group5 {
         display: none !important;
     }
 }
+
+
+/* SOLO discard flight: hide the real card while its clean copy flies to the open pile. */
+.card.discard-card-hidden {
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    transition: none !important;
+}
+
+.crdg-solo-discard-fly-card {
+    position: fixed !important;
+    z-index: 1000002 !important;
+    margin: 0 !important;
+    flex: none !important;
+    pointer-events: none !important;
+    transform-origin: top left !important;
+    will-change: transform, opacity;
+    transition: none !important;
+}
+
+
+/* SOLO draw pickup flight: hide the real target card until the flying copy lands. */
+.card.draw-card-hidden {
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    transform: none !important;
+    transition: none !important;
+}
+
+.crdg-solo-draw-fly-card {
+    position: fixed !important;
+    z-index: 1000001 !important;
+    margin: 0 !important;
+    flex: none !important;
+    pointer-events: none !important;
+    transform-origin: top left !important;
+    will-change: transform, opacity;
+    transition: none !important;
+}

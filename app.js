@@ -106,7 +106,8 @@ let state = {
    resultWindowLoaded : false,
   dealAnimationPending: false,
   dealAnimationRenderActive: false,
-  dealAnimationInProgress: false
+  dealAnimationInProgress: false,
+  drawAnimationTarget: null
 };
 
 
@@ -1485,59 +1486,84 @@ async function loadTopGameType()
 // Visual only: uses the server-dealt hand and never calls
 // any database/RPC function.
 // =====================================================
-// Audio file is hosted beside friends.html/app.js on GitHub Pages.
-// The Android WebView loads this same hosted path, so keep deal.mp3 in that folder.
+let crdgDealAudioContext = null;
 
 function crdgDealAnimationKey() {
-    if (
-        !state.sessionId ||
-        !state.userId ||
-        state.deal_no == null
-    ) {
+    const dealNo = state.groupsDealNo ?? state.deal_no;
+    if (state.sessionId == null || state.userId == null || dealNo == null) {
         return null;
     }
-
-    return `crdg_deal_animation_${state.sessionId}_${state.userId}_${state.deal_no}`;
+    return "crdg_deal_animation_" +
+        String(state.sessionId) + "_" +
+        String(state.userId) + "_" +
+        String(dealNo);
 }
 
 function shouldAnimateCurrentDeal() {
-    if (!state.dealAnimationPending) {
-        return false;
-    }
+    if (!state.dealAnimationPending) return false;
 
     const key = crdgDealAnimationKey();
-
-    if (!key) {
-        return false;
-    }
+    if (!key) return false;
 
     try {
-        // Do not replay an animation already completed for this deal.
-        if (localStorage.getItem(key) === "1") {
+        // Reserve the animation before rendering so duplicate realtime/load
+        // calls cannot reveal the cards or start a second animation.
+        if (localStorage.getItem(key)) {
             state.dealAnimationPending = false;
             return false;
         }
-
         localStorage.setItem(key, "pending");
-    } catch (error) {
-        // Continue even if browser storage is unavailable.
+    } catch (e) {
+        // If storage is blocked, still allow the current live transition.
     }
-
     return true;
 }
 
-
 function playDealTick() {
     try {
-        const audioUrl = new URL("pickup.mp3", document.baseURI).href;
-        const audio = new Audio(audioUrl);
-        audio.preload = "auto";
-        audio.volume = 0.35;
-        audio.play().catch(() => {
-            // WebView/browser audio may require a prior user interaction.
-        });
+        const AudioContextClass =
+            window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) return;
+
+        if (!crdgDealAudioContext) {
+            crdgDealAudioContext = new AudioContextClass();
+        }
+        const ctx = crdgDealAudioContext;
+        if (ctx.state === "suspended") {
+            ctx.resume().catch(() => {});
+        }
+
+        const now = ctx.currentTime;
+        const duration = 0.045;
+        const buffer = ctx.createBuffer(
+            1,
+            Math.max(1, Math.floor(ctx.sampleRate * duration)),
+            ctx.sampleRate
+        );
+        const channel = buffer.getChannelData(0);
+        for (let i = 0; i < channel.length; i++) {
+            channel[i] = (Math.random() * 2 - 1) * (1 - i / channel.length);
+        }
+
+        const noise = ctx.createBufferSource();
+        noise.buffer = buffer;
+
+        const filter = ctx.createBiquadFilter();
+        filter.type = "lowpass";
+        filter.frequency.setValueAtTime(1900, now);
+
+        const gain = ctx.createGain();
+        gain.gain.setValueAtTime(0.0001, now);
+        gain.gain.exponentialRampToValueAtTime(0.14, now + 0.006);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(ctx.destination);
+        noise.start(now);
+        noise.stop(now + duration);
     } catch (e) {
-        // Missing/blocked audio must never stop the card animation.
+        // Sound is decorative; never let audio prevent a deal from rendering.
     }
 }
 
@@ -1599,8 +1625,7 @@ async function playDealDistributionAnimation(reserved = false) {
         const dx = targetRect.left - sourceRect.left;
         const dy = targetRect.top - sourceRect.top;
         const rotate = ((index % 5) - 2) * 2.2;
-        const delay = index * 35;
-        const duration = 350;
+        const delay = index * 95;
 
         const animation = flyer.animate([
             {
@@ -1619,7 +1644,7 @@ async function playDealDistributionAnimation(reserved = false) {
                 offset: 1
             }
         ], {
-            duration: 420,
+            duration: 360,
             delay,
             easing: "cubic-bezier(.2,.72,.22,1)",
             fill: "forwards"
@@ -1627,20 +1652,15 @@ async function playDealDistributionAnimation(reserved = false) {
 
         const flight = animation.finished.catch(() => {}).then(() => {
             flyer.remove();
+            target.classList.remove("deal-card-hidden", "card-enter");
+            target.classList.add("card-show");
         });
 
         flightPromises.push(flight);
         window.setTimeout(playDealTick, delay);
     });
 
-    // Keep every real card hidden until the complete distribution animation ends.
     await Promise.all(flightPromises);
-
-    cards.forEach(card => {
-        card.classList.remove("deal-card-hidden", "card-enter");
-        card.classList.add("card-show");
-    });
-
     state.dealAnimationInProgress = false;
 }
 
@@ -1764,6 +1784,16 @@ function renderHand() {
 
             if (animateDealThisRender) {
                 div.classList.add("deal-card-hidden");
+            }
+
+            // Keep the newly drawn card hidden until its flight animation
+            // from the selected pile reaches this exact group/index.
+            if (
+                state.drawAnimationTarget &&
+                state.drawAnimationTarget.group === g &&
+                state.drawAnimationTarget.index === index
+            ) {
+                div.classList.add("draw-card-hidden");
             }
 
             div.draggable = true;
@@ -3577,6 +3607,91 @@ function closeHistoryPopup() {
     );
 }
 
+// Animate a successfully drawn face-up card from the selected pile into
+// its destination group. The real target stays invisible until the flight ends.
+async function animateDrawCardToGroup(sourceRect, groupIndex, cardIndex) {
+    const groupEl = document.getElementById("group" + groupIndex);
+    const target = groupEl
+        ? Array.from(groupEl.querySelectorAll(":scope > .card"))[cardIndex]
+        : null;
+
+    if (!sourceRect || !target) {
+        state.drawAnimationTarget = null;
+        if (target) target.classList.remove("draw-card-hidden");
+        return;
+    }
+
+    const targetRect = target.getBoundingClientRect();
+    const flyer = target.cloneNode(true);
+    flyer.classList.remove(
+        "draw-card-hidden", "card-enter", "card-show", "picked-card", "selected"
+    );
+    flyer.classList.add("crdg-draw-fly-card");
+    flyer.setAttribute("aria-hidden", "true");
+    flyer.draggable = false;
+    flyer.onclick = null;
+    flyer.ondragstart = null;
+    flyer.style.left = targetRect.left + "px";
+    flyer.style.top = targetRect.top + "px";
+    flyer.style.width = targetRect.width + "px";
+    flyer.style.height = targetRect.height + "px";
+    document.body.appendChild(flyer);
+
+    // Existing pickup sound is used for this short draw action.
+    try {
+        pickupSound.currentTime = 0;
+        const soundResult = pickupSound.play();
+        if (soundResult && typeof soundResult.catch === "function") {
+            soundResult.catch(() => {});
+        }
+    } catch (e) {}
+
+    const reducedMotion = window.matchMedia &&
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    try {
+        if (!reducedMotion && typeof flyer.animate === "function") {
+            const dx = sourceRect.left - targetRect.left;
+            const dy = sourceRect.top - targetRect.top;
+            const sx = Math.max(0.2, sourceRect.width / Math.max(1, targetRect.width));
+            const sy = Math.max(0.2, sourceRect.height / Math.max(1, targetRect.height));
+
+            const animation = flyer.animate([
+                {
+                    transform: `translate3d(${dx}px, ${dy}px, 0) scale(${sx}, ${sy}) rotate(-3deg)`,
+                    opacity: 0.98
+                },
+                {
+                    transform: `translate3d(${dx * 0.48}px, ${dy * 0.48 - 16}px, 0) scale(${1 + (sx - 1) * 0.45}, ${1 + (sy - 1) * 0.45}) rotate(2deg)`,
+                    opacity: 1,
+                    offset: 0.58
+                },
+                {
+                    transform: "translate3d(0, 0, 0) scale(1, 1) rotate(0deg)",
+                    opacity: 1
+                }
+            ], {
+                duration: 420,
+                easing: "cubic-bezier(.2,.72,.22,1)",
+                fill: "forwards"
+            });
+            await animation.finished.catch(() => {});
+        } else {
+            await new Promise(resolve => setTimeout(resolve, 120));
+        }
+    } finally {
+        flyer.remove();
+        state.drawAnimationTarget = null;
+        // A realtime refresh may have replaced the target node during flight,
+        // so look it up again rather than relying on the old element reference.
+        const currentGroup = document.getElementById("group" + groupIndex);
+        const currentTarget = currentGroup
+            ? Array.from(currentGroup.querySelectorAll(":scope > .card"))[cardIndex]
+            : null;
+        if (currentTarget) currentTarget.classList.remove("draw-card-hidden");
+    }
+}
+
 // =========================
 // DRAW
 // =========================
@@ -3633,6 +3748,17 @@ async function draw(source, targetGroup = 5) {
             return;
         }
 
+
+        // Remember the source pile position before the RPC changes its contents.
+        const sourcePileEl = document.getElementById(
+            source === "open" ? "openVisual" : "stockCard"
+        );
+        const sourceRect = sourcePileEl
+            ? (() => {
+                const r = sourcePileEl.getBoundingClientRect();
+                return { left: r.left, top: r.top, width: r.width, height: r.height };
+            })()
+            : null;
 
         // =================================================
         // EXISTING DRAW CODE STARTS HERE
@@ -3697,15 +3823,7 @@ async function draw(source, targetGroup = 5) {
             .getElementById("stockCard")
             .classList.remove("pick-card-pulse");
 
-            pickupSound.currentTime = 0;
-
-            pickupSound
-                .play()
-                .catch(() => {});
-
-
             ensureSixGroups();
-
 
             const destinationGroup =
                 Number.isInteger(targetGroup) &&
@@ -3714,23 +3832,25 @@ async function draw(source, targetGroup = 5) {
                     ? targetGroup
                     : 5;
 
+            state.groups[destinationGroup].push(card);
+            const destinationIndex = state.groups[destinationGroup].length - 1;
 
-            state.groups[
-                destinationGroup
-            ].push(card);
-
-
-            state.pickedCard = {
-                card: card,
+            // A drawn card is not a selection: clear stale selections and
+            // never apply the picked-card glow to the newly drawn card.
+            state.pickedCard = null;
+            state.selectedCard = null;
+            state.selectedCards = [];
+            state.drawAnimationTarget = {
                 group: destinationGroup,
-                index:
-                    state.groups[
-                        destinationGroup
-                    ].length - 1
+                index: destinationIndex
             };
 
-
             renderHand();
+            await animateDrawCardToGroup(
+                sourceRect,
+                destinationGroup,
+                destinationIndex
+            );
 
             calculateDealScore();
 
@@ -3942,6 +4062,78 @@ function startDealBackupTimer() {
     }, 10000);
 }
 
+// Animate the selected hand card from any group onto the open pile.
+// The server discard must succeed before this animation is played.
+async function animateDiscardCardToOpenPile(cardInfo) {
+    const groupEl = document.getElementById("group" + cardInfo.group);
+    const source = groupEl
+        ? Array.from(groupEl.querySelectorAll(":scope > .card"))[cardInfo.index]
+        : null;
+    const destination = document.getElementById("openVisual");
+
+    if (!source || !destination) {
+        try {
+            discardSound.currentTime = 0;
+            const soundResult = discardSound.play();
+            if (soundResult && typeof soundResult.catch === "function") soundResult.catch(() => {});
+        } catch (e) {}
+        return;
+    }
+
+    const sourceRect = source.getBoundingClientRect();
+    const destinationRect = destination.getBoundingClientRect();
+    const flyer = source.cloneNode(true);
+    flyer.classList.remove(
+        "picked-card", "selected", "draw-card-hidden", "card-enter",
+        "card-show", "deal-card-hidden", "discard-card-hidden"
+    );
+    flyer.classList.add("crdg-discard-fly-card");
+    flyer.setAttribute("aria-hidden", "true");
+    flyer.draggable = false;
+    flyer.onclick = null;
+    flyer.ondragstart = null;
+    flyer.style.left = sourceRect.left + "px";
+    flyer.style.top = sourceRect.top + "px";
+    flyer.style.width = sourceRect.width + "px";
+    flyer.style.height = sourceRect.height + "px";
+    document.body.appendChild(flyer);
+
+    // Hide the real card while its animated copy travels to the open pile.
+    source.classList.add("discard-card-hidden");
+
+    try {
+        discardSound.currentTime = 0;
+        const soundResult = discardSound.play();
+        if (soundResult && typeof soundResult.catch === "function") soundResult.catch(() => {});
+    } catch (e) {}
+
+    const reducedMotion = window.matchMedia &&
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    try {
+        if (!reducedMotion && typeof flyer.animate === "function") {
+            const dx = destinationRect.left - sourceRect.left;
+            const dy = destinationRect.top - sourceRect.top;
+            const sx = Math.max(0.2, destinationRect.width / Math.max(1, sourceRect.width));
+            const sy = Math.max(0.2, destinationRect.height / Math.max(1, sourceRect.height));
+            const animation = flyer.animate([
+                { transform: "translate3d(0,0,0) scale(1,1) rotate(0deg)", opacity: 1 },
+                {
+                    transform: `translate3d(${dx * 0.52}px, ${dy * 0.52 - 14}px, 0) scale(${1 + (sx - 1) * 0.45}, ${1 + (sy - 1) * 0.45}) rotate(-2deg)`,
+                    opacity: 1, offset: 0.55
+                },
+                { transform: `translate3d(${dx}px, ${dy}px, 0) scale(${sx}, ${sy}) rotate(3deg)`, opacity: 0.96 }
+            ], { duration: 420, easing: "cubic-bezier(.2,.72,.22,1)", fill: "forwards" });
+            await animation.finished.catch(() => {});
+        } else {
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+    } finally {
+        flyer.remove();
+        source.classList.remove("discard-card-hidden");
+    }
+}
+
 // =========================
 // DISCARD
 // =========================
@@ -4030,9 +4222,9 @@ async function discard() {
         data[0].status === "success"
     ) 
     {
-
-        discardSound.currentTime = 0;
-        discardSound.play().catch(() => {});
+        // Animate from the original group to the open pile before removing
+        // the card from local state and rerendering the hand.
+        await animateDiscardCardToOpenPile(cardToRemove);
 
         state.groups[
             cardToRemove.group
@@ -6570,9 +6762,6 @@ async function loadGame() {
     }
 
     const currentDealNo = dealInfo.deal_no;
-    // Ensure the deal number is available before building
-// the animation's session/player/deal storage key.
-   state.deal_no = currentDealNo;
 
     // A valid declaration uses 14 cards temporarily, but the selected
     // declaration card is not part of the player's final 13-card hand.
@@ -8434,10 +8623,6 @@ async function enterGame(){
     .innerText = state.tableId;
 
   await loadTopGameType();
-  // Queue the first deal animation.
-// The localStorage check prevents replaying an already animated deal.
-queueDealDistributionAnimation();
-
 
   await loadGame();
 
@@ -8448,7 +8633,7 @@ queueDealDistributionAnimation();
   startTurnTimer();
   updateActionButtons();
 
-  //renderHand();
+  renderHand();
 
   calculateDealScore();
 

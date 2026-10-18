@@ -77,7 +77,8 @@ let state = {
   drawInProgress: false,
   myTurnPickDone: false,
   dealAnimationPending: false,
-  dealAnimationKey: null
+  dealAnimationKey: null,
+  drawAnimationTarget: null
 };
 
 
@@ -1454,6 +1455,15 @@ function renderHand() {
             div.className =
                 "card card-enter";
 
+            // Hide the real drawn card until its flight animation reaches it.
+            if (
+                state.drawAnimationTarget &&
+                state.drawAnimationTarget.group === g &&
+                state.drawAnimationTarget.index === index
+            ) {
+                div.classList.add("draw-card-hidden");
+            }
+
             div.draggable = true;
 
             // DRAG START
@@ -2801,6 +2811,91 @@ function closeHistoryPopup() {
     );
 }
 
+// Animate a successfully drawn SOLO card from the open/stock pile into its group.
+// The actual hand card stays hidden until the flying copy arrives.
+async function animateSoloDrawCardToGroup(sourceRect, groupIndex, cardIndex) {
+    const groupEl = document.getElementById("group" + groupIndex);
+    const target = groupEl
+        ? Array.from(groupEl.querySelectorAll(":scope > .card"))[cardIndex]
+        : null;
+
+    if (!sourceRect || !target) {
+        state.drawAnimationTarget = null;
+        if (target) target.classList.remove("draw-card-hidden");
+        try {
+            pickupSound.currentTime = 0;
+            const soundResult = pickupSound.play();
+            if (soundResult && typeof soundResult.catch === "function") soundResult.catch(() => {});
+        } catch (e) {}
+        return;
+    }
+
+    const targetRect = target.getBoundingClientRect();
+    const flyer = target.cloneNode(true);
+    flyer.classList.remove(
+        "picked-card", "selected", "card-enter", "card-show",
+        "deal-card-hidden", "draw-card-hidden", "discard-card-hidden"
+    );
+    flyer.classList.add("crdg-solo-draw-fly-card");
+    flyer.setAttribute("aria-hidden", "true");
+    flyer.draggable = false;
+    flyer.onclick = null;
+    flyer.ondragstart = null;
+    flyer.style.left = targetRect.left + "px";
+    flyer.style.top = targetRect.top + "px";
+    flyer.style.width = targetRect.width + "px";
+    flyer.style.height = targetRect.height + "px";
+    document.body.appendChild(flyer);
+
+    try {
+        pickupSound.currentTime = 0;
+        const soundResult = pickupSound.play();
+        if (soundResult && typeof soundResult.catch === "function") soundResult.catch(() => {});
+    } catch (e) {}
+
+    const reducedMotion = window.matchMedia &&
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    try {
+        if (!reducedMotion && typeof flyer.animate === "function") {
+            const dx = sourceRect.left - targetRect.left;
+            const dy = sourceRect.top - targetRect.top;
+            const sx = Math.max(0.2, sourceRect.width / Math.max(1, targetRect.width));
+            const sy = Math.max(0.2, sourceRect.height / Math.max(1, targetRect.height));
+            const animation = flyer.animate([
+                {
+                    transform: `translate3d(${dx}px, ${dy}px, 0) scale(${sx}, ${sy}) rotate(-3deg)`,
+                    opacity: 0.98
+                },
+                {
+                    transform: `translate3d(${dx * 0.48}px, ${dy * 0.48 - 16}px, 0) scale(${1 + (sx - 1) * 0.45}, ${1 + (sy - 1) * 0.45}) rotate(2deg)`,
+                    opacity: 1,
+                    offset: 0.58
+                },
+                {
+                    transform: "translate3d(0, 0, 0) scale(1, 1) rotate(0deg)",
+                    opacity: 1
+                }
+            ], {
+                duration: 420,
+                easing: "cubic-bezier(.2,.72,.22,1)",
+                fill: "forwards"
+            });
+            await animation.finished.catch(() => {});
+        } else {
+            await new Promise(resolve => setTimeout(resolve, 120));
+        }
+    } finally {
+        flyer.remove();
+        state.drawAnimationTarget = null;
+        const currentGroup = document.getElementById("group" + groupIndex);
+        const currentTarget = currentGroup
+            ? Array.from(currentGroup.querySelectorAll(":scope > .card"))[cardIndex]
+            : null;
+        if (currentTarget) currentTarget.classList.remove("draw-card-hidden");
+    }
+}
+
 // =========================
 // DRAW
 // =========================
@@ -2846,6 +2941,17 @@ async function draw(source, targetGroup = 5) {
             );
             return;
         }
+
+        // Capture the source pile position before Supabase updates the pile.
+        const sourcePileEl = document.getElementById(
+            source === "open" ? "openVisual" : "stockCard"
+        );
+        const sourceRect = sourcePileEl
+            ? (() => {
+                const r = sourcePileEl.getBoundingClientRect();
+                return { left: r.left, top: r.top, width: r.width, height: r.height };
+            })()
+            : null;
 
         // --------------------------------------------------
         // Draw card from Supabase
@@ -2895,12 +3001,6 @@ async function draw(source, targetGroup = 5) {
                 .getElementById("stockCard")
                 ?.classList.remove("pick-card-pulse");
 
-            // --------------------------------------------------
-            // Pickup sound
-            // --------------------------------------------------
-            pickupSound.currentTime = 0;
-            pickupSound.play().catch(() => {});
-
             ensureSixGroups();
 
             // --------------------------------------------------
@@ -2916,15 +3016,23 @@ async function draw(source, targetGroup = 5) {
                     : 5;
 
             state.groups[destinationGroup].push(card);
+            const destinationIndex = state.groups[destinationGroup].length - 1;
 
-            state.pickedCard = {
-                card: card,
+            // A newly drawn card is not a selected card; do not show selection glow.
+            state.pickedCard = null;
+            state.selectedCard = null;
+            state.selectedCards = [];
+            state.drawAnimationTarget = {
                 group: destinationGroup,
-                index:
-                    state.groups[destinationGroup].length - 1
+                index: destinationIndex
             };
 
             renderHand();
+            await animateSoloDrawCardToGroup(
+                sourceRect,
+                destinationGroup,
+                destinationIndex
+            );
             calculateDealScore();
             updateActionButtons();
         }
@@ -2994,6 +3102,78 @@ async function dropCurrentDeal()
 
     renderHand();
 }
+// Animate the selected SOLO hand card from any group onto the open pile.
+// Called only after Supabase confirms the discard, so failed discards never animate.
+async function animateSoloDiscardCardToOpenPile(cardInfo) {
+    const groupEl = document.getElementById("group" + cardInfo.group);
+    const source = groupEl
+        ? Array.from(groupEl.querySelectorAll(":scope > .card"))[cardInfo.index]
+        : null;
+    const destination = document.getElementById("openVisual");
+
+    if (!source || !destination) {
+        try {
+            discardSound.currentTime = 0;
+            const soundResult = discardSound.play();
+            if (soundResult && typeof soundResult.catch === "function") soundResult.catch(() => {});
+        } catch (e) {}
+        return;
+    }
+
+    const sourceRect = source.getBoundingClientRect();
+    const destinationRect = destination.getBoundingClientRect();
+    const flyer = source.cloneNode(true);
+    flyer.classList.remove(
+        "picked-card", "selected", "card-enter", "card-show",
+        "deal-card-hidden", "draw-card-hidden", "discard-card-hidden"
+    );
+    flyer.classList.add("crdg-solo-discard-fly-card");
+    flyer.setAttribute("aria-hidden", "true");
+    flyer.draggable = false;
+    flyer.onclick = null;
+    flyer.ondragstart = null;
+    flyer.style.left = sourceRect.left + "px";
+    flyer.style.top = sourceRect.top + "px";
+    flyer.style.width = sourceRect.width + "px";
+    flyer.style.height = sourceRect.height + "px";
+    document.body.appendChild(flyer);
+
+    // Keep the real card in place but invisible until the animation completes.
+    source.classList.add("discard-card-hidden");
+
+    try {
+        discardSound.currentTime = 0;
+        const soundResult = discardSound.play();
+        if (soundResult && typeof soundResult.catch === "function") soundResult.catch(() => {});
+    } catch (e) {}
+
+    const reducedMotion = window.matchMedia &&
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    try {
+        if (!reducedMotion && typeof flyer.animate === "function") {
+            const dx = destinationRect.left - sourceRect.left;
+            const dy = destinationRect.top - sourceRect.top;
+            const sx = Math.max(0.2, destinationRect.width / Math.max(1, sourceRect.width));
+            const sy = Math.max(0.2, destinationRect.height / Math.max(1, sourceRect.height));
+            const animation = flyer.animate([
+                { transform: "translate3d(0,0,0) scale(1,1) rotate(0deg)", opacity: 1 },
+                {
+                    transform: `translate3d(${dx * 0.52}px, ${dy * 0.52 - 14}px, 0) scale(${1 + (sx - 1) * 0.45}, ${1 + (sy - 1) * 0.45}) rotate(-2deg)`,
+                    opacity: 1, offset: 0.55
+                },
+                { transform: `translate3d(${dx}px, ${dy}px, 0) scale(${sx}, ${sy}) rotate(3deg)`, opacity: 0.96 }
+            ], { duration: 420, easing: "cubic-bezier(.2,.72,.22,1)", fill: "forwards" });
+            await animation.finished.catch(() => {});
+        } else {
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+    } finally {
+        flyer.remove();
+        source.classList.remove("discard-card-hidden");
+    }
+}
+
 // =========================
 // DISCARD
 // =========================
@@ -3073,10 +3253,9 @@ async function discard() {
         data[0].status === "success"
     ) 
     {
-
-
-            discardSound.currentTime = 0;
-            discardSound.play().catch(() => {});
+        // Animate the card from its current group to the open pile before
+        // removing it from the local hand and rendering the next state.
+        await animateSoloDiscardCardToOpenPile(cardToRemove);
 
         state.groups[
             cardToRemove.group
