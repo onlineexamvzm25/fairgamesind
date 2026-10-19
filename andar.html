@@ -125,11 +125,20 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const sessionToken = localStorage.getItem('crdgn_session_token') || '';
 let currentRoundId = null, currentRound = null, myBet = null, balance = 0;
 let initialStateLoaded = false;
+let serverAvailable = false, lastHeartbeatCheckAt = 0;
 let uiState = 'LOADING', pollHandle = null, countdownHandle = null, isBetSubmitting = false;
 let displayedSequences = new Set(), revealQueue = Promise.resolve(), roundReady = Promise.resolve(), roundAnimationPending = false, lastResultRound = null;
 const $sideInputs = () => [...document.querySelectorAll('input[name="side"]')];
 const $amountInputs = () => [...document.querySelectorAll('input[name="amount"]')];
 function status(message){ $('status').textContent = message; }
+function showWaitingForServer(detail=''){
+  uiState='WAITING';
+  clearInterval(countdownHandle);
+  setControls(false);
+  $('timer').textContent='—';
+  $('timerNote').textContent='SERVER';
+  status(detail ? `WAITING FOR SERVER… ${detail}` : 'WAITING FOR SERVER… Please wait.');
+}
 function fmt(n){ return Number(n || 0).toLocaleString('en-IN'); }
 function cardData(c){
   const rawSuit = c.suit || c.suit_symbol || '';
@@ -209,15 +218,28 @@ function animateStockShuffle(){return new Promise(resolve=>{
 });}
 function setTimerFromDeadline(deadline){clearInterval(countdownHandle);if(!deadline){$('timer').textContent='—';return;}const end=new Date(deadline).getTime();const tick=()=>{const sec=Math.max(0,Math.ceil((end-Date.now())/1000));$('timer').textContent=String(sec);if(sec<=0)clearInterval(countdownHandle);};tick();countdownHandle=setInterval(tick,250);}
 function renderMyBet(bet){myBet=bet||null;if(myBet){$('betConfirm').textContent=`BET CONFIRMED · ${myBet.selected_side} — ${fmt(myBet.bet_amount)} CHIPS`;$('betConfirm').classList.add('show');}else{$('betConfirm').textContent='';$('betConfirm').classList.remove('show');}}
+async function checkWorkerHeartbeat(force=false){
+  const now=Date.now();
+  // Check heartbeat at most every 1.5 seconds while game state may poll faster.
+  if(!force && lastHeartbeatCheckAt && now-lastHeartbeatCheckAt<1500) return serverAvailable;
+  lastHeartbeatCheckAt=now;
+  const {data,error}=await supabaseClient.rpc('crdgab_get_worker_status');
+  if(error){console.error('crdgab_get_worker_status:',error);serverAvailable=false;return false;}
+  const row=Array.isArray(data)?data[0]:data;
+  serverAvailable=!!row?.server_available;
+  return serverAvailable;
+}
 async function syncState(){
   if(!sessionToken){status('Login session not found. Returning to login…');setTimeout(()=>location.replace('index.html'),700);return;}
+  const workerAlive=await checkWorkerHeartbeat();
+  if(!workerAlive){showWaitingForServer('Game processor is not responding. Please wait.');return;}
   const {data,error}=await supabaseClient.rpc('crdgab_get_state',{p_session_token:sessionToken});
-  if(error){console.error('crdgab_get_state:',error);status('Unable to load live game state. Check connection and RPC permissions.');return;}
+  if(error){console.error('crdgab_get_state:',error);showWaitingForServer('Connection or game-state check failed.');return;}
   const result=Array.isArray(data)?data[0]:data;
-  if(!result?.success){status(result?.message||'Session validation failed. Please log in again.');if(/session/i.test(result?.message||''))setTimeout(()=>location.replace('index.html'),900);return;}
+  if(!result?.success){const msg=result?.message||'Session validation failed. Please log in again.';if(/session/i.test(msg)){showWaitingForServer('Login session expired.');setTimeout(()=>location.replace('index.html'),900);}else{showWaitingForServer(msg);}return;}
   setPlayer(result.user_name,localStorage.getItem('crdgn_user_id'));setBalance(result.balance);
   const r=result.round;
-  if(!r){initialStateLoaded=true;uiState='WAITING';currentRound=null;myBet=null;setControls(false);stock(52);$('timer').textContent='—';$('timerNote').textContent='WAITING';status('Waiting for the game worker to start the first round…');return;}
+  if(!r){initialStateLoaded=true;uiState='WAITING';currentRound=null;myBet=null;setControls(false);stock(52);$('timer').textContent='—';$('timerNote').textContent='WAITING';showWaitingForServer('No active round is available yet.');return;}
   // Use the date-wise number for messages; keep round_id for all database identity.
   const displayRoundNo = r.daily_round_no ?? r.round_id;
   const isNew=Number(r.round_id)!==Number(currentRoundId);
@@ -267,7 +289,7 @@ async function placeBet(){
 }
 function goHome(){location.href='homepage.html';}
 $('bet').addEventListener('click',placeBet);updateBetLabel();
-if(!window.supabase){status('Supabase client failed to load. Check internet connection.');}
+if(!window.supabase){showWaitingForServer('Supabase client failed to load. Check internet connection.');}
 else if(!sessionToken){status('Login required. Redirecting…');setTimeout(()=>location.replace('index.html'),700);}
-else{syncState().catch(e=>{console.error(e);status('Unable to connect to game server.');});pollHandle=setInterval(()=>syncState().catch(e=>console.error(e)),500);}
+else{syncState().catch(e=>{console.error(e);showWaitingForServer('Unable to connect.');});pollHandle=setInterval(()=>syncState().catch(e=>{console.error(e);showWaitingForServer('Unable to connect.');}),500);}
 </script></body></html>
