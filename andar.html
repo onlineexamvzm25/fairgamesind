@@ -86,7 +86,7 @@
 .mini .pip{font-size:clamp(12px,2.8vw,16px);position:absolute;left:4px;top:3px;right:auto;bottom:auto;line-height:1}
 .mini .corner{font-size:10px;left:auto;right:3px;top:auto;bottom:2px;transform:rotate(180deg)}
 .slot .mini.current{transform:scale(1.09);z-index:4}
-.flying-card{transition:transform 2s cubic-bezier(.2,.75,.25,1),opacity 2s;width:36px;height:51px}
+.flying-card{transition:none;width:36px;height:51px;will-change:transform,opacity}
 .panel.bahar{background:linear-gradient(150deg,rgba(105,83,0,.68),rgba(34,27,0,.62));border-color:rgba(255,218,55,.88);box-shadow:0 0 17px #e9c51d24,inset 0 0 18px #ffe0330c}
 .panel.bahar .title{border-color:#ffe45b88;text-shadow:0 0 12px #ffe34a;color:#fff5b0}
 .panel.bahar .radio input{accent-color:#ffdf43}
@@ -127,14 +127,55 @@ function playDealSound(luckySound=false){
  beep(luckySound?920:560,luckySound?.16:.065)
 }
 function flyFromStockTo(target, onArrive, luckySound=false){
-  const stockRect=$("stock").getBoundingClientRect(), targetRect=target.getBoundingClientRect();
-  const startX=stockRect.left+stockRect.width*.5-21, startY=stockRect.top+stockRect.height*.5-30;
-  const endX=targetRect.left+targetRect.width*.5-21, endY=targetRect.top+targetRect.height*.5-30;
-  const flyer=document.createElement("div");flyer.className="flying-card";
-  flyer.style.left=startX+"px";flyer.style.top=startY+"px";document.body.appendChild(flyer);
+  // Animate from the visible pack's exact center to the destination.
+  // Two animation frames ensure the browser paints the starting position
+  // before applying the transform, which prevents intermittent skipped flights.
+  const pack = $("stock").querySelector(".stockcard") || $("stock");
+  const stockRect = pack.getBoundingClientRect();
+  const targetRect = target.getBoundingClientRect();
+  const cardW = 36, cardH = 51;
+  const startX = stockRect.left + stockRect.width / 2 - cardW / 2;
+  const startY = stockRect.top + stockRect.height / 2 - cardH / 2;
+  const endX = targetRect.left + targetRect.width / 2 - cardW / 2;
+  const endY = targetRect.top + targetRect.height / 2 - cardH / 2;
+  const flyer = document.createElement("div");
+  flyer.className = "flying-card";
+  flyer.style.width = cardW + "px";
+  flyer.style.height = cardH + "px";
+  flyer.style.left = startX + "px";
+  flyer.style.top = startY + "px";
+  flyer.style.transform = "translate3d(0,0,0) rotate(0deg) scale(1)";
+  flyer.style.opacity = "1";
+  flyer.style.transition = "none";
+  flyer.style.willChange = "transform, opacity";
+  document.body.appendChild(flyer);
+  // Force layout so the starting coordinates are committed before transition.
+  void flyer.offsetWidth;
   playDealSound(luckySound);
-  requestAnimationFrame(()=>{flyer.style.transform=`translate(${endX-startX}px,${endY-startY}px) rotate(${luckySound?360:18}deg) scale(${luckySound?1.12:.92})`});
-  setTimeout(()=>{flyer.remove();onArrive();},luckySound?1000:2000);
+
+  let completed = false;
+  let fallbackTimer;
+  const complete = () => {
+    if (completed) return;
+    completed = true;
+    clearTimeout(fallbackTimer);
+    flyer.removeEventListener("transitionend", onTransitionEnd);
+    flyer.remove();
+    onArrive();
+  };
+  const onTransitionEnd = event => {
+    if (event.target === flyer && event.propertyName === "transform") complete();
+  };
+  flyer.addEventListener("transitionend", onTransitionEnd);
+
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    if (!flyer.isConnected || completed) return;
+    flyer.style.transition = `transform 2s cubic-bezier(.22,.61,.36,1), opacity 2s ease-out`;
+    flyer.style.transform = `translate3d(${endX-startX}px,${endY-startY}px,0) rotate(${luckySound ? 180 : 8}deg) scale(${luckySound ? 1.04 : .98})`;
+    flyer.style.opacity = "0.98";
+  }));
+  // Safety fallback for browsers that don't fire transitionend reliably.
+  fallbackTimer = setTimeout(complete, 2400);
 }
 function beep(f=600,d=.05){try{let c=beep.ctx||(beep.ctx=new(window.AudioContext||window.webkitAudioContext)()),o=c.createOscillator(),g=c.createGain();o.frequency.value=f;o.type="triangle";g.gain.value=.03;o.connect(g);g.connect(c.destination);o.start();g.gain.exponentialRampToValueAtTime(.001,c.currentTime+d);o.stop(c.currentTime+d)}catch(e){}}
 function status(t){$("status").textContent=t}
