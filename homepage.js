@@ -1099,3 +1099,30 @@ function escapeHtml(
     }
 
 })();
+
+
+/* ============================================================
+   ANDAR BAHAR NAVIGATION
+   Pass the currently loaded account details to andar.html.
+   The game page will use the same-origin localStorage session
+   later for authenticated Supabase calls.
+   ============================================================ */
+function openAndarBahar() {
+    const userId = localStorage.getItem("crdgn_user_id") || "";
+    const userName = localStorage.getItem("crdgn_user_name") ||
+        document.getElementById("userName")?.textContent?.trim() || "PLAYER";
+    const balanceText = document.getElementById("balance")?.textContent || "0";
+    const balance = Number(String(balanceText).replace(/[^0-9.-]/g, "")) || 0;
+
+    if (!userId) {
+        alert("Your account details are not loaded yet. Please refresh the home page and try again.");
+        return;
+    }
+
+    const params = new URLSearchParams({
+        user_id: userId,
+        name: userName,
+        balance: String(balance)
+    });
+    location.href = "andar.html?" + params.toString();
+}

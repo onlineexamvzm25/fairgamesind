@@ -14,6 +14,12 @@
 
 
     <link rel="stylesheet" href="homepage.css">
+    <style>
+      /* Keep the four main game options in a compact 2 x 2 grid. */
+      .games { display:grid !important; grid-template-columns:repeat(2,minmax(0,1fr)) !important; gap:12px !important; }
+      .games > .game-button { width:100% !important; min-width:0; margin:0 !important; }
+      @media(max-width:380px){ .games{gap:8px !important;} .games .game-label{font-size:12px;} .games .game-sub{font-size:10px;} }
+    </style>
 </head>
 
 
@@ -195,6 +201,18 @@
             <span class="game-sub">
                 Friends Game Points
             </span>
+
+        </button>
+
+
+        <button
+            class="game-button friends-button andar-bahar-button"
+            onclick="openAndarBahar()"
+        >
+
+            <span class="game-icon">🃏</span>
+            <span class="game-label">ANDAR BAHAR</span>
+            <span class="game-sub">Play Andar Bahar</span>
 
         </button>
 
