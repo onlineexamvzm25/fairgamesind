@@ -65,21 +65,67 @@
   .bet{font-size:15px}
 }
 
+
+/* Updated compact game layout and card presentation */
+.game-strip{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;align-items:stretch;width:100%;flex:0 0 auto}
+.game-strip .lucky{min-width:0;padding:4px 5px;text-align:center}
+.game-strip .lucky h3{font-size:9px;letter-spacing:.03em;margin-bottom:2px;white-space:nowrap}
+.game-strip .lucky .card{width:clamp(34px,8vw,48px);height:clamp(48px,9vh,62px)}.card-value{font-family:system-ui,Arial;font-size:clamp(24px,5vw,32px);font-weight:1000;line-height:1}.small-suit{position:absolute;left:4px;top:3px;font-size:12px;line-height:1}.small-suit.bottom-suit{left:auto;top:auto;right:4px;bottom:3px;transform:rotate(180deg)}
+.stock-wrap{min-width:0;display:flex;align-items:stretch}
+.stock-wrap .stock{height:auto;min-height:0;flex:1;position:relative;padding:17px 4px 4px}
+.stock-label{position:absolute;left:7px;top:3px;font-size:9px;font-weight:900;letter-spacing:.08em;color:#ffdf7a;line-height:1.1}
+.stockcard{height:clamp(29px,5.3vh,43px);width:clamp(21px,4vw,31px);top:50%;margin-top:calc(clamp(29px,5.3vh,43px)/-2)}
+.stockcard:after{inset:3px;font-size:12px}
+.game-strip .timer{min-width:76px;padding:5px 6px}
+.game-strip .timer h3{font-size:9px;white-space:nowrap}
+.game-strip .time{font-size:clamp(22px,5.5vh,31px)}
+.area{grid-template-columns:repeat(2,minmax(0,1fr));justify-items:center;height:clamp(67px,10.5vh,88px);gap:5px;padding:4px 3px 6px}
+.slot{max-width:48px;width:100%;height:clamp(53px,9vh,72px)}
+.slot .mini{max-width:100%;height:100%;width:100%}
+.mini .rank{font-size:clamp(22px,5vw,31px);left:0;right:0;top:50%;transform:translateY(-58%);text-align:center;line-height:1;font-weight:1000}
+.mini .pip{font-size:clamp(12px,2.8vw,16px);position:absolute;left:4px;top:3px;right:auto;bottom:auto;line-height:1}
+.mini .corner{font-size:10px;left:auto;right:3px;top:auto;bottom:2px;transform:rotate(180deg)}
+.slot .mini.current{transform:scale(1.09);z-index:4}
+.flying-card{transition:transform 2s cubic-bezier(.2,.75,.25,1),opacity 2s;width:36px;height:51px}
+.panel.bahar{background:linear-gradient(150deg,rgba(105,83,0,.68),rgba(34,27,0,.62));border-color:rgba(255,218,55,.88);box-shadow:0 0 17px #e9c51d24,inset 0 0 18px #ffe0330c}
+.panel.bahar .title{border-color:#ffe45b88;text-shadow:0 0 12px #ffe34a;color:#fff5b0}
+.panel.bahar .radio input{accent-color:#ffdf43}
+.panel.bahar .slot{border-color:#ffe87955}
+.panel.bahar:has(input[name="side"]:checked){border-color:#fff06b;box-shadow:0 0 0 2px #fff06b33,0 0 24px #ffe13b55,inset 0 0 18px #ffe13b15}
+.bet-confirm{min-height:0;text-align:center;font-size:0;font-weight:1000;color:#9dffb9;letter-spacing:.04em;text-shadow:0 0 18px #25ff78}
+.bet-confirm.show{font-size:clamp(17px,4vw,25px);padding:5px 8px;border:1px solid #62ff9a99;border-radius:10px;background:#00391d99;animation:confirmPop .3s ease-out}
+@keyframes confirmPop{from{transform:scale(.75);opacity:0}to{transform:scale(1);opacity:1}}
+@media(max-width:600px){.game-strip{grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}.game-strip .lucky,.game-strip .timer{padding:4px}.game-strip .timer{min-width:0}.game-strip .lucky h3{font-size:8px}.stock-label{font-size:8px}.stock-wrap .stock{padding-top:15px}.stockcard{width:clamp(18px,3.8vw,27px);height:clamp(27px,4.5vh,36px);margin-top:calc(clamp(27px,4.5vh,36px)/-2)}.game-strip .lucky .card{width:35px;height:49px}.game-strip .lucky .card-value{font-size:24px}.game-strip .lucky .small-suit{font-size:10px}.area{height:clamp(64px,10vh,78px);gap:4px}.slot{height:clamp(52px,8.5vh,66px)}.mini .rank{font-size:clamp(22px,5vw,28px)}.mini .pip{font-size:12px}.panel{cursor:pointer}}
+@media(max-height:650px) and (max-width:600px){.game-strip .lucky .card{width:30px;height:42px}.game-strip .time{font-size:20px}.stock-wrap .stock{padding-top:13px}.stockcard{height:25px;margin-top:-12.5px}.area{height:48px}.slot{height:36px}.mini .rank{font-size:19px}.mini .pip{font-size:10px}}
+
+
+/* Final adjustments: compact stock deck and fixed-width playing cards */
+.stock{background:linear-gradient(135deg,#06111c,#0b2234);border:1px solid #d9c47b88;box-shadow:inset 0 0 0 2px #ffffff0b,0 2px 8px #0006}
+.stockcard{left:50%!important;transform:translateX(-50%);width:clamp(34px,8vw,48px);height:clamp(29px,5.3vh,43px);top:50%;margin-top:calc(clamp(29px,5.3vh,43px)/-2);border-radius:5px;background:repeating-linear-gradient(45deg,#123b79 0 4px,#1c5cb0 4px 7px);box-shadow:0 2px 5px #0009,inset 0 0 0 2px #f6dc8b}
+.stockcard:after{inset:3px;font-size:12px}
+.area{justify-items:center}
+.slot{width:clamp(34px,8vw,48px);max-width:clamp(34px,8vw,48px);flex:0 0 auto}
+.slot .mini{width:100%;max-width:100%;height:100%;border-radius:6px}
+@media(max-width:600px){.stockcard{width:35px;height:clamp(27px,4.5vh,36px);margin-top:calc(clamp(27px,4.5vh,36px)/-2)}.slot{width:35px;max-width:35px}.slot .mini{width:35px;max-width:35px}}
+@media(max-height:650px) and (max-width:600px){.stockcard{height:25px;margin-top:-12.5px}.slot{width:30px;max-width:30px}.slot .mini{width:30px;max-width:30px}}
+
 </style></head><body><main class="game">
 <header class="top"><button class="home-nav" type="button" onclick="goHome()" aria-label="Back to home">⌂ HOME</button><div class="player"><div class="avatar" id="playerAvatar">P</div><div><strong id="playerName">PLAYER</strong><small>ID: <span id="playerId">—</span></small></div></div><div class="balance"><span>Account balance</span><strong id="balance">0</strong></div></header>
-<section class="center"><div class="lucky"><h3>✦ LUCKY CARD ✦</h3><div class="card" id="luckyCard"></div></div><div class="timer"><h3>BETTING TIME</h3><div class="time" id="timer">15</div><div class="muted" id="timerNote">SECONDS</div></div></section>
-<div class="label">STOCK : <span id="stockCount">52</span> CARDS</div><div class="stock" id="stock"></div>
-<section class="panels"><article class="panel andar"><h2 class="title">ANDAR</h2><div class="area" id="andarCards"><div class="slot">♠</div></div><label class="radio"><input type="radio" name="side" value="ANDAR" checked> ANDAR</label></article><article class="panel bahar"><h2 class="title">BAHAR</h2><div class="area" id="baharCards"><div class="slot">♥</div></div><label class="radio"><input type="radio" name="side" value="BAHAR"> BAHAR</label></article></section>
-<section class="chipsbox"><div class="chipslabel">SELECT BET AMOUNT</div><div class="chips"><label class="chipchoice"><input type="radio" name="amount" value="5" checked><span class="chip green">5</span></label><label class="chipchoice"><input type="radio" name="amount" value="50"><span class="chip blue">50</span></label><label class="chipchoice"><input type="radio" name="amount" value="100"><span class="chip gold">100</span></label><label class="chipchoice"><input type="radio" name="amount" value="500"><span class="chip redchip">500</span></label><label class="chipchoice"><input type="radio" name="amount" value="1000"><span class="chip purple">1000</span></label><label class="chipchoice"><input type="radio" name="amount" value="5000"><span class="chip black">5000</span></label></div></section>
-<button class="bet" id="bet">BET</button><div class="status" id="status">Choose a side and chip, then place your demo bet.</div><div class="note">UI DEMO ONLY · Local simulated balance and cards · Not connected to Supabase</div></main>
+<section class="game-strip"><div class="lucky"><h3>✦ LUCKY CARD ✦</h3><div class="card" id="luckyCard"></div></div><div class="stock-wrap"><div class="stock" id="stock"></div></div><div class="timer"><h3>BETTING TIME</h3><div class="time" id="timer">15</div><div class="muted" id="timerNote">SECONDS</div></div></section>
+<section class="panels"><article class="panel andar" onclick="selectSide('ANDAR')"><h2 class="title">ANDAR</h2><div class="area" id="andarCards"><div class="slot">♠</div></div><label class="radio"><input type="radio" name="side" value="ANDAR" checked> ANDAR</label></article><article class="panel bahar" onclick="selectSide('BAHAR')"><h2 class="title">BAHAR</h2><div class="area" id="baharCards"><div class="slot">♥</div></div><label class="radio"><input type="radio" name="side" value="BAHAR"> BAHAR</label></article></section>
+<section class="chipsbox"><div class="chipslabel" id="chipslabel">ANDAR / 5 CHIPS</div><div class="chips"><label class="chipchoice"><input type="radio" name="amount" value="5" checked><span class="chip green">5</span></label><label class="chipchoice"><input type="radio" name="amount" value="50"><span class="chip blue">50</span></label><label class="chipchoice"><input type="radio" name="amount" value="100"><span class="chip gold">100</span></label><label class="chipchoice"><input type="radio" name="amount" value="500"><span class="chip redchip">500</span></label><label class="chipchoice"><input type="radio" name="amount" value="1000"><span class="chip purple">1000</span></label><label class="chipchoice"><input type="radio" name="amount" value="5000"><span class="chip black">5000</span></label></div></section>
+<button class="bet" id="bet">BET</button><div class="bet-confirm" id="betConfirm" aria-live="polite"></div><audio id="discardAudio" src="discard.mp3" preload="auto"></audio><div class="status" id="status">Choose a side and chip, then place your demo bet.</div><div class="note">UI DEMO ONLY · Local simulated balance and cards · Not connected to Supabase</div></main>
 <script>
 const $=id=>document.getElementById(id),suits=[["SPADES","♠",false],["HEARTS","♥",true],["DIAMONDS","♦",true],["CLUBS","♣",false]],ranks=["A","2","3","4","5","6","7","8","9","10","J","Q","K"];const gameParams=new URLSearchParams(location.search);const accountUserId=gameParams.get("user_id")||localStorage.getItem("crdgn_user_id")||"";const accountName=gameParams.get("name")||localStorage.getItem("crdgn_user_name")||"PLAYER";const accountBalance=Number(gameParams.get("balance"));let balance=Number.isFinite(accountBalance)&&gameParams.has("balance")?accountBalance:0,deck=[],lucky,round=1,hasBet=false,betAmount=5,betSide="ANDAR",revealed=0,state="BETTING",firstSide="ANDAR",timerId,dealId;
 function shuffle(a){for(let i=a.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
 function makeDeck(){let a=[];for(let s of suits)for(let r of ranks)a.push({rank:r,suit:s[1],red:s[2]});return shuffle(a)}
-function showCard(c,cls="card"){return `<div class="${cls} ${c.red?"red":""}"><span class="corner">${c.rank}<br>${c.suit}</span><span class="suit">${c.suit}</span><span class="corner b">${c.rank}<br>${c.suit}</span></div>`}
+function showCard(c,cls="card"){return `<div class="${cls} ${c.red?"red":""}"><span class="card-value">${c.rank}</span><span class="suit small-suit top-suit">${c.suit}</span><span class="suit small-suit bottom-suit">${c.suit}</span></div>`}
 $("playerName").textContent=accountName;$("playerAvatar").textContent=(accountName.trim()[0]||"P").toUpperCase();$("playerId").textContent=accountUserId?accountUserId.slice(0,8):"—";$("balance").textContent=balance.toLocaleString("en-IN");
-function stock(n){$("stock").innerHTML="";let w=$("stock").clientWidth||600,cw=innerWidth<=560?32:42,step=n>1?Math.max(1,(w-cw-5)/(n-1)):0;for(let i=0;i<n;i++){let e=document.createElement("div");e.className="stockcard";e.style.left=(5+i*step)+"px";e.style.zIndex=i;$("stock").append(e)}$("stockCount").textContent=n}
-function playDealSound(luckySound=false){beep(luckySound?920:560,luckySound?.16:.065)}
+function stock(n){const box=$("stock");box.innerHTML="";const label=document.createElement("div");label.className="stock-label";label.innerHTML=`STOCK · <span id="stockCount">${n}</span>`;const pack=document.createElement("div");pack.className="stockcard";pack.setAttribute("aria-label","Face-down stock deck");box.append(label,pack)}
+function playDealSound(luckySound=false){
+ if(!luckySound){const audio=$("discardAudio");if(audio){try{audio.currentTime=0;const p=audio.play();if(p&&p.catch)p.catch(()=>{});}catch(e){}}}
+ beep(luckySound?920:560,luckySound?.16:.065)
+}
 function flyFromStockTo(target, onArrive, luckySound=false){
   const stockRect=$("stock").getBoundingClientRect(), targetRect=target.getBoundingClientRect();
   const startX=stockRect.left+stockRect.width*.5-21, startY=stockRect.top+stockRect.height*.5-30;
@@ -88,14 +134,18 @@ function flyFromStockTo(target, onArrive, luckySound=false){
   flyer.style.left=startX+"px";flyer.style.top=startY+"px";document.body.appendChild(flyer);
   playDealSound(luckySound);
   requestAnimationFrame(()=>{flyer.style.transform=`translate(${endX-startX}px,${endY-startY}px) rotate(${luckySound?360:18}deg) scale(${luckySound?1.12:.92})`});
-  setTimeout(()=>{flyer.remove();onArrive();},1000);
+  setTimeout(()=>{flyer.remove();onArrive();},luckySound?1000:2000);
 }
 function beep(f=600,d=.05){try{let c=beep.ctx||(beep.ctx=new(window.AudioContext||window.webkitAudioContext)()),o=c.createOscillator(),g=c.createGain();o.frequency.value=f;o.type="triangle";g.gain.value=.03;o.connect(g);g.connect(c.destination);o.start();g.gain.exponentialRampToValueAtTime(.001,c.currentTime+d);o.stop(c.currentTime+d)}catch(e){}}
 function status(t){$("status").textContent=t}
 function side(){return document.querySelector('[name=side]:checked').value}function amount(){return Number(document.querySelector('[name=amount]:checked').value)}
-function placeBet(){if(state!=="BETTING"||hasBet)return;let a=amount();if(a>balance){status("Insufficient demo balance.");return}betAmount=a;betSide=side();balance-=a;$("balance").textContent=balance.toLocaleString("en-IN");hasBet=true;$("bet").disabled=true;document.querySelectorAll('[name=side],[name=amount]').forEach(x=>x.disabled=true);status(`Demo bet accepted: ${a} on ${betSide}.`);beep(520,.1)}
+function selectSide(value){if(state!=="BETTING"||hasBet)return;document.querySelector(`[name="side"][value="${value}"]`).checked=true;updateBetLabel()}
+function updateBetLabel(){const label=$("chipslabel");if(label)label.textContent=`${side()} / ${amount().toLocaleString("en-IN")} CHIPS`;}
+document.querySelectorAll('[name="side"]').forEach(x=>x.addEventListener('change',updateBetLabel));
+document.querySelectorAll('[name="amount"]').forEach(x=>x.addEventListener('change',updateBetLabel));
+function placeBet(){if(state!=="BETTING"||hasBet)return;let a=amount();if(a>balance){status("Insufficient demo balance.");return}betAmount=a;betSide=side();balance-=a;$("balance").textContent=balance.toLocaleString("en-IN");hasBet=true;$("bet").disabled=true;document.querySelectorAll('[name=side],[name=amount]').forEach(x=>x.disabled=true);status(`BET CONFIRMED: ${betSide} - ${a} CHIPS`);const bc=$("betConfirm");bc.textContent=`BET CONFIRMED · ${betSide} — ${a} CHIPS`;bc.classList.add("show");beep(520,.1)}
 function startRound(){
- clearInterval(timerId);clearTimeout(dealId);state="BETTING";hasBet=false;revealed=0;
+ clearInterval(timerId);clearTimeout(dealId);state="BETTING";hasBet=false;revealed=0;$("betConfirm").textContent="";$("betConfirm").classList.remove("show");
  $("bet").disabled=true;
  document.querySelectorAll('[name=side],[name=amount]').forEach(x=>x.disabled=true);
  document.querySelector('[name=side][value=ANDAR]').checked=true;
@@ -121,49 +171,29 @@ function startRound(){
 }
 function resetCardSlots(area,symbol){
  area.innerHTML="";
- for(let i=0;i<4;i++){
+ for(let i=0;i<2;i++){
    const cell=document.createElement("div");
    cell.className="slot";
    cell.dataset.symbol=symbol;
    area.appendChild(cell);
  }
 }
-function shiftCardsLeft(area){
+function shiftTwoCards(area, which){
  const cells=[...area.querySelectorAll(".slot")];
- const before=cells.map(cell=>cell.firstElementChild);
- const oldRects=before.map(card=>card?card.getBoundingClientRect():null);
-
- // Drop only the oldest card; keep all other card DOM nodes intact.
- for(let i=0;i<3;i++){
-   cells[i].replaceChildren();
-   if(before[i+1]) cells[i].appendChild(before[i+1]);
+ if(which==="ANDAR"){
+   cells[0].replaceChildren();
+   if(cells[1].firstElementChild) cells[0].appendChild(cells[1].firstElementChild);
+   cells[1].replaceChildren();
+ }else{
+   cells[1].replaceChildren();
+   if(cells[0].firstElementChild) cells[1].appendChild(cells[0].firstElementChild);
+   cells[0].replaceChildren();
  }
- cells[3].replaceChildren();
-
- // Animate only the cards that changed position; do not rebuild the panel.
- const moving=[];
- for(let i=0;i<3;i++){
-   const card=cells[i].firstElementChild;
-   if(!card || !oldRects[i+1]) continue;
-   const now=card.getBoundingClientRect();
-   const dx=oldRects[i+1].left-now.left;
-   card.style.transition="none";
-   card.style.transform=`translateX(${dx}px)`;
-   moving.push(card);
- }
- void area.offsetWidth;
- requestAnimationFrame(()=>{
-   moving.forEach(card=>{
-     card.style.transition="transform 180ms cubic-bezier(.2,.75,.25,1)";
-     card.style.transform="";
-   });
- });
- return new Promise(resolve=>setTimeout(resolve,200));
 }
 function createMiniCard(card){
  const el=document.createElement("div");
  el.className="mini current"+(card.red?" red":"");
- el.innerHTML=`<span class="rank">${card.rank}</span><span class="pip">${card.suit}</span><span class="corner">${card.suit}</span>`;
+ el.innerHTML=`<span class="pip">${card.suit}</span><span class="rank">${card.rank}</span><span class="corner">${card.suit}</span>`;
  return el;
 }
 async function dealNext(){
@@ -172,21 +202,15 @@ async function dealNext(){
  const card=deck[0],s=revealed%2===0?firstSide:(firstSide==="ANDAR"?"BAHAR":"ANDAR");
  const target=$(s==="ANDAR"?"andarCards":"baharCards");
  const cells=[...target.querySelectorAll(".slot")];
- // Remove the previous newest-card highlight before shifting; the incoming
- // card will be the only highlighted card after it arrives.
  target.querySelectorAll(".mini.current").forEach(el=>el.classList.remove("current"));
-
- // Existing cards move left. The rightmost position stays visibly empty
- // until the new card finishes its flight from the stock.
- await shiftCardsLeft(target);
- if(state!=="DEALING")return;
- const destination=cells[3];
+ shiftTwoCards(target,s);
+ const destination=s==="ANDAR"?cells[1]:cells[0];
  flyFromStockTo(destination,()=>{
+   if(state!=="DEALING")return;
    deck.shift();
    target.querySelectorAll(".mini.current").forEach(el=>el.classList.remove("current"));
    destination.replaceChildren(createMiniCard(card));
-   stock(deck.length);
-   revealed++;
+   stock(deck.length);revealed++;
    if(card.rank===lucky.rank){finish(s);return}
    dealId=setTimeout(dealNext,100);
  },false);
@@ -194,5 +218,5 @@ async function dealNext(){
 function closeBetting(){state="DEALING";$("timer").textContent="DEAL";$("timerNote").textContent="IN PROGRESS";$("bet").disabled=true;document.querySelectorAll('[name=side],[name=amount]').forEach(x=>x.disabled=true);status(`Round ${round}: dealing cards…`);dealNext()}
 function finish(w){clearTimeout(dealId);state="RESULT";document.querySelectorAll(".panel").forEach(p=>p.classList.remove("winner"));document.querySelector(".panel."+w.toLowerCase()).classList.add("winner");$("timer").textContent=w;$("timerNote").textContent="WINS";if(hasBet&&betSide===w){balance+=betAmount*2;$("balance").textContent=balance.toLocaleString("en-IN");status(`${w} wins! Demo payout ${betAmount*2}.`)}else status(hasBet?`${w} wins. Demo bet lost.`:`${w} wins! No bet placed.`);beep(880,.22);setTimeout(()=>{round++;document.querySelectorAll(".panel").forEach(p=>p.classList.remove("winner"));startRound()},7000)}
 function goHome(){ location.href="homepage.html"; }
-$("bet").addEventListener("click",placeBet);addEventListener("resize",()=>stock(deck.length));startRound();
+$("bet").addEventListener("click",placeBet);addEventListener("resize",()=>stock(deck.length));updateBetLabel();startRound();
 </script></body></html>
