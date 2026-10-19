@@ -797,15 +797,19 @@ async function openStatement() {
         data.map(
             tx => {
 
-                const isCredit =
-                    [
-                        "REGISTER",
-                        "DEPOSIT",
-                        "RUMMY_WIN",
-                        "ADMIN_CREDIT"
-                    ].includes(
-                        tx.transaction_type
-                    );
+                
+            const isCredit =
+                [
+                    "REGISTER",
+                    "DEPOSIT",
+                    "RUMMY_WIN",
+                    "ADMIN_CREDIT"
+                ].includes(tx.transaction_type)
+                ||
+                (
+                    tx.description || ""
+                ).startsWith("ANDAR BAHAR WIN");
+
 
 
                 const sign =
