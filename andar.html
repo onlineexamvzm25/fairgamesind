@@ -218,9 +218,13 @@ async function syncState(){
   setPlayer(result.user_name,localStorage.getItem('crdgn_user_id'));setBalance(result.balance);
   const r=result.round;
   if(!r){initialStateLoaded=true;uiState='WAITING';currentRound=null;myBet=null;setControls(false);stock(52);$('timer').textContent='—';$('timerNote').textContent='WAITING';status('Waiting for the game worker to start the first round…');return;}
+  // Use the date-wise number for messages; keep round_id for all database identity.
+  const displayRoundNo = r.daily_round_no ?? r.round_id;
   const isNew=Number(r.round_id)!==Number(currentRoundId);
   const restoreExistingRound=isNew&&!initialStateLoaded;
   if(isNew){
+    // Clear the previous round's winner highlight as soon as a new round arrives.
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('winner'));
     initialStateLoaded=true;currentRoundId=r.round_id;currentRound=r;myBet=null;displayedSequences=new Set();revealQueue=Promise.resolve();resetSlots();$('betConfirm').classList.remove('show');$('betConfirm').textContent='';
     if(restoreExistingRound){
       // Page opened mid-round: restore the server's current state without replaying the shuffle/deal animations.
@@ -228,7 +232,7 @@ async function syncState(){
       $('luckyCard').innerHTML=showCard({rank:r.lucky_card_rank,suit:r.lucky_card_suit},'card lucky-glow');
       uiState=r.status==='BETTING'?'BETTING':r.status==='DEALING'?'DEALING':'RESULT';
     }else{
-      roundAnimationPending=true;stock(51);$('luckyCard').innerHTML='<span class="corner">?</span><span class="suit">✦</span><span class="corner b">?</span>';uiState='SHUFFLING';$('timer').textContent='SHUFFLE';$('timerNote').textContent='PREPARING DECK';status(`Round ${r.round_id}: shuffling cards…`);roundReady=animateNewRound(r).finally(()=>{roundAnimationPending=false;setControls(uiState==='BETTING'&&!myBet);});
+      roundAnimationPending=true;stock(51);$('luckyCard').innerHTML='<span class="corner">?</span><span class="suit">✦</span><span class="corner b">?</span>';uiState='SHUFFLING';$('timer').textContent='SHUFFLE';$('timerNote').textContent='PREPARING DECK';status(`Round ${displayRoundNo}: shuffling cards…`);roundReady=animateNewRound(r).finally(()=>{roundAnimationPending=false;setControls(uiState==='BETTING'&&!myBet);});
     }
   }
   currentRound=r;renderMyBet(result.my_bet);
@@ -236,13 +240,13 @@ async function syncState(){
   for(const c of revealedCards) renderReveal(c,restoreExistingRound);
   if(r.status==='BETTING'){
     uiState='BETTING';$('timerNote').textContent='SECONDS';setTimerFromDeadline(r.betting_ends_at);setControls(true);
-    if(myBet){setControls(false);status(`Bet confirmed: ${myBet.selected_side} — ${fmt(myBet.bet_amount)} chips.`);}else status(`Round ${r.round_id}: place your bet.`);
+    if(myBet){setControls(false);status(`Bet confirmed: ${myBet.selected_side} — ${fmt(myBet.bet_amount)} chips.`);}else status(`Round ${displayRoundNo}: place your bet.`);
   }else if(r.status==='DEALING'){
-    uiState='DEALING';clearInterval(countdownHandle);$('timer').textContent='DEAL';$('timerNote').textContent='IN PROGRESS';setControls(false);status(`Round ${r.round_id}: dealing cards…`);
+    uiState='DEALING';clearInterval(countdownHandle);$('timer').textContent='DEAL';$('timerNote').textContent='IN PROGRESS';setControls(false);status(`Round ${displayRoundNo}: dealing cards…`);
   }else if(r.status==='RESULT'||r.status==='COMPLETED'){
     uiState='RESULT';clearInterval(countdownHandle);$('timer').textContent=r.winning_side||'RESULT';$('timerNote').textContent='WINS';setControls(false);
     document.querySelectorAll('.panel').forEach(p=>p.classList.remove('winner'));if(r.winning_side)document.querySelector('.panel.'+r.winning_side.toLowerCase())?.classList.add('winner');
-    if(lastResultRound!==r.round_id){lastResultRound=r.round_id;status(r.winning_side?`${r.winning_side} wins!`:'Round completed.');beep(880,.18);}
+    if(lastResultRound!==r.round_id){lastResultRound=r.round_id;status(r.winning_side?`Round ${displayRoundNo}: ${r.winning_side} wins!`:`Round ${displayRoundNo} completed.`);beep(880,.18);}
   }
   const count=Number(r.revealed_count||0);updateStockCount(Math.max(0,51-count));
 }
