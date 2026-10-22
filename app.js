@@ -9311,7 +9311,7 @@ async function loadDealResults()
 
     const { data, error } =
         await supabaseClient.rpc(
-            "crdg_get_deal_results",
+            "crdg_get_deal_results_for_observation",
             {
                 p_session_id: state.sessionId
             }
@@ -9323,118 +9323,15 @@ async function loadDealResults()
         return;
     }
 
-    // --------------------------------------------------
-    // Hide players eliminated BEFORE the current deal.
-    // The player must remain visible in the deal where
-    // eliminated_deal_no equals the current deal number.
-    // --------------------------------------------------
-
-    let observationDealNo = Number(state.deal_no);
-
-    // Normally loadSessionInfo() has already set state.deal_no.
-    // Use the authoritative session value as a safe fallback.
-    if (!Number.isInteger(observationDealNo) || observationDealNo < 1)
-    {
-        const {
-            data: currentDealInfo,
-            error: currentDealInfoError
-        } = await supabaseClient
-            .from("crdg_game_sessions")
-            .select("deal_no")
-            .eq("session_id", state.sessionId)
-            .maybeSingle();
-
-        if (currentDealInfoError)
-        {
-            console.error(
-                "Unable to read deal number for observation filtering:",
-                currentDealInfoError
-            );
-            observationDealNo = NaN;
-        }
-        else
-        {
-            observationDealNo = Number(currentDealInfo?.deal_no);
-        }
-    }
-
-    const {
-        data: eliminationRows,
-        error: eliminationRowsError
-    } = await supabaseClient.rpc(
-        "crdg_get_player_elimination_deals",
-        {
-            p_session_id: state.sessionId
-        }
-    );
-
-    const eliminatedDealByUser = new Map();
-
-    if (eliminationRowsError)
-    {
-        // Fail open: metadata failure must not accidentally hide a
-        // player in the very deal where they were eliminated.
-        console.error(
-            "Unable to load elimination deal metadata:",
-            eliminationRowsError
-        );
-    }
-    else if (Array.isArray(eliminationRows))
-    {
-        eliminationRows.forEach(item =>
-        {
-            if (
-                item?.user_id != null &&
-                item?.eliminated_deal_no != null
-            )
-            {
-                eliminatedDealByUser.set(
-                    String(item.user_id),
-                    Number(item.eliminated_deal_no)
-                );
-            }
-        });
-    }
-
-    const resultRows = Array.isArray(data) ? data : [];
-
-    const visibleData = resultRows.filter(row =>
-    {
-        // Keep non-eliminated players unchanged.
-        if (row?.player_status !== "ELIMINATED")
-        {
-            return true;
-        }
-
-        // The result RPC must identify the user so we can match the
-        // elimination record without risking duplicate display names.
-        if (row.user_id == null)
-        {
-            return true;
-        }
-
-        const eliminatedDealNo = eliminatedDealByUser.get(
-            String(row.user_id)
-        );
-
-        // Missing metadata/current deal: preserve existing display.
-        if (
-            !Number.isFinite(observationDealNo) ||
-            !Number.isFinite(eliminatedDealNo)
-        )
-        {
-            return true;
-        }
-
-        // Show in the deal of elimination; hide in every later deal.
-        return eliminatedDealNo >= observationDealNo;
-    });
+    // The observation RPC already filters players eliminated in earlier deals.
+    // It deliberately includes a player when eliminated_deal_no equals the
+    // current deal, then omits them from all subsequent deal windows.
+    const visibleData = Array.isArray(data) ? data : [];
 
     console.log(
         "OBSERVATION RESULTS (visible rows):",
         JSON.stringify(visibleData, null, 2)
     );
-
 
     const jokerCard = state.jokerCard || "";
 
