@@ -2984,6 +2984,9 @@ async function startNextDeal()
 
     closeSettlementPopup();
 
+    // A new deal must never inherit the previous declaration countdown.
+    clearDeclarationTimerDisplay();
+
 
     // ==================================================
     // ELIMINATED PLAYER
@@ -5041,8 +5044,7 @@ async function loadSessionInfo() {
         // connection, and active-table/resume state untouched.
         clearInterval(state.turnTimerInterval);
         state.turnTimerInterval = null;
-        clearInterval(state.declarationTimerInterval);
-        state.declarationTimerInterval = null;
+        clearDeclarationTimerDisplay();
         clearInterval(state.observationTimerInterval);
         state.observationTimerInterval = null;
         stopDeclarationTimeoutMonitor();
@@ -5204,6 +5206,16 @@ async function loadSessionInfo() {
 
     state.declarationMode =
     data.declaration_started || false;
+
+    // Do not retain a declaration countdown after the server has ended
+    // declaration mode (including after an offline player reconnects).
+    if (
+        !state.declarationMode ||
+        data.deal_results_ready === true
+    ) {
+        clearDeclarationTimerDisplay();
+        state.declarationTimerStarted = false;
+    }
 
     
     // Stop regular 10-second backups as soon as any player declares.
@@ -5432,11 +5444,24 @@ async function loadAcceptedSettlement()
     return data;
 }
 
+function clearDeclarationTimerDisplay() {
+    if (state.declarationTimerInterval) {
+        clearInterval(state.declarationTimerInterval);
+    }
+    state.declarationTimerInterval = null;
+
+    const label = document.getElementById("declarationTimer");
+    if (label) {
+        label.innerText = "";
+    }
+}
+
 function startDeclarationTimer() {
 
-    clearInterval(
-        state.declarationTimerInterval
-    );
+    clearDeclarationTimerDisplay();
+    if (!state.declarationEndAt) {
+        return;
+    }
     state.myTurnPickAnimation = false;
     document
             .getElementById("openVisual")
@@ -5450,9 +5475,7 @@ function startDeclarationTimer() {
     function updateDeclarationTimer() {
 
         if (!state.declarationEndAt) {
-            document.getElementById(
-                "declarationTimer"
-            ).innerText = "";
+            clearDeclarationTimerDisplay();
             return;
         }
 
@@ -5477,29 +5500,20 @@ function startDeclarationTimer() {
             "s)";
 
         if (seconds <= 0) {
-
-            clearInterval(
-                state.declarationTimerInterval
-            );
-
-            state.declarationTimerInterval =
-                null;
-
-            document.getElementById(
-                "declarationTimer"
-            ).innerText = "";
-
+            clearDeclarationTimerDisplay();
             onDeclarationTimerExpired();
         }
     }
 
-    updateDeclarationTimer();
-
+    // Start the interval before the first update so an already-expired
+    // deadline can clear the actual interval and cannot fire repeatedly.
     state.declarationTimerInterval =
         setInterval(
             updateDeclarationTimer,
             250
         );
+
+    updateDeclarationTimer();
 }
 
 
@@ -8991,6 +9005,20 @@ async function declareGame() {
 
         if (declarationData?.[0]?.status === "valid") {
 
+            // The declaration is now confirmed by the server. Stop the regular
+            // turn countdown immediately; do not wait for final-group scoring.
+            clearInterval(state.turnTimerInterval);
+            state.turnTimerInterval = null;
+            stopTurnCountdownTicking();
+
+            const turnTimerLabel = document.getElementById("turnTimer");
+            if (turnTimerLabel) {
+                turnTimerLabel.innerText = "-";
+            }
+
+            // The declarer should never retain another player's arrange timer.
+            clearDeclarationTimerDisplay();
+
             // Finalize the valid declarer's score immediately.
             // This does not start Observation; the database will
             // open results after all remaining players finish their
@@ -9073,16 +9101,7 @@ async function declareGame() {
             state.declarationMode = true;
             state.declarationTimerStarted = true;
 
-            if (state.declarationTimerInterval) {
-                clearInterval(state.declarationTimerInterval);
-                state.declarationTimerInterval = null;
-            }
-
-            const declarationTimerLabel =
-                document.getElementById("declarationTimer");
-            if (declarationTimerLabel) {
-                declarationTimerLabel.innerText = "";
-            }
+            clearDeclarationTimerDisplay();
 
             showDeclarerWaitingWindow();
         }
@@ -9263,10 +9282,117 @@ async function loadDealResults()
         return;
     }
 
+    // --------------------------------------------------
+    // Hide players eliminated BEFORE the current deal.
+    // The player must remain visible in the deal where
+    // eliminated_deal_no equals the current deal number.
+    // --------------------------------------------------
+
+    let observationDealNo = Number(state.deal_no);
+
+    // Normally loadSessionInfo() has already set state.deal_no.
+    // Use the authoritative session value as a safe fallback.
+    if (!Number.isInteger(observationDealNo) || observationDealNo < 1)
+    {
+        const {
+            data: currentDealInfo,
+            error: currentDealInfoError
+        } = await supabaseClient
+            .from("crdg_game_sessions")
+            .select("deal_no")
+            .eq("session_id", state.sessionId)
+            .maybeSingle();
+
+        if (currentDealInfoError)
+        {
+            console.error(
+                "Unable to read deal number for observation filtering:",
+                currentDealInfoError
+            );
+            observationDealNo = NaN;
+        }
+        else
+        {
+            observationDealNo = Number(currentDealInfo?.deal_no);
+        }
+    }
+
+    const {
+        data: eliminationRows,
+        error: eliminationRowsError
+    } = await supabaseClient.rpc(
+        "crdg_get_player_elimination_deals",
+        {
+            p_session_id: state.sessionId
+        }
+    );
+
+    const eliminatedDealByUser = new Map();
+
+    if (eliminationRowsError)
+    {
+        // Fail open: metadata failure must not accidentally hide a
+        // player in the very deal where they were eliminated.
+        console.error(
+            "Unable to load elimination deal metadata:",
+            eliminationRowsError
+        );
+    }
+    else if (Array.isArray(eliminationRows))
+    {
+        eliminationRows.forEach(item =>
+        {
+            if (
+                item?.user_id != null &&
+                item?.eliminated_deal_no != null
+            )
+            {
+                eliminatedDealByUser.set(
+                    String(item.user_id),
+                    Number(item.eliminated_deal_no)
+                );
+            }
+        });
+    }
+
+    const resultRows = Array.isArray(data) ? data : [];
+
+    const visibleData = resultRows.filter(row =>
+    {
+        // Keep non-eliminated players unchanged.
+        if (row?.player_status !== "ELIMINATED")
+        {
+            return true;
+        }
+
+        // The result RPC must identify the user so we can match the
+        // elimination record without risking duplicate display names.
+        if (row.user_id == null)
+        {
+            return true;
+        }
+
+        const eliminatedDealNo = eliminatedDealByUser.get(
+            String(row.user_id)
+        );
+
+        // Missing metadata/current deal: preserve existing display.
+        if (
+            !Number.isFinite(observationDealNo) ||
+            !Number.isFinite(eliminatedDealNo)
+        )
+        {
+            return true;
+        }
+
+        // Show in the deal of elimination; hide in every later deal.
+        return eliminatedDealNo >= observationDealNo;
+    });
+
     console.log(
-    "OBSERVATION RESULTS:",
-    JSON.stringify(data, null, 2)
-);
+        "OBSERVATION RESULTS (visible rows):",
+        JSON.stringify(visibleData, null, 2)
+    );
 
 
     const jokerCard = state.jokerCard || "";
@@ -9368,7 +9494,7 @@ async function loadDealResults()
         }
 
 
-        data.forEach(row => {
+        visibleData.forEach(row => {
 
         let showCards = true;
 
@@ -9394,7 +9520,7 @@ async function loadDealResults()
                 // multiplied by the table multiplier.
 
                 const totalLoserScore =
-                    data.reduce(
+                    visibleData.reduce(
                         (sum, player) =>
                             sum +
                             (
