@@ -5207,13 +5207,24 @@ async function loadSessionInfo() {
     state.declarationMode =
     data.declaration_started || false;
 
-    // Do not retain a declaration countdown after the server has ended
-    // declaration mode (including after an offline player reconnects).
+    // Clear the declaration message when declaration mode has ended or
+    // results are ready. Do NOT reset declarationTimerStarted merely
+    // because results became ready: crdg_start_declaration_timer() clears
+    // observation_end_at, so calling it again would restart the declaration
+    // phase and prevent the observation timer from starting.
     if (
         !state.declarationMode ||
         data.deal_results_ready === true
     ) {
         clearDeclarationTimerDisplay();
+    }
+
+    // Reset the local guard only when the server is not in the declaration
+    // phase. A new deal also resets this flag in the deal-change block above.
+    if (
+        !state.declarationMode &&
+        data.deal_results_ready !== true
+    ) {
         state.declarationTimerStarted = false;
     }
 
@@ -5268,6 +5279,7 @@ async function loadSessionInfo() {
 
      if(
           state.declarationMode &&
+          data.deal_results_ready !== true &&
           !iAmValidDeclarer &&
           !state.declarationTimerStarted
       ){
