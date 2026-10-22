@@ -5382,17 +5382,29 @@ async function loadSessionInfo() {
 
             if(obstmrerror){
                 console.error(obstmrerror);
+
+                // Allow a later authoritative refresh to retry starting
+                // observation instead of leaving the result window stuck.
+                state.resultWindowOpened = false;
                 return;
             }
 
+            // The RPC is authoritative; the session row is a safe fallback
+            // if its scalar response is empty but the deadline is already set.
             state.observationEndAt =
-                observationEndAt;
+                observationEndAt || data.observation_end_at || null;
 
             if(
                 state.observationEndAt &&
                 !state.observationTimerInterval
             ){
                 startObservationTimer();
+            }
+            else if (!state.observationEndAt) {
+                console.error(
+                    "Observation timer was not started: no observation deadline returned."
+                );
+                state.resultWindowOpened = false;
             }
         }
 
@@ -6100,6 +6112,8 @@ function closeSettlementPopup() {
 
 async function onDeclarationTimerExpired(){
 
+    // End the declaration countdown before finalizing the current hand.
+    clearDeclarationTimerDisplay();
     hideBaseTableHand();
 
     const { data, error } =
@@ -6128,6 +6142,21 @@ async function onDeclarationTimerExpired(){
         console.error(error);
 
         return;
+    }
+
+    // Re-read the authoritative session immediately. If this submission
+    // completes the declaration phase, loadSessionInfo() sees
+    // deal_results_ready=true and starts the observation countdown.
+    // If other players are still arranging, it leaves their declaration
+    // phase alone; their final submission will trigger the same flow.
+    try {
+        await loadSessionInfo();
+    }
+    catch (refreshError) {
+        console.error(
+            "Session refresh after declaration timer failed:",
+            refreshError
+        );
     }
 }
 
