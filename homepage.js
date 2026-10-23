@@ -369,6 +369,83 @@ async function openProfile() {
 
 let activeGameData = null;
 
+// Verify an active-game pointer against the live session and player state
+// before making the homepage Resume option visible.
+async function inspectActiveGameRecord(record) {
+    const { data: gameStateData, error: gameStateError } =
+        await supabaseClient.rpc("crdg_get_game_state", {
+            p_session_id: record.session_id,
+            p_user_id: record.game_user_id
+        });
+
+    const { data: sessionData, error: sessionError } =
+        await supabaseClient
+            .from("crdg_game_sessions")
+            .select("game_completed")
+            .eq("session_id", record.session_id)
+            .maybeSingle();
+
+    if (gameStateError || sessionError) {
+        console.error("ACTIVE GAME VALIDATION ERROR:", {
+            gameStateError,
+            sessionError
+        });
+        return {
+            usable: false,
+            cleanup: false,
+            reason: "Unable to verify the saved game."
+        };
+    }
+
+    const gameState = Array.isArray(gameStateData)
+        ? gameStateData[0]
+        : gameStateData;
+
+    const playerStatus = String(
+        gameState?.player_status || gameState?.playerStatus || ""
+    ).toUpperCase();
+
+    const eliminated =
+        playerStatus === "ELIMINATED" ||
+        gameState?.is_eliminated === true ||
+        gameState?.isEliminated === true;
+
+    const completed = sessionData?.game_completed === true;
+    const stateMissing = !sessionData || !gameState;
+
+    if (completed || eliminated || stateMissing) {
+        return {
+            usable: false,
+            cleanup: true,
+            reason: completed
+                ? "This table has already been completed."
+                : eliminated
+                    ? "This player has been eliminated from the table."
+                    : "The saved game is no longer available."
+        };
+    }
+
+    return { usable: true, cleanup: false, reason: "" };
+}
+
+async function cleanupStaleActiveGameRecord(record) {
+    const token = getSessionToken();
+    if (!token || !record?.session_id) return;
+
+    const { error } = await supabaseClient.rpc(
+        "crdgn_cleanup_active_game",
+        {
+            p_session_token: token,
+            p_session_id: record.session_id,
+            p_game_user_id: record.game_user_id || null
+        }
+    );
+
+    if (error) {
+        console.error("STALE ACTIVE GAME CLEANUP ERROR:", error);
+    }
+}
+
 async function loadActiveGame() {
 
     const btn = document.getElementById("activeGameBtn");
@@ -409,35 +486,53 @@ async function loadActiveGame() {
         return;
     }
 
-    activeGameData = data;
-
     if (!data) {
+        activeGameData = null;
         console.log("NO ACTIVE GAME FOUND");
         return;
     }
 
-    console.log("ACTIVE GAME FOUND:", data);
+    console.log("ACTIVE GAME FOUND - VERIFYING:", data);
 
+    const validation = await inspectActiveGameRecord(data);
+    if (!validation.usable) {
+        activeGameData = null;
+        if (validation.cleanup) {
+            await cleanupStaleActiveGameRecord(data);
+        } else {
+            console.warn("Active Game remains hidden:", validation.reason);
+        }
+        return;
+    }
+
+    activeGameData = data;
     if (btn) btn.style.display = "block";
-
-
-    const { data: gameState, error: gameStateError } =
-    await supabaseClient.rpc("crdg_get_game_state", {
-        p_session_id: activeGameData.session_id,
-        p_user_id: activeGameData.game_user_id
-    });
-
-console.log("ACTIVE GAME STATE:", gameState);
-console.log("ACTIVE GAME STATE ERROR:", gameStateError);
-
-
 }
 
 
-function resumeActiveGame() {
+async function resumeActiveGame() {
 
     if (!activeGameData) {
         alert("No active game found.");
+        return;
+    }
+
+    // Revalidate on click as well, so a table completed or player
+    // eliminated moments ago cannot be reopened from a stale page.
+    const record = activeGameData;
+    const validation = await inspectActiveGameRecord(record);
+
+    if (!validation.usable) {
+        activeGameData = null;
+        const btn = document.getElementById("activeGameBtn");
+        if (btn) btn.style.display = "none";
+
+        if (validation.cleanup) {
+            await cleanupStaleActiveGameRecord(record);
+            alert(validation.reason + " Active Game has been disabled.");
+        } else {
+            alert(validation.reason + " Please refresh the homepage and try again.");
+        }
         return;
     }
 
@@ -797,19 +892,15 @@ async function openStatement() {
         data.map(
             tx => {
 
-                
-            const isCredit =
-                [
-                    "REGISTER",
-                    "DEPOSIT",
-                    "RUMMY_WIN",
-                    "ADMIN_CREDIT"
-                ].includes(tx.transaction_type)
-                ||
-                (
-                    tx.description || ""
-                ).startsWith("ANDAR BAHAR WIN");
-
+                const isCredit =
+                    [
+                        "REGISTER",
+                        "DEPOSIT",
+                        "RUMMY_WIN",
+                        "ADMIN_CREDIT"
+                    ].includes(
+                        tx.transaction_type
+                    );
 
 
                 const sign =

@@ -4458,6 +4458,42 @@ function subscribeRealtime() {
 
 
 
+async function cleanupActiveGamePointer(gameUserId = null, reason = "")
+{
+    const sessionToken = localStorage.getItem("crdgn_session_token");
+
+    if (!sessionToken || !state.sessionId) {
+        return false;
+    }
+
+    const { data, error } = await supabaseClient.rpc(
+        "crdgn_cleanup_active_game",
+        {
+            p_session_token: sessionToken,
+            p_session_id: state.sessionId,
+            p_game_user_id: gameUserId || null
+        }
+    );
+
+    if (error) {
+        console.error(
+            "Active-game cleanup failed" + (reason ? " (" + reason + ")" : "") + ":",
+            error
+        );
+        return false;
+    }
+
+    state.activeGameRegistered = false;
+
+    console.log(
+        "Active-game cleanup completed" + (reason ? " (" + reason + ")" : "") + ". Rows removed:",
+        data
+    );
+
+    return true;
+}
+
+
 async function handleTableCompleted(data)
 {
     // Prevent duplicate execution
@@ -4558,6 +4594,12 @@ async function handleTableCompleted(data)
 
     await completeFriendsGamePayout();
 
+    // Payout/finalization may still need the active-game mapping. Remove
+    // the pointer only after that processing has finished.
+    await cleanupActiveGamePointer(
+        null,
+        "table completed"
+    );
 
     showTableCompletedScreen(data);
 
@@ -7069,7 +7111,7 @@ async function syncTurnClock() {
 
 
 
-function handleEliminatedPlayer() {
+async function handleEliminatedPlayer() {
 
     if (state.eliminationRedirecting) {
         return;
@@ -7077,6 +7119,13 @@ function handleEliminatedPlayer() {
 
     state.eliminationRedirecting = true;
     state.myTurn = false;
+
+    // Remove this player's saved active-game pointer before redirecting.
+    // The server verifies that this account really is eliminated.
+    await cleanupActiveGamePointer(
+        state.userId,
+        "player eliminated"
+    );
 
     // Stop all game timers.
     clearInterval(state.turnTimerInterval);
@@ -8757,8 +8806,12 @@ async function enterGame(){
 
   calculateDealScore();
 
-  // NEW: save / refresh active game pointer
-    if (!state.activeGameRegistered) {
+  // Save an active-game pointer only for a genuinely active player/table.
+    if (
+        !state.activeGameRegistered &&
+        state.playerStatus !== "ELIMINATED" &&
+        state.tableCompleted !== true
+    ) {
         await setActiveGame();
     }
 
@@ -8773,6 +8826,16 @@ async function enterGame(){
 
 
 async function setActiveGame() {
+    if (state.tableCompleted === true) {
+        await cleanupActiveGamePointer(null, "registration blocked: table completed");
+        return;
+    }
+
+    if (String(state.playerStatus || "").toUpperCase() === "ELIMINATED") {
+        await cleanupActiveGamePointer(state.userId, "registration blocked: player eliminated");
+        return;
+    }
+
     const sessionToken =
         localStorage.getItem("crdgn_session_token");
 
