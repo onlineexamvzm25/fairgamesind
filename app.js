@@ -2961,6 +2961,16 @@ function resetSettlementControls() {
         popup.style.display = "none";
     }
 
+    // Re-evaluate eligibility for each observation window; never carry
+    // a previous deal's button state into the next deal.
+    const settlementBtn =
+        document.getElementById("btnSettlement");
+
+    if (settlementBtn) {
+        settlementBtn.style.display = "none";
+    }
+
+    state.settlementEligible = false;
     state.settlementOpened = false;
     state.settlementId = null;
 }
@@ -5377,7 +5387,7 @@ async function loadSessionInfo() {
 
             loadDealResults();
 
-            if (typeof GAME_TYPE === "FRIENDS"){
+            if (typeof GAME_TYPE !== "undefined" && GAME_TYPE === "FRIENDS") {
               await checkSettlementEligibility();
             }
 
