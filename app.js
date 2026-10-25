@@ -5189,15 +5189,29 @@ async function loadSessionInfo() {
         return;
     }
 
+
     const me = players?.find(
         player =>
-            Number(player.fixed_seat_no) ===
-            Number(state.fixedSeatNo)
-    );
+                String(player.user_id).toLowerCase() ===
+                String(state.userId).toLowerCase()
+        );
 
-    if (me) {
-        state.seatNo = Number(me.seat_no);
-    }
+        if (me) {
+            // Refresh both seats using the player's permanent identity.
+            state.seatNo = Number(me.seat_no);
+            state.fixedSeatNo = Number(me.fixed_seat_no);
+
+            // Keep saved browser state synchronized with the database.
+            localStorage.setItem(
+                "crdg_seat_no",
+                String(state.seatNo)
+            );
+
+            localStorage.setItem(
+                "crdg_fixed_seat_no",
+                String(state.fixedSeatNo)
+            );
+        }
 
     await loadPlayers(players);
 
