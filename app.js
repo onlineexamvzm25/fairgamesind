@@ -9579,10 +9579,20 @@ async function loadDealResults()
 
         let html = "";
 
+        // A successful declarer must show only the submitted 13-card groups.
+        // Never fall back to original_hand for the declarer, because that
+        // snapshot may still contain the discarded 14th declaration card.
+        const isSuccessfulDeclarer =
+            row.user_id &&
+            row.declaration_user_id &&
+            row.user_id === row.declaration_user_id;
+
         // Winner / declared player cards
-        if( showCards && 
+        if(
+            showCards &&
             row.grouped_hand &&
-           row.grouped_hand.length > 0)
+            row.grouped_hand.length > 0
+        )
         {
             row.grouped_hand.forEach(group => {
 
@@ -9613,29 +9623,29 @@ async function loadDealResults()
                 html += `</div>`;
             });
         }
-        else
+        else if (!isSuccessfulDeclarer)
         {
-          html +=`<div class="result-card-group">`;
+            // Keep the existing fallback for non-declarers only.
+            html += `<div class="result-card-group">`;
             if(showCards && row.original_hand)
             {
+                row.original_hand.forEach(card => {
 
-            row.original_hand.forEach(card => {
+                    let cardClass = "result-card";
 
-                let cardClass = "result-card";
+                    if(
+                        card.includes("♥") ||
+                        card.includes("♦")
+                    ){
+                        cardClass += " red-card";
+                    }
 
-                if(
-                    card.includes("♥") ||
-                    card.includes("♦")
-                ){
-                    cardClass += " red-card";
-                }
+                    if(isJokerCard(card)){
+                        cardClass += " joker-highlight";
+                    }
 
-                if(isJokerCard(card)){
-                    cardClass += " joker-highlight";
-                }
-
-                html += getObservationResultCardHTML(card, cardClass);
-            });
+                    html += getObservationResultCardHTML(card, cardClass);
+                });
             }
 
             html += `</div>`;
