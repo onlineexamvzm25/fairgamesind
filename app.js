@@ -4103,7 +4103,8 @@ function startDealBackupTimer() {
                         p_session_id: state.sessionId,
                         p_table_id: state.tableId,
                         p_user_id: state.userId,
-                        p_groups: groupsToSave
+                        p_groups: groupsToSave,
+                        p_session_token: localStorage.getItem("crdgn_session_token")
                     }
                 );
 
@@ -4337,7 +4338,7 @@ async function discard() {
 
         // Start the periodic backup after the first successful discard.
         // Subsequent discards won't create additional timers.
-       // startDealBackupTimer();
+        startDealBackupTimer();
     }
 
 
@@ -6701,7 +6702,8 @@ function scheduleDeclarationBackupSave() {
                         p_session_id: state.sessionId,
                         p_table_id: state.tableId,
                         p_user_id: state.userId,
-                        p_groups: groupsToSave
+                        p_groups: groupsToSave,
+                        p_session_token: localStorage.getItem("crdgn_session_token")
                     }
                 );
 
@@ -9018,6 +9020,7 @@ async function startGame() {
 
 
 
+
 async function declareGame() {
 
     if (state.declarationMode || state.groupsLocked) {
@@ -9039,10 +9042,24 @@ async function declareGame() {
         return;
     }
 
-    const singleSelectedCard = getSingleSelectedCard();
+    const totalCards = state.groups.reduce(
+        (a, g) => a + g.length,
+        0
+    );
 
-    if (!singleSelectedCard) {
-        if (state.selectedCards && state.selectedCards.length > 1) {
+    if (totalCards !== 14) {
+        alert("You must have 14 cards to declare");
+        return;
+    }
+
+    // Get the selected card and its group/index only once.
+    const declareSelection = getSingleSelectedCard();
+
+    if (!declareSelection) {
+        if (
+            state.selectedCards &&
+            state.selectedCards.length > 1
+        ) {
             alert("Please select only one card before declaration.");
         } else {
             alert("Please select one card before declaration.");
@@ -9050,44 +9067,48 @@ async function declareGame() {
         return;
     }
 
-    const totalCards =
-        state.groups.reduce(
-            (a, g) => a + g.length,
-            0
+    if (!confirm("Confirm Declaration?\n\n")) {
+        return;
+    }
+
+    // Get the card from the exact group and index selected.
+    const declareCard =
+        state.groups[declareSelection.group]?.[
+            declareSelection.index
+        ];
+
+    if (!declareCard) {
+        alert(
+            "Unable to identify the selected declaration card. Please select it again."
         );
-
-    if (totalCards !== 14) {
-        alert("You must have 14 cards to declare");
         return;
     }
-
-    const declareSelection = getSingleSelectedCard();
-
-    if (!declareSelection) {
-        alert("Please select one card before declaration.");
-        return;
-    }
-
-
-    if (!confirm(
-        "Confirm Declaration?\n\n" 
-    )) {
-        return;
-    }
-
-    const declareCard = singleSelectedCard.card;
 
     // Create a copy of the groups.
     const groupsForDeclaration =
         JSON.parse(JSON.stringify(state.groups));
 
-    // Remove the selected declaration card from the copy.
+    // Remove the selected card from the copied groups.
     groupsForDeclaration[
         declareSelection.group
     ].splice(
         declareSelection.index,
         1
     );
+
+    // Diagnostic: verify what will be submitted.
+    const remainingCards = groupsForDeclaration.flat();
+
+    console.log("DECLARATION CARD REMOVAL CHECK", {
+        declareCard,
+        selectedGroup: declareSelection.group,
+        selectedIndex: declareSelection.index,
+        originalGroup: state.groups[declareSelection.group],
+        remainingGroups: groupsForDeclaration,
+        remainingCardCount: remainingCards.length,
+        declarationCardStillPresent:
+            remainingCards.includes(declareCard)
+    });
 
     const {
         data: scoreData,
@@ -9109,8 +9130,7 @@ async function declareGame() {
 
     if (declarationScore === 0) {
 
-       // alert("VALID DECLARATION");
-
+        // Submit the declaration for server validation.
         const {
             data: declarationData,
             error: declarationError
@@ -9133,24 +9153,22 @@ async function declareGame() {
 
         if (declarationData?.[0]?.status === "valid") {
 
-            // The declaration is now confirmed by the server. Stop the regular
-            // turn countdown immediately; do not wait for final-group scoring.
+            // Stop the regular turn countdown immediately.
             clearInterval(state.turnTimerInterval);
             state.turnTimerInterval = null;
             stopTurnCountdownTicking();
 
-            const turnTimerLabel = document.getElementById("turnTimer");
+            const turnTimerLabel =
+                document.getElementById("turnTimer");
+
             if (turnTimerLabel) {
                 turnTimerLabel.innerText = "-";
             }
 
-            // The declarer should never retain another player's arrange timer.
+            // Clear the declarer's arrange timer display.
             clearDeclarationTimerDisplay();
 
-            // Finalize the valid declarer's score immediately.
-            // This does not start Observation; the database will
-            // open results after all remaining players finish their
-            // declaration phase.
+            // Finalize the valid declarer's groups and score.
             const {
                 data: finalGroupsData,
                 error: finalGroupsError
@@ -9165,22 +9183,25 @@ async function declareGame() {
                 }
             );
 
-
-
             console.log("DECLARATION SNAPSHOT CHECK", {
-    declareCard,
-    groupsForDeclaration,
-    groupedCardCount: groupsForDeclaration.reduce(
-        (total, group) => total + group.length,
-        0
-    ),
-    finalGroupsError
-});
-            
+                declareCard,
+                groupsForDeclaration,
+                groupedCardCount: groupsForDeclaration.reduce(
+                    (total, group) => total + group.length,
+                    0
+                ),
+                finalGroupsError
+            });
+
+            if (finalGroupsError) {
+                console.error(
+                    "Failed to submit final declaration groups:",
+                    finalGroupsError
+                );
+                return;
+            }
 
             // Persist the successful declaration card for this deal.
-            // loadGame() uses this marker to keep the 14th card out after
-            // manual refresh, automatic refresh, or reconnect.
             try {
                 const declarationStorageKey =
                     "crdg_valid_declaration_" +
@@ -9195,6 +9216,7 @@ async function declareGame() {
                         card: declareCard
                     })
                 );
+
             } catch (declarationStorageError) {
                 console.error(
                     "Unable to save valid declaration:",
@@ -9205,13 +9227,15 @@ async function declareGame() {
             // Lock this player's groups after server confirmation.
             setGroupsLocked(true);
 
-            // Remove the declaration card from the actual UI and hand.
-            const declaredHandIndex = state.hand.indexOf(declareCard);
+            // Remove the declaration card from the actual hand.
+            const declaredHandIndex =
+                state.hand.indexOf(declareCard);
+
             if (declaredHandIndex >= 0) {
                 state.hand.splice(declaredHandIndex, 1);
             }
 
-            // Remove the declaration card from the actual UI.
+            // Remove the same selected position from the actual groups.
             state.groups[
                 declareSelection.group
             ].splice(
@@ -9225,7 +9249,7 @@ async function declareGame() {
 
             await calculateDealScore();
 
-            // Do not run the declarer's declaration countdown.
+            // Enter the declarer's waiting state.
             state.declarationMode = true;
             state.declarationTimerStarted = true;
 
@@ -9265,6 +9289,7 @@ async function declareGame() {
         renderHand();
     }
 }
+
 
 
 
@@ -9579,22 +9604,63 @@ async function loadDealResults()
 
         let html = "";
 
-        // A successful declarer must show only the submitted 13-card groups.
-        // Never fall back to original_hand for the declarer, because that
-        // snapshot may still contain the discarded 14th declaration card.
+        // A successful declarer should display exactly 13 cards.
+        // Backups/snapshots can occasionally still contain the discarded
+        // 14th card, so correct a DISPLAY COPY only; never mutate saved data.
         const isSuccessfulDeclarer =
             row.user_id &&
             row.declaration_user_id &&
-            row.user_id === row.declaration_user_id;
+            String(row.user_id).toLowerCase() ===
+                String(row.declaration_user_id).toLowerCase();
+
+        let groupsToDisplay = Array.isArray(row.grouped_hand)
+            ? row.grouped_hand.map(group => Array.isArray(group) ? [...group] : [])
+            : [];
+
+        if (isSuccessfulDeclarer) {
+            const displayedCardCount = groupsToDisplay.reduce(
+                (total, group) => total + group.length,
+                0
+            );
+
+            if (displayedCardCount === 14) {
+                // The declaration discard remains on top of the open pile
+                // during observation. Remove one matching occurrence only.
+                const declarationDiscard = Array.isArray(state.openPile)
+                    ? state.openPile[state.openPile.length - 1]
+                    : null;
+
+                if (declarationDiscard) {
+                    let removed = false;
+                    for (let g = groupsToDisplay.length - 1; g >= 0 && !removed; g--) {
+                        const cardIndex = groupsToDisplay[g].lastIndexOf(declarationDiscard);
+                        if (cardIndex !== -1) {
+                            groupsToDisplay[g].splice(cardIndex, 1);
+                            removed = true;
+                        }
+                    }
+
+                    console.log("DECLARER OBSERVATION HAND CHECK", {
+                        user_id: row.user_id,
+                        declarationDiscard,
+                        beforeCount: displayedCardCount,
+                        afterCount: groupsToDisplay.reduce((total, group) => total + group.length, 0),
+                        removed
+                    });
+                } else {
+                    console.warn("Declarer has 14 cards, but declaration discard was not found on the open pile.");
+                }
+            }
+        }
 
         // Winner / declared player cards
         if(
             showCards &&
-            row.grouped_hand &&
-            row.grouped_hand.length > 0
+            groupsToDisplay.length > 0 &&
+            groupsToDisplay.some(group => group.length > 0)
         )
         {
-            row.grouped_hand.forEach(group => {
+            groupsToDisplay.forEach(group => {
 
                html += `<div class="result-card-group">`;
 
