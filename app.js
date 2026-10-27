@@ -5367,57 +5367,40 @@ async function loadSessionInfo() {
         state.declarerWaitingWindowShown = false;
     }
 
-     if(
+     if (
           state.declarationMode &&
           data.deal_results_ready !== true &&
           !iAmValidDeclarer &&
           !state.declarationTimerStarted
-      ){
+      ) {
 
-          clearInterval(
-              state.turnTimerInterval
-          );
-          state.turnTimerInterval = null; //MAH
+          clearInterval(state.turnTimerInterval);
+          state.turnTimerInterval = null;
 
-              
-            const { data: declarationEndAt, error: dectmrerror } =
-            await supabaseClient.rpc(
-                "crdg_start_declaration_timer",
-                {
-                    p_session_id: state.sessionId,
-                    p_user_id: state.userId
-                }
-            );
+          // crdg_submit_declaration sets declaration_end_at on the server
+          // when the valid declaration is accepted. Reconnects must only
+          // display that existing deadline; they must never start/reset it.
+          state.declarationTimerStarted = true;
 
-        if (dectmrerror) {
-            console.error(
-                "Declaration timer start error:",
-                dectmrerror
-            );
-            return;
-        }
-        
-        
-        state.declarationEndAt = declarationEndAt;
-        state.declarationTimerStarted = true;
+          if (!state.declarationEndAt) {
+              console.error(
+                  "Declaration is active but the server has no declaration_end_at."
+              );
+              return;
+          }
 
-        // Save the player's current arrangement immediately.
-        // Do not wait for the player to move a card again.
-        if (
-            Array.isArray(state.groups) &&
-            !state.groupsLocked
-        ) {
-            scheduleDeclarationBackupSave();
-        }
+          // Save the player's current arrangement immediately.
+          // Do not wait for the player to move a card again.
+          if (
+              Array.isArray(state.groups) &&
+              !state.groupsLocked
+          ) {
+              scheduleDeclarationBackupSave();
+          }
 
-        if (
-            state.declarationEndAt &&
-            !state.declarationTimerInterval
-        ) {
-            startDeclarationTimer();
-        }
-
-
+          if (!state.declarationTimerInterval) {
+              startDeclarationTimer();
+          }
       }
 
 
