@@ -4337,7 +4337,7 @@ async function discard() {
 
         // Start the periodic backup after the first successful discard.
         // Subsequent discards won't create additional timers.
-        startDealBackupTimer();
+       // startDealBackupTimer();
     }
 
 
