@@ -3763,6 +3763,9 @@ async function animateDrawCardToGroup(sourceRect, groupIndex, cardIndex) {
 // =========================
 // DRAW
 // =========================
+// Track the latest drawn card until a discard succeeds.
+let pendingDrawnCardForBackup = null;
+
 async function draw(source, targetGroup = 5) {
 
     // =====================================================
@@ -3898,6 +3901,8 @@ async function draw(source, targetGroup = 5) {
                     : 5;
 
             state.groups[destinationGroup].push(card);
+            // Keep this card tracked until a successful discard.
+            pendingDrawnCardForBackup = card;
             const destinationIndex = state.groups[destinationGroup].length - 1;
 
             // A drawn card is not a selection: clear stale selections and
@@ -4065,11 +4070,10 @@ function startDealBackupTimer() {
         return;
     }
 
-    console.log("Deal backup timer started: every 10 seconds.");
+    console.log("Deal backup timer started: every 1 second.");
 
-    // First save occurs after 10 seconds.
+    // First save occurs after 1 second.
     dealBackupTimer = setInterval(async function () {
-
         if (
             dealBackupInProgress ||
             !state.sessionId ||
@@ -4079,53 +4083,68 @@ function startDealBackupTimer() {
             state.groupsLocked ||
             state.resultWindowOpened
         ) {
-            if (
-                state.declarationMode ||
-                state.resultWindowOpened
-            ) {
+            if (state.declarationMode || state.resultWindowOpened) {
                 stopDealBackupTimer();
             }
-
             return;
         }
 
         dealBackupInProgress = true;
-
         try {
-            // Copy the latest card groups.
-            const groupsToSave =
-                JSON.parse(JSON.stringify(state.groups));
+            // Work only on a detached copy; never mutate the live hand/groups.
+            const groupsToSave = JSON.parse(JSON.stringify(state.groups));
+            const snapshotCardCount = groupsToSave.reduce(
+                (total, group) => total + (Array.isArray(group) ? group.length : 0),
+                0
+            );
 
-            const { data, error } =
-                await supabaseClient.rpc(
-                    "crdg_save_declaration_backup",
-                    {
-                        p_session_id: state.sessionId,
-                        p_table_id: state.tableId,
-                        p_user_id: state.userId,
-                        p_groups: groupsToSave,
-                        p_session_token: localStorage.getItem("crdgn_session_token")
+            // If the player drew but did not discard, remove that one card
+            // from the backup copy only. Preserve the remaining group layout.
+            if (snapshotCardCount === 14) {
+                if (!pendingDrawnCardForBackup) {
+                    console.warn("Backup skipped: 14 cards found, but the pending drawn card is unknown.");
+                    return;
+                }
+
+                let removedPickedCard = false;
+                for (let g = groupsToSave.length - 1; g >= 0 && !removedPickedCard; g--) {
+                    const group = groupsToSave[g];
+                    if (!Array.isArray(group)) continue;
+                    const cardIndex = group.lastIndexOf(pendingDrawnCardForBackup);
+                    if (cardIndex !== -1) {
+                        group.splice(cardIndex, 1);
+                        removedPickedCard = true;
                     }
-                );
+                }
+
+                if (!removedPickedCard) {
+                    console.warn("Backup skipped: pending drawn card was not found in the 14-card snapshot.");
+                    return;
+                }
+                console.log("Backup snapshot corrected: excluded the un-discarded picked card; saving 13 cards.");
+            }
+
+            const { data, error } = await supabaseClient.rpc(
+                "crdg_save_declaration_backup",
+                {
+                    p_session_id: state.sessionId,
+                    p_table_id: state.tableId,
+                    p_user_id: state.userId,
+                    p_groups: groupsToSave,
+                    p_session_token: localStorage.getItem("crdgn_session_token")
+                }
+            );
 
             if (error) {
-                console.error(
-                    "Deal backup save failed:",
-                    error
-                );
+                console.error("Deal backup save failed:", error);
                 return;
             }
 
-            console.log(
-                "Deal backup saved. Server-calculated score:",
-                data
-            );
-
+            console.log("Deal backup saved. Server-calculated score:", data);
         } finally {
             dealBackupInProgress = false;
         }
-
-    }, 10000);
+    }, 1000);
 }
 
 // Animate the selected hand card from any group onto the open pile.
@@ -4300,6 +4319,9 @@ async function discard() {
             1
         );
 
+        // The discard succeeded, so no undiscarded picked card remains.
+        pendingDrawnCardForBackup = null;
+
 
             // Stop the completed turn timer immediately
         clearInterval(state.turnTimerInterval);
@@ -4338,7 +4360,7 @@ async function discard() {
 
         // Start the periodic backup after the first successful discard.
         // Subsequent discards won't create additional timers.
-        startDealBackupTimer();
+       // startDealBackupTimer();
     }
 
 
@@ -5114,6 +5136,7 @@ async function loadSessionInfo() {
         state.isDropped = false;
         state.dropType = null;
         state.pickedCard = null;
+        pendingDrawnCardForBackup = null;
         state.myTurnPickAnimation = false;
         state.lastTurnSeat = null;
 
@@ -9604,63 +9627,22 @@ async function loadDealResults()
 
         let html = "";
 
-        // A successful declarer should display exactly 13 cards.
-        // Backups/snapshots can occasionally still contain the discarded
-        // 14th card, so correct a DISPLAY COPY only; never mutate saved data.
+        // A successful declarer must show only the submitted 13-card groups.
+        // Never fall back to original_hand for the declarer, because that
+        // snapshot may still contain the discarded 14th declaration card.
         const isSuccessfulDeclarer =
             row.user_id &&
             row.declaration_user_id &&
-            String(row.user_id).toLowerCase() ===
-                String(row.declaration_user_id).toLowerCase();
-
-        let groupsToDisplay = Array.isArray(row.grouped_hand)
-            ? row.grouped_hand.map(group => Array.isArray(group) ? [...group] : [])
-            : [];
-
-        if (isSuccessfulDeclarer) {
-            const displayedCardCount = groupsToDisplay.reduce(
-                (total, group) => total + group.length,
-                0
-            );
-
-            if (displayedCardCount === 14) {
-                // The declaration discard remains on top of the open pile
-                // during observation. Remove one matching occurrence only.
-                const declarationDiscard = Array.isArray(state.openPile)
-                    ? state.openPile[state.openPile.length - 1]
-                    : null;
-
-                if (declarationDiscard) {
-                    let removed = false;
-                    for (let g = groupsToDisplay.length - 1; g >= 0 && !removed; g--) {
-                        const cardIndex = groupsToDisplay[g].lastIndexOf(declarationDiscard);
-                        if (cardIndex !== -1) {
-                            groupsToDisplay[g].splice(cardIndex, 1);
-                            removed = true;
-                        }
-                    }
-
-                    console.log("DECLARER OBSERVATION HAND CHECK", {
-                        user_id: row.user_id,
-                        declarationDiscard,
-                        beforeCount: displayedCardCount,
-                        afterCount: groupsToDisplay.reduce((total, group) => total + group.length, 0),
-                        removed
-                    });
-                } else {
-                    console.warn("Declarer has 14 cards, but declaration discard was not found on the open pile.");
-                }
-            }
-        }
+            row.user_id === row.declaration_user_id;
 
         // Winner / declared player cards
         if(
             showCards &&
-            groupsToDisplay.length > 0 &&
-            groupsToDisplay.some(group => group.length > 0)
+            row.grouped_hand &&
+            row.grouped_hand.length > 0
         )
         {
-            groupsToDisplay.forEach(group => {
+            row.grouped_hand.forEach(group => {
 
                html += `<div class="result-card-group">`;
 
