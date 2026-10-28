@@ -4070,7 +4070,7 @@ function startDealBackupTimer() {
         return;
     }
 
-    console.log("Deal backup timer started: every 1 second.");
+    console.log("Deal backup timer started: every 6 seconds.");
 
     // First save occurs after 1 second.
     dealBackupTimer = setInterval(async function () {
@@ -4122,6 +4122,18 @@ function startDealBackupTimer() {
                     return;
                 }
                 console.log("Backup snapshot corrected: excluded the un-discarded picked card; saving 13 cards.");
+            }
+
+            const finalCardCount = groupsToSave.reduce(
+                (total, group) => total + (Array.isArray(group) ? group.length : 0),
+                0
+            );
+
+            if (finalCardCount !== 13) {
+                console.warn(
+                    `Backup skipped: expected 13 cards after correction, found ${finalCardCount}.`
+                );
+                return;
             }
 
             const { data, error } = await supabaseClient.rpc(
@@ -7069,6 +7081,10 @@ async function loadGame() {
         });
     }
     updateActionButtons();
+
+    // Save the current 13-card hand and server-calculated score every 6 seconds.
+    // This starts when the deal's groups are ready, not only after the first discard.
+    startDealBackupTimer();
 }
 
 function getEstimatedTurnServerNow() {
