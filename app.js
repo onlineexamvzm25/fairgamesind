@@ -2218,10 +2218,6 @@ function startObservationTimer()
         {
             state.pointsOfflineCheckDone = true;
 
-            console.log(
-                "POINTS: 5-second offline check started."
-            );
-
 
             const {
                 data,
@@ -2442,12 +2438,6 @@ async function exitPointsTable()
             Array.isArray(data)
                 ? data[0]
                 : data;
-
-
-        console.log(
-            "POINTS exit result:",
-            result
-        );
 
 
         if (
@@ -3773,9 +3763,6 @@ async function draw(source, targetGroup = 5) {
     // =====================================================
 
     if (state.drawInProgress === true) {
-        console.log(
-            "DRAW ignored: another draw is already in progress."
-        );
         return;
     }
 
@@ -4070,8 +4057,6 @@ function startDealBackupTimer() {
         return;
     }
 
-    console.log("Deal backup timer started: every 6 seconds.");
-
     // First save occurs after 1 second.
     dealBackupTimer = setInterval(async function () {
         if (
@@ -4121,7 +4106,7 @@ function startDealBackupTimer() {
                     console.warn("Backup skipped: pending drawn card was not found in the 14-card snapshot.");
                     return;
                 }
-                console.log("Backup snapshot corrected: excluded the un-discarded picked card; saving 13 cards.");
+
             }
 
             const finalCardCount = groupsToSave.reduce(
@@ -4151,8 +4136,6 @@ function startDealBackupTimer() {
                 console.error("Deal backup save failed:", error);
                 return;
             }
-
-            console.log("Deal backup saved. Server-calculated score:", data);
         } finally {
             dealBackupInProgress = false;
         }
@@ -4519,11 +4502,6 @@ async function cleanupActiveGamePointer(gameUserId = null, reason = "")
     }
 
     state.activeGameRegistered = false;
-
-    console.log(
-        "Active-game cleanup completed" + (reason ? " (" + reason + ")" : "") + ". Rows removed:",
-        data
-    );
 
     return true;
 }
@@ -6732,11 +6710,6 @@ function scheduleDeclarationBackupSave() {
                 );
                 return;
             }
-
-            console.log(
-                "Declaration backup saved:",
-                data
-            );
         },
         500
     );
@@ -9043,6 +9016,7 @@ async function startGame() {
 
 
 
+
 async function declareGame() {
 
     if (state.declarationMode || state.groupsLocked) {
@@ -9050,96 +9024,121 @@ async function declareGame() {
     }
 
     if (
-        Number(state.seatNo) !==
-        Number(state.currentTurnSeat)
+        Number(state.seatNo) !== Number(state.currentTurnSeat)
     ) {
         alert("Please wait. It is another player's turn.");
         return;
     }
 
-    const cardCount = getTotalCards();
+    const totalCards = state.groups.reduce(
+        (total, group) => total + group.length,
+        0
+    );
 
-    if (cardCount !== 14) {
+    if (totalCards !== 14 || getTotalCards() !== 14) {
         alert("Please pick a card before declaring.");
         return;
     }
 
-    const totalCards = state.groups.reduce(
-        (a, g) => a + g.length,
-        0
-    );
+    // Capture the selected card and its exact position once.
+    const selection = getSingleSelectedCard();
 
-    if (totalCards !== 14) {
-        alert("You must have 14 cards to declare");
-        return;
-    }
-
-    // Get the selected card and its group/index only once.
-    const declareSelection = getSingleSelectedCard();
-
-    if (!declareSelection) {
-        if (
-            state.selectedCards &&
-            state.selectedCards.length > 1
-        ) {
-            alert("Please select only one card before declaration.");
-        } else {
-            alert("Please select one card before declaration.");
-        }
-        return;
-    }
-
-    if (!confirm("Confirm Declaration?\n\n")) {
-        return;
-    }
-
-    // Get the card from the exact group and index selected.
-    // Use the actual card selected by the player for declaration.
-    const declareCard = declareSelection.card;
-
-    const selectedGroup = Number(declareSelection.group);
-    const selectedIndex = Number(declareSelection.index);
-
-    // Validate that the selected position still contains that card.
-    if (
-        typeof declareCard !== "string" ||
-        !Number.isInteger(selectedGroup) ||
-        !Number.isInteger(selectedIndex) ||
-        !state.groups[selectedGroup] ||
-        state.groups[selectedGroup][selectedIndex] !== declareCard
-    ) {
+    if (!selection) {
         alert(
-            "The selected declaration card has changed. Please select it again."
+            state.selectedCards?.length > 1
+                ? "Please select only one card before declaration."
+                : "Please select one card to discard before declaration."
         );
         return;
     }
 
-    // Create a copy of the groups.
-    const groupsForDeclaration =
-        JSON.parse(JSON.stringify(state.groups));
+    const selectedGroup = Number(selection.group);
+    const selectedIndex = Number(selection.index);
 
-    // Remove the selected card from the copied groups.
-    groupsForDeclaration[
-        declareSelection.group
-    ].splice(
-        declareSelection.index,
-        1
+    if (
+        !Number.isInteger(selectedGroup) ||
+        !Number.isInteger(selectedIndex) ||
+        selectedGroup < 0 ||
+        selectedGroup >= state.groups.length ||
+        selectedIndex < 0 ||
+        selectedIndex >= (state.groups[selectedGroup]?.length ?? 0)
+    ) {
+        alert("The selected card position is invalid. Please select again.");
+        return;
+    }
+
+    // Read the card directly from the current group position.
+    const declareCard = state.groups[selectedGroup][selectedIndex];
+
+    // Ensure the selection still refers to that exact card.
+    if (declareCard !== selection.card) {
+        console.error("Declaration selection mismatch:", {
+            selectedCard: selection.card,
+            cardAtPosition: declareCard,
+            selectedGroup,
+            selectedIndex
+        });
+
+        alert("The selected card changed. Please select it again.");
+        return;
+    }
+
+    if (!confirm("Confirm Declaration?")) {
+        return;
+    }
+
+    // Freeze a copy of the 14-card arrangement before any RPC awaits.
+    const groupsBeforeRemoval = JSON.parse(
+        JSON.stringify(state.groups)
     );
 
-    // Diagnostic: verify what will be submitted.
+    // Remove ONLY the selected discard card from the copied groups.
+    const groupsForDeclaration = JSON.parse(
+        JSON.stringify(groupsBeforeRemoval)
+    );
+
+    const removedCard = groupsForDeclaration[selectedGroup].splice(
+        selectedIndex,
+        1
+    )[0];
+
     const remainingCards = groupsForDeclaration.flat();
+
+    // Strict checks: 14 cards before, 13 after, and the right card removed.
+    if (
+        removedCard !== declareCard ||
+        remainingCards.length !== 13 ||
+        remainingCards.includes(declareCard)
+    ) {
+        console.error("Declaration removal validation failed:", {
+            declareCard,
+            removedCard,
+            selectedGroup,
+            selectedIndex,
+            groupsBeforeRemoval,
+            groupsForDeclaration,
+            remainingCardCount: remainingCards.length,
+            declarationCardStillPresent: remainingCards.includes(declareCard)
+        });
+
+        alert(
+            "Declaration card removal failed. Please arrange your cards and try again."
+        );
+        return;
+    }
 
     console.log("DECLARATION CARD REMOVAL CHECK", {
         declareCard,
-        selectedGroup: declareSelection.group,
-        selectedIndex: declareSelection.index,
-        originalGroup: state.groups[declareSelection.group],
-        remainingGroups: groupsForDeclaration,
+        removedCard,
+        selectedGroup,
+        selectedIndex,
+        groupsBeforeRemoval,
+        groupsForDeclaration,
         remainingCardCount: remainingCards.length,
-        declarationCardStillPresent:
-            remainingCards.includes(declareCard)
+        declarationCardStillPresent: remainingCards.includes(declareCard)
     });
 
+    // Validate the remaining 13 cards.
     const {
         data: scoreData,
         error: scoreError
@@ -9152,143 +9151,13 @@ async function declareGame() {
     );
 
     if (scoreError) {
-        console.error(scoreError);
+        console.error("Declaration score validation failed:", scoreError);
         return;
     }
 
     const declarationScore = Number(scoreData || 0);
 
-    if (declarationScore === 0) {
-
-        // Submit the declaration for server validation.
-        const {
-            data: declarationData,
-            error: declarationError
-        } = await supabaseClient.rpc(
-            "crdg_submit_declaration",
-            {
-                p_session_id: state.sessionId,
-                p_table_id: state.tableId,
-                p_user_id: state.userId,
-                p_declare_card: declareCard,
-                p_groups: groupsForDeclaration,
-                p_joker_card: state.jokerCard
-            }
-        );
-
-        if (declarationError) {
-            console.error(declarationError);
-            return;
-        }
-
-        if (declarationData?.[0]?.status === "valid") {
-
-            // Stop the regular turn countdown immediately.
-            clearInterval(state.turnTimerInterval);
-            state.turnTimerInterval = null;
-            stopTurnCountdownTicking();
-
-            const turnTimerLabel =
-                document.getElementById("turnTimer");
-
-            if (turnTimerLabel) {
-                turnTimerLabel.innerText = "-";
-            }
-
-            // Clear the declarer's arrange timer display.
-            clearDeclarationTimerDisplay();
-
-            // Finalize the valid declarer's groups and score.
-            const {
-                data: finalGroupsData,
-                error: finalGroupsError
-            } = await supabaseClient.rpc(
-                "crdg_submit_final_groups",
-                {
-                    p_session_id: state.sessionId,
-                    p_table_id: state.tableId,
-                    p_user_id: state.userId,
-                    p_groups: groupsForDeclaration,
-                    p_joker_card: state.jokerCard
-                }
-            );
-
-            console.log("DECLARATION SNAPSHOT CHECK", {
-                declareCard,
-                groupsForDeclaration,
-                groupedCardCount: groupsForDeclaration.reduce(
-                    (total, group) => total + group.length,
-                    0
-                ),
-                finalGroupsError
-            });
-
-            if (finalGroupsError) {
-                console.error(
-                    "Failed to submit final declaration groups:",
-                    finalGroupsError
-                );
-                return;
-            }
-
-            // Persist the successful declaration card for this deal.
-            try {
-                const declarationStorageKey =
-                    "crdg_valid_declaration_" +
-                    state.sessionId + "_" +
-                    state.userId + "_" +
-                    state.groupsDealNo;
-
-                localStorage.setItem(
-                    declarationStorageKey,
-                    JSON.stringify({
-                        valid: true,
-                        card: declareCard
-                    })
-                );
-
-            } catch (declarationStorageError) {
-                console.error(
-                    "Unable to save valid declaration:",
-                    declarationStorageError
-                );
-            }
-
-            // Lock this player's groups after server confirmation.
-            setGroupsLocked(true);
-
-            // Remove the declaration card from the actual hand.
-            const declaredHandIndex =
-                state.hand.indexOf(declareCard);
-
-            if (declaredHandIndex >= 0) {
-                state.hand.splice(declaredHandIndex, 1);
-            }
-
-            // Remove the same selected position from the actual groups.
-            state.groups[
-                declareSelection.group
-            ].splice(
-                declareSelection.index,
-                1
-            );
-
-            clearCardSelection();
-
-            renderHand();
-
-            await calculateDealScore();
-
-            // Enter the declarer's waiting state.
-            state.declarationMode = true;
-            state.declarationTimerStarted = true;
-
-            clearDeclarationTimerDisplay();
-
-            showDeclarerWaitingWindow();
-        }
-
-    } else {
+    if (declarationScore !== 0) {
 
         alert("OOPS...! INVALID DECLARATION");
 
@@ -9312,13 +9181,156 @@ async function declareGame() {
         );
 
         if (error) {
-            console.error(error);
+            console.error("Invalid declaration RPC failed:", error);
             return;
         }
 
         renderHand();
+        return;
     }
+
+    // Submit the valid declaration with the same captured card and groups.
+    const {
+        data: declarationData,
+        error: declarationError
+    } = await supabaseClient.rpc(
+        "crdg_submit_declaration",
+        {
+            p_session_id: state.sessionId,
+            p_table_id: state.tableId,
+            p_user_id: state.userId,
+            p_declare_card: declareCard,
+            p_groups: groupsForDeclaration,
+            p_joker_card: state.jokerCard
+        }
+    );
+
+    if (declarationError) {
+        console.error("Declaration RPC failed:", declarationError);
+        return;
+    }
+
+    if (declarationData?.[0]?.status !== "valid") {
+        console.error("Declaration was not accepted:", declarationData);
+        alert("Declaration was not accepted by the server.");
+        return;
+    }
+
+    // Stop the regular turn countdown.
+    clearInterval(state.turnTimerInterval);
+    state.turnTimerInterval = null;
+    stopTurnCountdownTicking();
+
+    const turnTimerLabel = document.getElementById("turnTimer");
+
+    if (turnTimerLabel) {
+        turnTimerLabel.innerText = "-";
+    }
+
+    clearDeclarationTimerDisplay();
+
+    // Save exactly the same 13-card groups as the final snapshot.
+    const {
+        data: finalGroupsData,
+        error: finalGroupsError
+    } = await supabaseClient.rpc(
+        "crdg_submit_final_groups",
+        {
+            p_session_id: state.sessionId,
+            p_table_id: state.tableId,
+            p_user_id: state.userId,
+            p_groups: groupsForDeclaration,
+            p_joker_card: state.jokerCard
+        }
+    );
+
+    console.log("DECLARATION SNAPSHOT CHECK", {
+        declareCard,
+        groupsForDeclaration,
+        groupedCardCount: groupsForDeclaration.reduce(
+            (total, group) => total + group.length,
+            0
+        ),
+        finalGroupsData,
+        finalGroupsError
+    });
+
+    if (finalGroupsError) {
+        console.error(
+            "Failed to submit final declaration groups:",
+            finalGroupsError
+        );
+        return;
+    }
+
+    // Remember the declaration card for refresh/reconnect handling.
+    try {
+        const declarationStorageKey =
+            "crdg_valid_declaration_" +
+            state.sessionId + "_" +
+            state.userId + "_" +
+            state.groupsDealNo;
+
+        localStorage.setItem(
+            declarationStorageKey,
+            JSON.stringify({
+                valid: true,
+                card: declareCard
+            })
+        );
+
+    } catch (storageError) {
+        console.error(
+            "Unable to save valid declaration:",
+            storageError
+        );
+    }
+
+    // Lock groups after server confirmation.
+    setGroupsLocked(true);
+
+    // Update the local hand using the captured declaration card.
+    const handIndex = state.hand.indexOf(declareCard);
+
+    if (handIndex >= 0) {
+        state.hand.splice(handIndex, 1);
+    }
+
+    // Remove the same selected position from the local grouped hand.
+    // Do not use the mutable selection object again.
+    const currentCardAtPosition =
+        state.groups[selectedGroup]?.[selectedIndex];
+
+    if (currentCardAtPosition === declareCard) {
+        state.groups[selectedGroup].splice(selectedIndex, 1);
+    } else {
+        console.error(
+            "Local groups changed after declaration submission:",
+            {
+                declareCard,
+                currentCardAtPosition,
+                selectedGroup,
+                selectedIndex
+            }
+        );
+    }
+
+    clearCardSelection();
+
+    renderHand();
+
+    await calculateDealScore();
+
+    // Enter the declarer's waiting state.
+    state.declarationMode = true;
+    state.declarationTimerStarted = true;
+
+    clearDeclarationTimerDisplay();
+
+    showDeclarerWaitingWindow();
 }
+
+
 
 
 
@@ -9470,10 +9482,6 @@ async function loadDealResults()
     // current deal, then omits them from all subsequent deal windows.
     const visibleData = Array.isArray(data) ? data : [];
 
-    console.log(
-        "OBSERVATION RESULTS (visible rows):",
-        JSON.stringify(visibleData, null, 2)
-    );
 
     const jokerCard = state.jokerCard || "";
 
