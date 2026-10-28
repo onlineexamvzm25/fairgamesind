@@ -4144,7 +4144,7 @@ function startDealBackupTimer() {
         } finally {
             dealBackupInProgress = false;
         }
-    }, 1000);
+    }, 6000);
 }
 
 // Animate the selected hand card from any group onto the open pile.
