@@ -9094,14 +9094,22 @@ async function declareGame() {
     }
 
     // Get the card from the exact group and index selected.
-    const declareCard =
-        state.groups[declareSelection.group]?.[
-            declareSelection.index
-        ];
+    // Use the actual card selected by the player for declaration.
+    const declareCard = declareSelection.card;
 
-    if (!declareCard) {
+    const selectedGroup = Number(declareSelection.group);
+    const selectedIndex = Number(declareSelection.index);
+
+    // Validate that the selected position still contains that card.
+    if (
+        typeof declareCard !== "string" ||
+        !Number.isInteger(selectedGroup) ||
+        !Number.isInteger(selectedIndex) ||
+        !state.groups[selectedGroup] ||
+        state.groups[selectedGroup][selectedIndex] !== declareCard
+    ) {
         alert(
-            "Unable to identify the selected declaration card. Please select it again."
+            "The selected declaration card has changed. Please select it again."
         );
         return;
     }
