@@ -9124,19 +9124,8 @@ async function declareGame() {
         alert(
             "Declaration card removal failed. Please arrange your cards and try again."
         );
-        return;
+       // return;
     }
-
-    console.log("DECLARATION CARD REMOVAL CHECK", {
-        declareCard,
-        removedCard,
-        selectedGroup,
-        selectedIndex,
-        groupsBeforeRemoval,
-        groupsForDeclaration,
-        remainingCardCount: remainingCards.length,
-        declarationCardStillPresent: remainingCards.includes(declareCard)
-    });
 
     // Validate the remaining 13 cards.
     const {
@@ -9631,14 +9620,13 @@ async function loadDealResults()
         }
 
 
-        if(
+            // Hide cards only for the player who dropped.
+        // Other players' cards remain visible during observation.
+        const isDroppedPlayer =
             row.drop_type === "DROP" ||
-            row.drop_type === "MID_DROP" 
-        )
-        {
-            showCards = false;
-        }
+            row.drop_type === "MID_DROP";
 
+        showCards = !isDroppedPlayer;
 
         let html = "";
 
@@ -9648,7 +9636,8 @@ async function loadDealResults()
         const isSuccessfulDeclarer =
             row.user_id &&
             row.declaration_user_id &&
-            row.user_id === row.declaration_user_id;
+            row.user_id === row.declaration_user_id &&
+            row.drop_type !== "INVALID_DECLARE";
 
         // Winner / declared player cards
         if(
