@@ -8448,13 +8448,17 @@ async function animateInitialSeatCardDistribution(players) {
     }
 
     const orderedPlayers = [...players].sort((a, b) => Number(a.seat_no) - Number(b.seat_no));
+    // A fixed, ascending sequence makes the face-up card value visibly match
+    // the saved seat_no order. These are animation-only cards; game state is untouched.
+    const seatCardValues = ["2♣", "3♦", "4♥", "5♠", "6♣", "7♦"];
     const sourceRect = stock.getBoundingClientRect();
     const sourceX = sourceRect.left + sourceRect.width / 2;
     const sourceY = sourceRect.top + sourceRect.height / 2;
     const canAnimate = typeof Element.prototype.animate === "function" &&
         !(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
 
-    for (const player of orderedPlayers) {
+    for (let seatIndex = 0; seatIndex < orderedPlayers.length; seatIndex++) {
+        const player = orderedPlayers[seatIndex];
         let target = null;
         const isMe = String(player.user_id).toLowerCase() === String(state.userId).toLowerCase();
 
@@ -8489,19 +8493,21 @@ async function animateInitialSeatCardDistribution(players) {
             height: "64px",
             zIndex: "100000",
             pointerEvents: "none",
-            border: "2px solid #fff",
+            border: "2px solid #f4f4f4",
             borderRadius: "6px",
             boxSizing: "border-box",
-            background: "repeating-linear-gradient(45deg,#244a73,#244a73 5px,#315c89 5px,#315c89 10px)",
+            background: "linear-gradient(145deg,#fff,#f4f4f4)",
             boxShadow: "0 3px 10px rgba(0,0,0,.55)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            color: "white",
-            fontSize: "25px",
+            color: seatCardValues[seatIndex % seatCardValues.length].includes("♥") || seatCardValues[seatIndex % seatCardValues.length].includes("♦") ? "#d01824" : "#172033",
+            fontWeight: "800",
+            fontFamily: "Arial,sans-serif",
+            fontSize: "21px",
             lineHeight: "1"
         });
-        flyer.textContent = "🂠";
+        flyer.textContent = seatCardValues[seatIndex % seatCardValues.length];
         document.body.appendChild(flyer);
 
         const dx = targetRect.left + targetRect.width / 2 - sourceX - 23;
@@ -8521,9 +8527,11 @@ async function animateInitialSeatCardDistribution(players) {
         } else {
             await new Promise(resolve => setTimeout(resolve, 180));
         }
+        // Leave the face-up card briefly at this seat before moving to the next
+        // ascending seat. Then remove it so the real game UI can appear cleanly.
+        await new Promise(resolve => setTimeout(resolve, 320));
         flyer.remove();
-        // A small pause makes the seat-ascending sequence clearly visible.
-        await new Promise(resolve => setTimeout(resolve, 90));
+        await new Promise(resolve => setTimeout(resolve, 120));
     }
 
     try { localStorage.setItem(animationKey, "1"); } catch (_) {}
@@ -9085,8 +9093,21 @@ async function enterGame(){
 
   await loadSessionInfo();
 
+  // Keep the actual game cards hidden until the seat-order animation finishes.
+  // Visibility (rather than display:none) preserves the stock card's position
+  // as the animation's source point.
+  const initialAnimationElements = [
+    document.getElementById("stockCard"),
+    document.getElementById("openVisual"),
+    document.getElementById("jokerVisual"),
+    document.getElementById("my-hand")
+  ].filter(Boolean);
+  const previousCardVisibility = initialAnimationElements.map(el => el.style.visibility);
+  initialAnimationElements.forEach(el => { el.style.visibility = "hidden"; });
+
   // Load the final server-saved seat order once, then render the existing
-  // stable seat layout and animate one card in ascending seat_no order.
+  // stable seat layout and animate one face-up card per player in ascending
+  // seat_no order. No database/game state is changed by this animation.
   const { data: initialSeatPlayers, error: initialSeatPlayersError } =
     await supabaseClient.rpc("crdg_get_lobby_players", {
       p_table_id: state.tableId
@@ -9099,12 +9120,17 @@ async function enterGame(){
   await loadPlayers(initialSeatPlayers || null);
   await animateInitialSeatCardDistribution(initialSeatPlayers || []);
 
+  // Only after all seat cards have finished: show stock/open/joker and the
+  // real 13-card hand from the server.
   await loadGame();
-
   startTurnTimer();
   updateActionButtons();
 
   renderHand();
+
+  initialAnimationElements.forEach((el, index) => {
+    el.style.visibility = previousCardVisibility[index] || "";
+  });
 
   calculateDealScore();
 
