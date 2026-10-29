@@ -3662,6 +3662,12 @@ function closeLastDealHistoryPopup() {
 
 function openLastDealHistoryPopup() {
     const popup = document.getElementById("lastDealHistoryPopup");
+    // Move the overlay to body so transformed game containers or other
+    // modal stacking contexts cannot place it behind Deal Results.
+    if (popup.parentElement !== document.body) {
+        document.body.appendChild(popup);
+    }
+    popup.style.zIndex = "2147483000";
     popup.classList.remove("hidden");
     popup.setAttribute("aria-hidden", "false");
 
@@ -3674,19 +3680,24 @@ function openLastDealHistoryPopup() {
     loadLastDealHistory();
 }
 
-function lastDealCardHtml(card) {
-    const safeCard = escapeLastDealHtml(card);
-    if (String(card ?? "") === "JOKER") {
+function lastDealCardHtml(card, historicalJokerCard) {
+    const value = String(card ?? "");
+    if (value === "JOKER") {
         return '<div class="result-card"><span class="result-card-printed-joker">JOKER</span></div>';
     }
-    const value = String(card ?? "");
+
     const isRed = value.includes("♥") || value.includes("♦");
-    const joker = typeof isJokerCard === "function" && isJokerCard(value);
+    const jokerValue = String(historicalJokerCard ?? "");
+    const cardRank = value.slice(0, -1);
+    const jokerRank = jokerValue.slice(0, -1);
+    // Historical highlighting must use the joker from the saved deal,
+    // not state.jokerCard from whatever deal is currently on screen.
+    const isHistoricalJoker = !!jokerRank && cardRank === jokerRank;
     const classes = ["result-card"];
     if (isRed) classes.push("red-card");
-    if (joker) classes.push("joker-highlight");
-    const suit = escapeLastDealHtml(value.slice(-1));
+    if (isHistoricalJoker) classes.push("joker-highlight");
     const rank = escapeLastDealHtml(value.slice(0, -1));
+    const suit = escapeLastDealHtml(value.slice(-1));
     return `<div class="${classes.join(" ")}"><span class="result-card-rank">${rank}</span><span class="result-card-suit">${suit}</span></div>`;
 }
 
@@ -3736,6 +3747,19 @@ async function loadLastDealHistory() {
 
     const jokerIsRed = String(jokerCard).includes("♥") || String(jokerCard).includes("♦");
     let html = `<div class="last-deal-history-joker">Joker: <span style="color:${jokerIsRed ? "#d00" : "#172033"}">${escapeLastDealHtml(jokerCard)}</span></div>`;
+    html += `
+        <div class="result-scroll last-deal-result-scroll">
+            <table class="result-table last-deal-result-table">
+                <thead>
+                    <tr>
+                        <th>Player</th>
+                        <th>Cards</th>
+                        <th>Score</th>
+                        <th>Total</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>`;
 
     rows.forEach(row => {
         const dropType = String(row.drop_type ?? "");
@@ -3743,40 +3767,43 @@ async function loadLastDealHistory() {
         const groupedHand = normalizeLastDealArray(row.grouped_hand);
         const originalHand = normalizeLastDealArray(row.original_hand);
         const hideCards = dropType === "DROP" || dropType === "MID_DROP";
-
         let cardsHtml = "";
+
         if (hideCards) {
-            cardsHtml = '<div class="last-deal-history-message">Cards hidden for dropped player.</div>';
+            cardsHtml = '<span class="last-deal-hidden-cards">✕ DROP</span>';
         } else if (groupedHand.length) {
+            // Preserve each saved group as its own visual group. Do not flatten
+            // grouped_hand into one row of cards.
             groupedHand.forEach(group => {
                 if (!Array.isArray(group) || !group.length) return;
                 cardsHtml += '<div class="result-card-group">';
-                group.forEach(card => { cardsHtml += lastDealCardHtml(card); });
+                group.forEach(card => {
+                    cardsHtml += lastDealCardHtml(card, jokerCard);
+                });
                 cardsHtml += '</div>';
             });
         } else if (originalHand.length) {
+            // Fallback only when the database has no saved groups.
             cardsHtml = '<div class="result-card-group">';
-            originalHand.forEach(card => { cardsHtml += lastDealCardHtml(card); });
+            originalHand.forEach(card => {
+                cardsHtml += lastDealCardHtml(card, jokerCard);
+            });
             cardsHtml += '</div>';
         } else {
             cardsHtml = '<span>Cards not available</span>';
         }
 
         html += `
-            <section class="last-deal-history-player">
-                <div class="last-deal-history-player-heading">
-                    <span>${escapeLastDealHtml(row.display_name || "Player")}</span>
-                    <span class="last-deal-history-status">${escapeLastDealHtml(status)}</span>
-                </div>
-                <div class="last-deal-history-cards">${cardsHtml}</div>
-                <div class="last-deal-history-player-summary">
-                    <span>Deal score: <strong>${escapeLastDealHtml(row.deal_score ?? 0)}</strong></span>
-                    <span>Total score: <strong>${escapeLastDealHtml(row.total_score ?? 0)}</strong></span>
-                    ${dropType ? `<span>Result: <strong>${escapeLastDealHtml(dropType)}</strong></span>` : ""}
-                </div>
-            </section>`;
+            <tr>
+                <td class="last-deal-result-player">${escapeLastDealHtml(row.display_name || "Player")}</td>
+                <td class="last-deal-result-cards">${cardsHtml}</td>
+                <td class="last-deal-result-score">${escapeLastDealHtml(row.deal_score ?? 0)}</td>
+                <td class="last-deal-result-total">${escapeLastDealHtml(row.total_score ?? 0)}</td>
+                <td class="last-deal-result-status">${escapeLastDealHtml(status)}</td>
+            </tr>`;
     });
 
+    html += `</tbody></table></div>`;
     content.innerHTML = html;
 }
 
