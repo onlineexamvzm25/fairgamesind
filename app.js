@@ -8443,19 +8443,41 @@ async function animateInitialSeatCardDistribution(players) {
         // Do not replay on refresh/rejoin in the same session.
         if (localStorage.getItem(animationKey)) return;
         localStorage.setItem(animationKey, "started");
-    } catch (_) {
-        // Continue if local storage is unavailable.
-    }
+    } catch (_) {}
 
-    const orderedPlayers = [...players].sort((a, b) => Number(a.seat_no) - Number(b.seat_no));
-    // A fixed, ascending sequence makes the face-up card value visibly match
-    // the saved seat_no order. These are animation-only cards; game state is untouched.
-    const seatCardValues = ["2♣", "3♦", "4♥", "5♠", "6♣", "7♦"];
+    // Toss order starts with the first-turn player and proceeds clockwise,
+    // finishing with the dealer. The values are visual-only and do not alter
+    // the server's dealer/first-turn decisions or any game cards.
+    const seatSorted = [...players].sort((a, b) => Number(a.seat_no) - Number(b.seat_no));
+    const firstTurnSeat = Number(state.currentTurnSeat);
+    const dealerSeat = Number(state.dealerSeat);
+    let firstIndex = seatSorted.findIndex(p => Number(p.seat_no) === firstTurnSeat);
+    if (firstIndex < 0) firstIndex = 0;
+    const rotatedPlayers = seatSorted.slice(firstIndex).concat(seatSorted.slice(0, firstIndex));
+    const dealerIndex = rotatedPlayers.findIndex(p => Number(p.seat_no) === dealerSeat);
+    const orderedPlayers = dealerIndex >= 0
+        ? rotatedPlayers.slice(0, dealerIndex + 1)
+        : rotatedPlayers;
+
+    // Always give the first-turn player the highest value (9), the dealer
+    // the lowest (2), and the intermediate players descending values.
+    const tossRanksByCount = {
+        2: [9, 2],
+        3: [9, 6, 2],
+        4: [9, 6, 5, 2],
+        5: [9, 6, 5, 4, 2],
+        6: [9, 6, 5, 4, 3, 2]
+    };
+    const ranks = tossRanksByCount[Math.min(6, orderedPlayers.length)] || [9, 6, 5, 4, 3, 2];
+    const suits = ["♣", "♦", "♥", "♠", "♣", "♦"];
+    const tossCards = orderedPlayers.map((_, i) => `${ranks[i] ?? Math.max(2, 9 - i)}${suits[i % suits.length]}`);
+
     const sourceRect = stock.getBoundingClientRect();
     const sourceX = sourceRect.left + sourceRect.width / 2;
     const sourceY = sourceRect.top + sourceRect.height / 2;
     const canAnimate = typeof Element.prototype.animate === "function" &&
         !(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+    const tossFlyers = [];
 
     for (let seatIndex = 0; seatIndex < orderedPlayers.length; seatIndex++) {
         const player = orderedPlayers[seatIndex];
@@ -8465,17 +8487,10 @@ async function animateInitialSeatCardDistribution(players) {
         if (isMe) {
             target = document.getElementById("myInfo") || document.querySelector(".my-player-panel");
         } else {
-            // Match the existing table layout, which keeps visual positions stable
-            // using fixed_seat_no while the animation order follows seat_no.
+            // Keep the established visual-seat mapping; only the toss order changes.
             let relative = Number(player.fixed_seat_no) - Number(state.fixedSeatNo);
             if (relative < 0) relative += 6;
-            const targetIdByRelativeSeat = {
-                1: "opp4",
-                2: "opp2",
-                3: "opp1",
-                4: "opp3",
-                5: "opp5"
-            };
+            const targetIdByRelativeSeat = { 1: "opp4", 2: "opp2", 3: "opp1", 4: "opp3", 5: "opp5" };
             target = document.getElementById(targetIdByRelativeSeat[relative]);
         }
 
@@ -8483,57 +8498,64 @@ async function animateInitialSeatCardDistribution(players) {
         const targetRect = target.getBoundingClientRect();
         if (!targetRect.width || !targetRect.height) continue;
 
+        // Larger face-up toss card for easy reading on mobile and desktop.
+        const cardWidth = 64;
+        const cardHeight = 90;
+        const cardValue = tossCards[seatIndex];
+        const isRed = cardValue.includes("♥") || cardValue.includes("♦");
         const flyer = document.createElement("div");
         flyer.setAttribute("aria-hidden", "true");
         Object.assign(flyer.style, {
             position: "fixed",
-            left: `${sourceX - 23}px`,
-            top: `${sourceY - 32}px`,
-            width: "46px",
-            height: "64px",
+            left: `${sourceX - cardWidth / 2}px`,
+            top: `${sourceY - cardHeight / 2}px`,
+            width: `${cardWidth}px`,
+            height: `${cardHeight}px`,
             zIndex: "100000",
             pointerEvents: "none",
             border: "2px solid #f4f4f4",
-            borderRadius: "6px",
+            borderRadius: "9px",
             boxSizing: "border-box",
             background: "linear-gradient(145deg,#fff,#f4f4f4)",
-            boxShadow: "0 3px 10px rgba(0,0,0,.55)",
+            boxShadow: "0 5px 14px rgba(0,0,0,.58)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            color: seatCardValues[seatIndex % seatCardValues.length].includes("♥") || seatCardValues[seatIndex % seatCardValues.length].includes("♦") ? "#d01824" : "#172033",
-            fontWeight: "800",
+            color: isRed ? "#d01824" : "#172033",
+            fontWeight: "900",
             fontFamily: "Arial,sans-serif",
-            fontSize: "21px",
+            fontSize: "30px",
             lineHeight: "1"
         });
-        flyer.textContent = seatCardValues[seatIndex % seatCardValues.length];
+        flyer.textContent = cardValue;
         document.body.appendChild(flyer);
+        tossFlyers.push(flyer);
 
-        const dx = targetRect.left + targetRect.width / 2 - sourceX - 23;
-        const dy = targetRect.top + targetRect.height / 2 - sourceY - 32;
+        const dx = targetRect.left + targetRect.width / 2 - sourceX;
+        const dy = targetRect.top + targetRect.height / 2 - sourceY;
         if (canAnimate) {
             try {
                 const flight = flyer.animate([
                     { transform: "translate3d(0,0,0) scale(.72) rotate(0deg)", opacity: 1 },
-                    { transform: `translate3d(${dx * 0.62}px,${dy * 0.62 - 18}px,0) scale(.9) rotate(8deg)`, opacity: 1, offset: .68 },
-                    { transform: `translate3d(${dx}px,${dy}px,0) scale(.78) rotate(-4deg)`, opacity: .95 }
-                ], { duration: 380, easing: "cubic-bezier(.2,.72,.22,1)", fill: "forwards" });
+                    { transform: `translate3d(${dx * .62}px,${dy * .62 - 18}px,0) scale(.92) rotate(7deg)`, opacity: 1, offset: .68 },
+                    { transform: `translate3d(${dx}px,${dy}px,0) scale(.9) rotate(0deg)`, opacity: 1 }
+                ], { duration: 1000, easing: "cubic-bezier(.2,.72,.22,1)", fill: "forwards" });
                 window.setTimeout(playDealTick, 40);
                 await flight.finished.catch(() => {});
             } catch (_) {
-                await new Promise(resolve => setTimeout(resolve, 180));
+                await new Promise(resolve => setTimeout(resolve, 1000));
             }
         } else {
-            await new Promise(resolve => setTimeout(resolve, 180));
+            await new Promise(resolve => setTimeout(resolve, 1000));
         }
-        // Leave the face-up card briefly at this seat before moving to the next
-        // ascending seat. Then remove it so the real game UI can appear cleanly.
-        await new Promise(resolve => setTimeout(resolve, 320));
-        flyer.remove();
-        await new Promise(resolve => setTimeout(resolve, 120));
+
+        // Keep each toss card visible while the next player receives theirs.
+        await new Promise(resolve => setTimeout(resolve, 1000));
     }
 
+    // Hold the complete toss result briefly, then clear only the animation cards.
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    tossFlyers.forEach(flyer => flyer.remove());
     try { localStorage.setItem(animationKey, "1"); } catch (_) {}
 }
 
@@ -9089,13 +9111,8 @@ async function enterGame(){
     .getElementById("tableIdDisplay")
     .innerText = state.tableId;
 
-  await loadTopGameType();
-
-  await loadSessionInfo();
-
-  // Keep the actual game cards hidden until the seat-order animation finishes.
-  // Visibility (rather than display:none) preserves the stock card's position
-  // as the animation's source point.
+  // Hide all real-game cards immediately after Start Game, before any async
+  // load can paint the stock, open pile, joker, or 13-card hand prematurely.
   const initialAnimationElements = [
     document.getElementById("stockCard"),
     document.getElementById("openVisual"),
@@ -9105,9 +9122,10 @@ async function enterGame(){
   const previousCardVisibility = initialAnimationElements.map(el => el.style.visibility);
   initialAnimationElements.forEach(el => { el.style.visibility = "hidden"; });
 
-  // Load the final server-saved seat order once, then render the existing
-  // stable seat layout and animate one face-up card per player in ascending
-  // seat_no order. No database/game state is changed by this animation.
+  await loadTopGameType();
+  await loadSessionInfo();
+
+  // Load final server-saved seating. This is read-only; no DB/RPC state is changed.
   const { data: initialSeatPlayers, error: initialSeatPlayersError } =
     await supabaseClient.rpc("crdg_get_lobby_players", {
       p_table_id: state.tableId
@@ -9120,13 +9138,17 @@ async function enterGame(){
   await loadPlayers(initialSeatPlayers || null);
   await animateInitialSeatCardDistribution(initialSeatPlayers || []);
 
-  // Only after all seat cards have finished: show stock/open/joker and the
-  // real 13-card hand from the server.
+  // Load the authoritative hand/open/joker data while the real-card UI remains hidden.
   await loadGame();
   startTurnTimer();
   updateActionButtons();
-
   renderHand();
+
+  // Rummy toss result pause: briefly show only the actual discarded/open card,
+  // then reveal stock, joker and the real 13-card hand together.
+  const openEl = document.getElementById("openVisual");
+  if (openEl) openEl.style.visibility = "visible";
+  await new Promise(resolve => setTimeout(resolve, 1000));
 
   initialAnimationElements.forEach((el, index) => {
     el.style.visibility = previousCardVisibility[index] || "";
@@ -9135,20 +9157,16 @@ async function enterGame(){
   calculateDealScore();
 
   // Save an active-game pointer only for a genuinely active player/table.
-    if (
-        !state.activeGameRegistered &&
-        state.playerStatus !== "ELIMINATED" &&
-        state.tableCompleted !== true
-    ) {
-        await setActiveGame();
-    }
+  if (
+      !state.activeGameRegistered &&
+      state.playerStatus !== "ELIMINATED" &&
+      state.tableCompleted !== true
+  ) {
+      await setActiveGame();
+  }
 
   subscribeRealtime();
-
-  // POINTS ONLY: maintain server heartbeat.
   startPointsHeartbeat();
-
-  // Automatically reconnect and refresh when network/Supabase returns.
   startNetworkMonitor();
 }
 
