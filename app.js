@@ -8206,18 +8206,16 @@ async function loadPlayers(playersData = null) {
             playerCountEl.innerText = data.length;
         }
 
+    
+        for (let i = 1; i <= 5; i++) {
+            const seat = document.getElementById("opp" + i);
 
+            if (seat) {
+                seat.innerHTML = "";
+                seat.style.display = "none";
+            }
+        }
 
-
-
-    for (let i = 1; i <= 5; i++) {
-
-        document.getElementById(
-            "opp" + i
-        ).innerHTML = `
-            <div>Empty</div>
-        `;
-    }
 
     state.myScore = 0;
 
@@ -8339,6 +8337,12 @@ async function loadPlayers(playersData = null) {
             </div>
             `;
         }
+
+        const targetEl = document.getElementById(target);
+
+        if (!targetEl) return;
+
+        targetEl.style.display = "block";
 
         document.getElementById(target).innerHTML = `
         <div>
@@ -8689,7 +8693,13 @@ async function animateInitialSeatCardDistribution(players) {
     // CLEAN UP TOSS CARDS
     // =====================================================
 
+    // CLEAN UP TOSS CARDS AND TEMPORARY EMPTY BOXES
     tossFlyers.forEach(flyer => flyer.remove());
+
+    // Hide temporary empty toss/card placeholders, if present.
+    document.querySelectorAll(
+        ".initial-seat-card, .initial-toss-card, .empty-toss-card"
+    ).forEach(el => el.remove());
 
     try {
         localStorage.setItem(animationKey, "1");
