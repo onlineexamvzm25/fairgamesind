@@ -9432,6 +9432,7 @@ function getObservationResultCardHTML(card, cardClass) {
     `;
 }
 
+
 async function loadDealResults()
 {
     if (state.declarerWaitingTimerInterval) {
@@ -9439,38 +9440,29 @@ async function loadDealResults()
         state.declarerWaitingTimerInterval = null;
     }
 
-    if(state.resultWindowLoaded)
-    {
+    if (state.resultWindowLoaded) {
         return;
     }
 
     state.resultWindowLoaded = true;
-
     observationTimeRemaining = 30;
 
-    document.getElementById(
-        "observationTimer"
-    ).innerText = 30;
+    document.getElementById("observationTimer").innerText = 30;
 
-    const { data, error } =
-        await supabaseClient.rpc(
-            "crdg_get_deal_results_for_observation",
-            {
-                p_session_id: state.sessionId
-            }
-        );
+    const { data, error } = await supabaseClient.rpc(
+        "crdg_get_deal_results_for_observation",
+        {
+            p_session_id: state.sessionId
+        }
+    );
 
-    if(error)
-    {
+    if (error) {
         console.error(error);
         return;
     }
 
-    // The observation RPC already filters players eliminated in earlier deals.
-    // It deliberately includes a player when eliminated_deal_no equals the
-    // current deal, then omits them from all subsequent deal windows.
+    // The observation RPC filters players eliminated in earlier deals.
     const visibleData = Array.isArray(data) ? data : [];
-
 
     const jokerCard = state.jokerCard || "";
 
@@ -9478,104 +9470,98 @@ async function loadDealResults()
         jokerCard.includes("♥") ||
         jokerCard.includes("♦");
 
-    const jokerStyle =
-        isRedJoker
-            ? 'color:red !important; -webkit-text-fill-color:red !important;'
-            : 'color:white !important; -webkit-text-fill-color:white !important;';
+    const jokerStyle = isRedJoker
+        ? 'color:red !important; -webkit-text-fill-color:red !important;'
+        : 'color:white !important; -webkit-text-fill-color:white !important;';
 
-    document.getElementById(
-        "resultJokerCard"
-    ).innerHTML =
-    `
-    <span class="result-joker">
-        Joker :
-        <span style="${jokerStyle}">
-            ${jokerCard}
+    document.getElementById("resultJokerCard").innerHTML = `
+        <span class="result-joker">
+            Joker :
+            <span style="${jokerStyle}">
+                ${jokerCard}
+            </span>
         </span>
-    </span>
     `;
 
-    const container =
-        document.getElementById(
-            "dealResultsContainer"
-        );
+    const container = document.getElementById("dealResultsContainer");
 
-    container.innerHTML = "";
-
-        container.innerHTML = `
+    container.innerHTML = `
         <div class="result-scroll">
-        <table class="result-table">
-
-        <thead>
-        <tr>
-        <th>Player</th>
-        <th>Cards</th>
-        <th>Score</th>
-                    <th>
-                    ${
-                        typeof GAME_TYPE !== "undefined" &&
-                        GAME_TYPE === "POINTS"
-                            ? "Win/Loss"
-                            : "Total"
-                    }
-                    </th>
-
-        <th>Status</th>
-        </tr>
-        </thead>
-
-        <tbody id="resultTableBody">
-        </tbody>
-
-        </table>
+            <table class="result-table">
+                <thead>
+                    <tr>
+                        <th>Player</th>
+                        <th>Cards</th>
+                        <th>Score</th>
+                        <th>
+                            ${
+                                typeof GAME_TYPE !== "undefined" &&
+                                GAME_TYPE === "POINTS"
+                                    ? "Win/Loss"
+                                    : "Total"
+                            }
+                        </th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="resultTableBody"></tbody>
+            </table>
         </div>
-        `;
+    `;
 
-        const tbody =
-        document.getElementById(
-            "resultTableBody"
-        );
+    const tbody = document.getElementById("resultTableBody");
 
-        // =====================================================
-        // POINTS MULTIPLIER
-        // Read through SECURITY DEFINER RPC so RLS does not block browser access.
-        let pointsMultiplier = 1;
-        let pointsTableId = null;
+    // =====================================================
+    // POINTS MULTIPLIER
+    // =====================================================
 
-        if (typeof GAME_TYPE !== "undefined" && GAME_TYPE === "POINTS") {
-            const { data: sessionInfo, error: sessionInfoError } =
-                await supabaseClient
-                    .from("crdg_game_sessions")
-                    .select("table_id")
-                    .eq("session_id", state.sessionId)
-                    .maybeSingle();
+    let pointsMultiplier = 1;
+    let pointsTableId = null;
 
-            if (sessionInfoError || !sessionInfo) {
-                console.error("POINTS session table lookup failed:", sessionInfoError || state.sessionId);
-                return;
-            }
+    if (
+        typeof GAME_TYPE !== "undefined" &&
+        GAME_TYPE === "POINTS"
+    ) {
+        const { data: sessionInfo, error: sessionInfoError } =
+            await supabaseClient
+                .from("crdg_game_sessions")
+                .select("table_id")
+                .eq("session_id", state.sessionId)
+                .maybeSingle();
 
-            pointsTableId = Number(sessionInfo.table_id);
-
-            const { data: multiplierData, error: multiplierError } =
-                await supabaseClient.rpc("crdgp_get_multiplier", {
-                    p_table_id: pointsTableId
-                });
-
-            if (multiplierError) {
-                console.error("POINTS multiplier RPC failed:", multiplierError);
-                return;
-            }
-
-            pointsMultiplier = Number(multiplierData) || 1;
+        if (sessionInfoError || !sessionInfo) {
+            console.error(
+                "POINTS session table lookup failed:",
+                sessionInfoError || state.sessionId
+            );
+            return;
         }
 
+        pointsTableId = Number(sessionInfo.table_id);
 
-        visibleData.forEach(row => {
+        const { data: multiplierData, error: multiplierError } =
+            await supabaseClient.rpc("crdgp_get_multiplier", {
+                p_table_id: pointsTableId
+            });
 
-        let showCards = true;
+        if (multiplierError) {
+            console.error(
+                "POINTS multiplier RPC failed:",
+                multiplierError
+            );
+            return;
+        }
 
-                // =====================================================
+        pointsMultiplier = Number(multiplierData) || 1;
+    }
+
+    // =====================================================
+    // RENDER OBSERVATION RESULTS
+    // =====================================================
+
+    visibleData.forEach(row => {
+
+        // =====================================================
         // POINTS WIN / LOSS
         // =====================================================
 
@@ -9585,260 +9571,285 @@ async function loadDealResults()
             typeof GAME_TYPE !== "undefined" &&
             GAME_TYPE === "POINTS"
         ) {
-            const dealScore =
-                Number(row.current_deal_score) || 0;
-
-            const multiplier =
-                Number(pointsMultiplier) || 1;
+            const dealScore = Number(row.current_deal_score) || 0;
+            const multiplier = Number(pointsMultiplier) || 1;
 
             if (dealScore === 0) {
 
                 // Winner receives the total loss points
                 // multiplied by the table multiplier.
 
-                const totalLoserScore =
-                    visibleData.reduce(
-                        (sum, player) =>
-                            sum +
-                            (
-                                Number(player.current_deal_score) || 0
-                            ),
-                        0
-                    );
+                const totalLoserScore = visibleData.reduce(
+                    (sum, player) =>
+                        sum + (Number(player.current_deal_score) || 0),
+                    0
+                );
 
-                pointsWinLoss =
-                    totalLoserScore * multiplier;
+                pointsWinLoss = totalLoserScore * multiplier;
 
             } else {
 
-                // Loser loses his deal score
-                // multiplied by the table multiplier.
+                // Loser loses his deal score multiplied by
+                // the table multiplier.
 
-                pointsWinLoss =
-                    -(dealScore * multiplier);
+                pointsWinLoss = -(dealScore * multiplier);
             }
         }
 
+        // =====================================================
+        // CARD VISIBILITY
+        // =====================================================
 
-            // Hide cards only for the player who dropped.
-        // Other players' cards remain visible during observation.
         const isDroppedPlayer =
             row.drop_type === "DROP" ||
             row.drop_type === "MID_DROP";
 
-        showCards = !isDroppedPlayer;
+        // Only the player who dropped has hidden cards.
+        const showCards = !isDroppedPlayer;
 
-        let html = "";
+        const hasGroupedHand =
+            Array.isArray(row.grouped_hand) &&
+            row.grouped_hand.length > 0;
 
-        // A successful declarer must show only the submitted 13-card groups.
-        // Never fall back to original_hand for the declarer, because that
-        // snapshot may still contain the discarded 14th declaration card.
+        const hasOriginalHand =
+            Array.isArray(row.original_hand) &&
+            row.original_hand.length > 0;
+
+        // A successful declarer should use their submitted groups,
+        // not the original hand that might contain 14 cards.
+        //
+        // IMPORTANT:
+        // Require a non-empty grouped_hand. An automatic winner
+        // can match declaration_user_id while grouped_hand is NULL.
+        // That player must fall back to original_hand.
+
         const isSuccessfulDeclarer =
             row.user_id &&
             row.declaration_user_id &&
             row.user_id === row.declaration_user_id &&
-            row.drop_type !== "INVALID_DECLARE";
+            row.drop_type !== "INVALID_DECLARE" &&
+            hasGroupedHand;
 
-        // Winner / declared player cards
-        if(
-            showCards &&
-            row.grouped_hand &&
-            row.grouped_hand.length > 0
-        )
-        {
-            row.grouped_hand.forEach(group => {
+        let html = "";
 
-               html += `<div class="result-card-group">`;
+        // =====================================================
+        // DISPLAY GROUPED CARDS OR FALL BACK TO ORIGINAL HAND
+        // =====================================================
 
-                group.forEach(card => {
+        if (showCards) {
 
-                    let cardClass =
-                        "result-card";
+            if (hasGroupedHand) {
 
-                    if(
-                        card.includes("♥") ||
-                        card.includes("♦")
-                    ){
-                        cardClass +=
-                            " red-card";
+                // Show submitted groups when available.
+
+                row.grouped_hand.forEach(group => {
+
+                    if (!Array.isArray(group) || group.length === 0) {
+                        return;
                     }
 
-                    if(isJokerCard(card))
-                    {
-                        cardClass +=
-                            " joker-highlight";
-                    }
+                    html += `<div class="result-card-group">`;
 
-                    html += getObservationResultCardHTML(card, cardClass);
+                    group.forEach(card => {
+
+                        let cardClass = "result-card";
+
+                        if (
+                            card.includes("♥") ||
+                            card.includes("♦")
+                        ) {
+                            cardClass += " red-card";
+                        }
+
+                        if (isJokerCard(card)) {
+                            cardClass += " joker-highlight";
+                        }
+
+                        html += getObservationResultCardHTML(
+                            card,
+                            cardClass
+                        );
+                    });
+
+                    html += `</div>`;
                 });
 
-                html += `</div>`;
-            });
-        }
-        else if (!isSuccessfulDeclarer)
-        {
-            // Keep the existing fallback for non-declarers only.
-            html += `<div class="result-card-group">`;
-            if (
-                showCards &&
-                Array.isArray(row.original_hand) &&
-                row.original_hand.length > 0
-            )
-            {
+            } else if (
+                !isSuccessfulDeclarer &&
+                hasOriginalHand
+            ) {
+
+                // Fallback for non-declarers and automatic winners
+                // whose grouped_hand is NULL or empty.
+
+                html += `<div class="result-card-group">`;
+
                 row.original_hand.forEach(card => {
 
                     let cardClass = "result-card";
 
-                    if(
+                    if (
                         card.includes("♥") ||
                         card.includes("♦")
-                    ){
+                    ) {
                         cardClass += " red-card";
                     }
 
-                    if(isJokerCard(card)){
+                    if (isJokerCard(card)) {
                         cardClass += " joker-highlight";
                     }
 
-                    html += getObservationResultCardHTML(card, cardClass);
+                    html += getObservationResultCardHTML(
+                        card,
+                        cardClass
+                    );
                 });
-            }
 
-            html += `</div>`;
+                html += `</div>`;
+            }
         }
 
+        // =====================================================
+        // CARDS CELL CONTENT
+        // =====================================================
 
-        tbody.innerHTML += `
-        <tr>
+        let cardsContent = "-";
 
-        <td>
-            ${row.display_name}
-        </td>
+        if (isDroppedPlayer) {
 
-       <td>
-        ${
-            showCards &&
-            (
-                (Array.isArray(row.grouped_hand) && row.grouped_hand.length > 0) ||
-                (Array.isArray(row.original_hand) && row.original_hand.length > 0)
-            )
-            ? html
-            : (
+            cardsContent =
                 row.drop_type === "DROP"
                     ? "❌ DROP"
-                : row.drop_type === "MID_DROP"
-                    ? "⛔ MID DROP"
-                : row.drop_type === "INVALID_DECLARE"
-                    ? "🚫 INVALID DECLARE"
-                : "-"
-            )
+                    : "⛔ MID DROP";
+
+        } else if (row.drop_type === "INVALID_DECLARE") {
+
+            // Keep invalid declarer's hand visible when available.
+            cardsContent =
+                (hasGroupedHand || hasOriginalHand)
+                    ? html
+                    : "🚫 INVALID DECLARE";
+
+        } else if (showCards && (hasGroupedHand || hasOriginalHand)) {
+
+            cardsContent = html;
         }
-        </td>
-        <td style="text-align:center">
-            ${row.current_deal_score}
-        </td>
 
+        // =====================================================
+        // ADD PLAYER ROW
+        // =====================================================
 
-        <td style="text-align:center;font-weight:bold;">
-            ${
-                typeof GAME_TYPE !== "undefined" &&
-                GAME_TYPE === "POINTS"
-                    ? (
-                        pointsWinLoss > 0
-                            ? "+" + pointsWinLoss
-                            : pointsWinLoss
-                    )
-                    : row.points
-            }
-        </td>
+        tbody.innerHTML += `
+            <tr>
+                <td>
+                    ${row.display_name}
+                </td>
 
+                <td>
+                    ${cardsContent}
+                </td>
 
-        <td style="text-align:center;font-weight:bold;">
-            ${
-                row.player_status === "PLAYING"
-                    ? ""
-                    : row.player_status
-            }
-        </td>
+                <td style="text-align:center">
+                    ${row.current_deal_score}
+                </td>
 
-        </tr>
+                <td style="text-align:center;font-weight:bold;">
+                    ${
+                        typeof GAME_TYPE !== "undefined" &&
+                        GAME_TYPE === "POINTS"
+                            ? (
+                                pointsWinLoss > 0
+                                    ? "+" + pointsWinLoss
+                                    : pointsWinLoss
+                            )
+                            : row.points
+                    }
+                </td>
+
+                <td style="text-align:center;font-weight:bold;">
+                    ${
+                        row.player_status === "PLAYING"
+                            ? ""
+                            : row.player_status
+                    }
+                </td>
+            </tr>
         `;
-
     });
 
+    // =====================================================
+    // REJOIN CANDIDATES
+    // =====================================================
 
     const rejoinPlayers = await loadRejoinCandidates();
 
-        if(rejoinPlayers.length > 0)
-        {
-            const me = rejoinPlayers.find(
-                p => p.user_id === state.userId
+    if (rejoinPlayers.length > 0) {
+
+        const me = rejoinPlayers.find(
+            p => p.user_id === state.userId
+        );
+
+        if (me) {
+            showReJoinWindow(me);
+        }
+    }
+
+    // =====================================================
+    // POINTS : EXIT BUTTON
+    // =====================================================
+
+    if (
+        typeof GAME_TYPE !== "undefined" &&
+        GAME_TYPE === "POINTS"
+    ) {
+        const header = document.querySelector(
+            "#dealResultModal .result-header"
+        );
+
+        if (header) {
+
+            const oldButton = document.getElementById(
+                "btnExitPointsTable"
             );
 
-            if(me)
-            {
-                showReJoinWindow(me);
+            if (oldButton) {
+                oldButton.remove();
             }
+
+            header.insertAdjacentHTML(
+                "beforeend",
+                `
+                <button
+                    id="btnExitPointsTable"
+                    type="button"
+                    onclick="exitPointsTable()"
+                    style="
+                        margin-left:auto;
+                        margin-right:12px;
+                        padding:8px 18px;
+                        border:none;
+                        border-radius:7px;
+                        background:#c62828;
+                        color:white;
+                        font-size:14px;
+                        font-weight:bold;
+                        cursor:pointer;
+                    "
+                >
+                    EXIT TABLE
+                </button>
+                `
+            );
         }
+    }
 
-        // ==================================================
-        // POINTS : EXIT BUTTON
-        // ==================================================
+    // =====================================================
+    // SHOW OBSERVATION MODAL
+    // =====================================================
 
-        if (
-            typeof GAME_TYPE !== "undefined" &&
-            GAME_TYPE === "POINTS"
-        )
-        {
-            const header =
-                document.querySelector(
-                    "#dealResultModal .result-header"
-                );
-
-            if (header)
-            {
-                const oldButton =
-                    document.getElementById(
-                        "btnExitPointsTable"
-                    );
-
-                if (oldButton)
-                {
-                    oldButton.remove();
-                }
-
-                header.insertAdjacentHTML(
-                    "beforeend",
-                    `
-                    <button
-                        id="btnExitPointsTable"
-                        type="button"
-                        onclick="exitPointsTable()"
-                        style="
-                            margin-left:auto;
-                            margin-right:12px;
-                            padding:8px 18px;
-                            border:none;
-                            border-radius:7px;
-                            background:#c62828;
-                            color:white;
-                            font-size:14px;
-                            font-weight:bold;
-                            cursor:pointer;
-                        "
-                    >
-                        EXIT TABLE
-                    </button>
-                    `
-                );
-            }
-        }
-
-
-    document.getElementById(
-        "dealResultModal"
-    ).style.display = "block";
+    document.getElementById("dealResultModal").style.display = "block";
 }
+
 
 
 function isJokerCard(card) {
