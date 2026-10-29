@@ -4312,7 +4312,7 @@ function startDealBackupTimer() {
         } finally {
             dealBackupInProgress = false;
         }
-    }, 1000);
+    }, 6000);
 }
 
 // Animate the selected hand card from any group onto the open pile.
@@ -8421,6 +8421,112 @@ async function loadPlayers(playersData = null) {
         ).innerText =
             "-";
     }
+
+    return data;
+}
+
+// =====================================================
+// FIRST GAME ENTRY: ONE FACE-DOWN CARD TO EACH PLAYER
+// Uses the final seat_no values saved by the start-game RPC.
+// This is visual only and never changes game/database state.
+// =====================================================
+async function animateInitialSeatCardDistribution(players) {
+    if (!Array.isArray(players) || players.length === 0 || !state.sessionId || !state.userId) {
+        return;
+    }
+
+    const stock = document.getElementById("stockCard");
+    if (!stock) return;
+
+    const animationKey = `crdg_initial_seat_cards_${state.sessionId}_${state.userId}`;
+    try {
+        // Do not replay on refresh/rejoin in the same session.
+        if (localStorage.getItem(animationKey)) return;
+        localStorage.setItem(animationKey, "started");
+    } catch (_) {
+        // Continue if local storage is unavailable.
+    }
+
+    const orderedPlayers = [...players].sort((a, b) => Number(a.seat_no) - Number(b.seat_no));
+    const sourceRect = stock.getBoundingClientRect();
+    const sourceX = sourceRect.left + sourceRect.width / 2;
+    const sourceY = sourceRect.top + sourceRect.height / 2;
+    const canAnimate = typeof Element.prototype.animate === "function" &&
+        !(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+
+    for (const player of orderedPlayers) {
+        let target = null;
+        const isMe = String(player.user_id).toLowerCase() === String(state.userId).toLowerCase();
+
+        if (isMe) {
+            target = document.getElementById("myInfo") || document.querySelector(".my-player-panel");
+        } else {
+            // Match the existing table layout, which keeps visual positions stable
+            // using fixed_seat_no while the animation order follows seat_no.
+            let relative = Number(player.fixed_seat_no) - Number(state.fixedSeatNo);
+            if (relative < 0) relative += 6;
+            const targetIdByRelativeSeat = {
+                1: "opp4",
+                2: "opp2",
+                3: "opp1",
+                4: "opp3",
+                5: "opp5"
+            };
+            target = document.getElementById(targetIdByRelativeSeat[relative]);
+        }
+
+        if (!target) continue;
+        const targetRect = target.getBoundingClientRect();
+        if (!targetRect.width || !targetRect.height) continue;
+
+        const flyer = document.createElement("div");
+        flyer.setAttribute("aria-hidden", "true");
+        Object.assign(flyer.style, {
+            position: "fixed",
+            left: `${sourceX - 23}px`,
+            top: `${sourceY - 32}px`,
+            width: "46px",
+            height: "64px",
+            zIndex: "100000",
+            pointerEvents: "none",
+            border: "2px solid #fff",
+            borderRadius: "6px",
+            boxSizing: "border-box",
+            background: "repeating-linear-gradient(45deg,#244a73,#244a73 5px,#315c89 5px,#315c89 10px)",
+            boxShadow: "0 3px 10px rgba(0,0,0,.55)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "white",
+            fontSize: "25px",
+            lineHeight: "1"
+        });
+        flyer.textContent = "🂠";
+        document.body.appendChild(flyer);
+
+        const dx = targetRect.left + targetRect.width / 2 - sourceX - 23;
+        const dy = targetRect.top + targetRect.height / 2 - sourceY - 32;
+        if (canAnimate) {
+            try {
+                const flight = flyer.animate([
+                    { transform: "translate3d(0,0,0) scale(.72) rotate(0deg)", opacity: 1 },
+                    { transform: `translate3d(${dx * 0.62}px,${dy * 0.62 - 18}px,0) scale(.9) rotate(8deg)`, opacity: 1, offset: .68 },
+                    { transform: `translate3d(${dx}px,${dy}px,0) scale(.78) rotate(-4deg)`, opacity: .95 }
+                ], { duration: 380, easing: "cubic-bezier(.2,.72,.22,1)", fill: "forwards" });
+                window.setTimeout(playDealTick, 40);
+                await flight.finished.catch(() => {});
+            } catch (_) {
+                await new Promise(resolve => setTimeout(resolve, 180));
+            }
+        } else {
+            await new Promise(resolve => setTimeout(resolve, 180));
+        }
+        flyer.remove();
+        // A small pause makes the seat-ascending sequence clearly visible.
+        await new Promise(resolve => setTimeout(resolve, 90));
+    }
+
+    try { localStorage.setItem(animationKey, "1"); } catch (_) {}
 }
 
 async function loadLobbyState() {
@@ -8977,11 +9083,23 @@ async function enterGame(){
 
   await loadTopGameType();
 
-  await loadGame();
-
   await loadSessionInfo();
 
-  await loadPlayers();
+  // Load the final server-saved seat order once, then render the existing
+  // stable seat layout and animate one card in ascending seat_no order.
+  const { data: initialSeatPlayers, error: initialSeatPlayersError } =
+    await supabaseClient.rpc("crdg_get_lobby_players", {
+      p_table_id: state.tableId
+    });
+
+  if (initialSeatPlayersError) {
+    console.error("Initial seat order load failed:", initialSeatPlayersError);
+  }
+
+  await loadPlayers(initialSeatPlayers || null);
+  await animateInitialSeatCardDistribution(initialSeatPlayers || []);
+
+  await loadGame();
 
   startTurnTimer();
   updateActionButtons();
