@@ -286,6 +286,19 @@ document
         }
     );
 
+// Last completed deal history popup: separate from the existing score history.
+document.getElementById("btnViewLastDeal")
+    .addEventListener("click", openLastDealHistoryPopup);
+
+document.getElementById("btnCloseLastDealHistory")
+    .addEventListener("click", closeLastDealHistoryPopup);
+
+document.getElementById("lastDealHistoryPopup")
+    .addEventListener("click", function (event) {
+        // Only a click on the dark backdrop closes this popup.
+        if (event.target === this) closeLastDealHistoryPopup();
+    });
+
 
 // ==========================================
 // OPEN / STOCK -> G1-G6 DRAG
@@ -3632,6 +3645,139 @@ function renderDealHistory(historyRows) {
     tableBody.appendChild(
         totalRow
     );
+}
+
+
+function escapeLastDealHtml(value) {
+    return String(value ?? "").replace(/[&<>"']/g, character => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+    }[character]));
+}
+
+function closeLastDealHistoryPopup() {
+    const popup = document.getElementById("lastDealHistoryPopup");
+    popup.classList.add("hidden");
+    popup.setAttribute("aria-hidden", "true");
+}
+
+function openLastDealHistoryPopup() {
+    const popup = document.getElementById("lastDealHistoryPopup");
+    popup.classList.remove("hidden");
+    popup.setAttribute("aria-hidden", "false");
+
+    const content = document.getElementById("lastDealHistoryContent");
+    const meta = document.getElementById("lastDealHistoryMeta");
+    meta.textContent = state.sessionId
+        ? `Session ${state.sessionId}${state.tableId ? ` • Table ${state.tableId}` : ""}`
+        : "";
+    content.innerHTML = '<div class="last-deal-history-message">Loading last completed deal...</div>';
+    loadLastDealHistory();
+}
+
+function lastDealCardHtml(card) {
+    const safeCard = escapeLastDealHtml(card);
+    if (String(card ?? "") === "JOKER") {
+        return '<div class="result-card"><span class="result-card-printed-joker">JOKER</span></div>';
+    }
+    const value = String(card ?? "");
+    const isRed = value.includes("♥") || value.includes("♦");
+    const joker = typeof isJokerCard === "function" && isJokerCard(value);
+    const classes = ["result-card"];
+    if (isRed) classes.push("red-card");
+    if (joker) classes.push("joker-highlight");
+    const suit = escapeLastDealHtml(value.slice(-1));
+    const rank = escapeLastDealHtml(value.slice(0, -1));
+    return `<div class="${classes.join(" ")}"><span class="result-card-rank">${rank}</span><span class="result-card-suit">${suit}</span></div>`;
+}
+
+function normalizeLastDealArray(value) {
+    if (Array.isArray(value)) return value;
+    if (typeof value === "string") {
+        try {
+            const parsed = JSON.parse(value);
+            return Array.isArray(parsed) ? parsed : [];
+        } catch (_) { return []; }
+    }
+    return [];
+}
+
+async function loadLastDealHistory() {
+    const content = document.getElementById("lastDealHistoryContent");
+    const meta = document.getElementById("lastDealHistoryMeta");
+
+    if (!state.sessionId) {
+        content.innerHTML = '<div class="last-deal-history-message">The current game session is not available.</div>';
+        return;
+    }
+
+    const { data, error } = await supabaseClient.rpc(
+        "crdg_get_last_deal_history",
+        { p_session_id: state.sessionId }
+    );
+
+    if (error) {
+        console.error("crdg_get_last_deal_history ERROR:", error);
+        content.innerHTML = '<div class="last-deal-history-message">Unable to load last deal history.</div>';
+        return;
+    }
+
+    const rows = Array.isArray(data) ? data : [];
+    if (!rows.length) {
+        meta.textContent = `Session ${state.sessionId}${state.tableId ? ` • Table ${state.tableId}` : ""}`;
+        content.innerHTML = '<div class="last-deal-history-message">No previous completed deal history available.</div>';
+        return;
+    }
+
+    // RPC returns one row per player, ordered by display_order.
+    const first = rows[0];
+    const dealNo = first.deal_no ?? "—";
+    const jokerCard = first.joker_card || "Not available";
+    meta.textContent = `Session ${first.session_id ?? state.sessionId} • Table ${first.table_id ?? state.tableId ?? "—"} • Deal ${dealNo}`;
+
+    const jokerIsRed = String(jokerCard).includes("♥") || String(jokerCard).includes("♦");
+    let html = `<div class="last-deal-history-joker">Joker: <span style="color:${jokerIsRed ? "#d00" : "#172033"}">${escapeLastDealHtml(jokerCard)}</span></div>`;
+
+    rows.forEach(row => {
+        const dropType = String(row.drop_type ?? "");
+        const status = String(row.player_status ?? dropType ?? "—");
+        const groupedHand = normalizeLastDealArray(row.grouped_hand);
+        const originalHand = normalizeLastDealArray(row.original_hand);
+        const hideCards = dropType === "DROP" || dropType === "MID_DROP";
+
+        let cardsHtml = "";
+        if (hideCards) {
+            cardsHtml = '<div class="last-deal-history-message">Cards hidden for dropped player.</div>';
+        } else if (groupedHand.length) {
+            groupedHand.forEach(group => {
+                if (!Array.isArray(group) || !group.length) return;
+                cardsHtml += '<div class="result-card-group">';
+                group.forEach(card => { cardsHtml += lastDealCardHtml(card); });
+                cardsHtml += '</div>';
+            });
+        } else if (originalHand.length) {
+            cardsHtml = '<div class="result-card-group">';
+            originalHand.forEach(card => { cardsHtml += lastDealCardHtml(card); });
+            cardsHtml += '</div>';
+        } else {
+            cardsHtml = '<span>Cards not available</span>';
+        }
+
+        html += `
+            <section class="last-deal-history-player">
+                <div class="last-deal-history-player-heading">
+                    <span>${escapeLastDealHtml(row.display_name || "Player")}</span>
+                    <span class="last-deal-history-status">${escapeLastDealHtml(status)}</span>
+                </div>
+                <div class="last-deal-history-cards">${cardsHtml}</div>
+                <div class="last-deal-history-player-summary">
+                    <span>Deal score: <strong>${escapeLastDealHtml(row.deal_score ?? 0)}</strong></span>
+                    <span>Total score: <strong>${escapeLastDealHtml(row.total_score ?? 0)}</strong></span>
+                    ${dropType ? `<span>Result: <strong>${escapeLastDealHtml(dropType)}</strong></span>` : ""}
+                </div>
+            </section>`;
+    });
+
+    content.innerHTML = html;
 }
 
 

@@ -1842,6 +1842,14 @@
             </div>
 
             <button
+                id="btnViewLastDeal"
+                class="history-view-last-deal-btn"
+                type="button"
+            >
+                View Last Deal
+            </button>
+
+            <button
                 id="btnCloseHistory"
                 class="history-close-btn"
                 type="button"
@@ -1865,6 +1873,21 @@
 
     </div>
 
+</div>
+
+<div id="lastDealHistoryPopup" class="last-deal-history-popup hidden" aria-hidden="true">
+    <div class="last-deal-history-box" role="dialog" aria-modal="true" aria-labelledby="lastDealHistoryTitle">
+        <div class="last-deal-history-header">
+            <div>
+                <div id="lastDealHistoryTitle" class="last-deal-history-title">Last Completed Deal</div>
+                <div id="lastDealHistoryMeta" class="last-deal-history-meta"></div>
+            </div>
+            <button id="btnCloseLastDealHistory" class="history-close-btn" type="button" aria-label="Close last deal history">✕</button>
+        </div>
+        <div id="lastDealHistoryContent" class="last-deal-history-content">
+            <div class="last-deal-history-message">Select View Last Deal to load history.</div>
+        </div>
+    </div>
 </div>
 
   <div id="rotateDeviceOverlay">
