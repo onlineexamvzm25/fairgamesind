@@ -9679,7 +9679,11 @@ async function loadDealResults()
         {
             // Keep the existing fallback for non-declarers only.
             html += `<div class="result-card-group">`;
-            if(showCards && row.original_hand)
+            if (
+                showCards &&
+                Array.isArray(row.original_hand) &&
+                row.original_hand.length > 0
+            )
             {
                 row.original_hand.forEach(card => {
 
@@ -9714,7 +9718,10 @@ async function loadDealResults()
        <td>
         ${
             showCards &&
-            (row.grouped_hand || row.original_hand)
+            (
+                (Array.isArray(row.grouped_hand) && row.grouped_hand.length > 0) ||
+                (Array.isArray(row.original_hand) && row.original_hand.length > 0)
+            )
             ? html
             : (
                 row.drop_type === "DROP"
