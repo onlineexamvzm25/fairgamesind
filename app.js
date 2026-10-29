@@ -8430,37 +8430,65 @@ async function loadPlayers(playersData = null) {
 // Uses the final seat_no values saved by the start-game RPC.
 // This is visual only and never changes game/database state.
 // =====================================================
+
 async function animateInitialSeatCardDistribution(players) {
-    if (!Array.isArray(players) || players.length === 0 || !state.sessionId || !state.userId) {
+    if (
+        !Array.isArray(players) ||
+        players.length === 0 ||
+        !state.sessionId ||
+        !state.userId
+    ) {
         return;
     }
 
     const stock = document.getElementById("stockCard");
     if (!stock) return;
 
-    const animationKey = `crdg_initial_seat_cards_${state.sessionId}_${state.userId}`;
+    const animationKey =
+        `crdg_initial_seat_cards_${state.sessionId}_${state.userId}`;
+
     try {
         // Do not replay on refresh/rejoin in the same session.
         if (localStorage.getItem(animationKey)) return;
         localStorage.setItem(animationKey, "started");
     } catch (_) {}
 
-    // Toss order starts with the first-turn player and proceeds clockwise,
-    // finishing with the dealer. The values are visual-only and do not alter
-    // the server's dealer/first-turn decisions or any game cards.
-    const seatSorted = [...players].sort((a, b) => Number(a.seat_no) - Number(b.seat_no));
+    // =====================================================
+    // DETERMINE TOSS ORDER
+    // First-turn player -> clockwise -> dealer
+    // =====================================================
+
+    const seatSorted = [...players].sort(
+        (a, b) => Number(a.seat_no) - Number(b.seat_no)
+    );
+
     const firstTurnSeat = Number(state.currentTurnSeat);
     const dealerSeat = Number(state.dealerSeat);
-    let firstIndex = seatSorted.findIndex(p => Number(p.seat_no) === firstTurnSeat);
+
+    let firstIndex = seatSorted.findIndex(
+        p => Number(p.seat_no) === firstTurnSeat
+    );
+
     if (firstIndex < 0) firstIndex = 0;
-    const rotatedPlayers = seatSorted.slice(firstIndex).concat(seatSorted.slice(0, firstIndex));
-    const dealerIndex = rotatedPlayers.findIndex(p => Number(p.seat_no) === dealerSeat);
+
+    const rotatedPlayers = seatSorted
+        .slice(firstIndex)
+        .concat(seatSorted.slice(0, firstIndex));
+
+    const dealerIndex = rotatedPlayers.findIndex(
+        p => Number(p.seat_no) === dealerSeat
+    );
+
     const orderedPlayers = dealerIndex >= 0
         ? rotatedPlayers.slice(0, dealerIndex + 1)
         : rotatedPlayers;
 
-    // Always give the first-turn player the highest value (9), the dealer
-    // the lowest (2), and the intermediate players descending values.
+    // =====================================================
+    // TOSS CARD VALUES
+    // First-turn player gets highest; dealer gets lowest.
+    // Visual only: does not change actual game cards.
+    // =====================================================
+
     const tossRanksByCount = {
         2: [9, 2],
         3: [9, 6, 2],
@@ -8468,43 +8496,98 @@ async function animateInitialSeatCardDistribution(players) {
         5: [9, 6, 5, 4, 2],
         6: [9, 6, 5, 4, 3, 2]
     };
-    const ranks = tossRanksByCount[Math.min(6, orderedPlayers.length)] || [9, 6, 5, 4, 3, 2];
+
+    const ranks =
+        tossRanksByCount[Math.min(6, orderedPlayers.length)] ||
+        [9, 6, 5, 4, 3, 2];
+
     const suits = ["♣", "♦", "♥", "♠", "♣", "♦"];
-    const tossCards = orderedPlayers.map((_, i) => `${ranks[i] ?? Math.max(2, 9 - i)}${suits[i % suits.length]}`);
+
+    const tossCards = orderedPlayers.map(
+        (_, i) => `${ranks[i] ?? Math.max(2, 9 - i)}${suits[i % suits.length]}`
+    );
+
+    // =====================================================
+    // SOURCE: STOCK CARD
+    // =====================================================
 
     const sourceRect = stock.getBoundingClientRect();
+
     const sourceX = sourceRect.left + sourceRect.width / 2;
     const sourceY = sourceRect.top + sourceRect.height / 2;
-    const canAnimate = typeof Element.prototype.animate === "function" &&
-        !(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+
+    const canAnimate =
+        typeof Element.prototype.animate === "function" &&
+        !(
+            window.matchMedia &&
+            window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        );
+
     const tossFlyers = [];
 
-    for (let seatIndex = 0; seatIndex < orderedPlayers.length; seatIndex++) {
+    // =====================================================
+    // CREATE ALL PLAYER CARDS FIRST
+    // Do not animate inside this loop.
+    // =====================================================
+
+    for (
+        let seatIndex = 0;
+        seatIndex < orderedPlayers.length;
+        seatIndex++
+    ) {
         const player = orderedPlayers[seatIndex];
+
         let target = null;
-        const isMe = String(player.user_id).toLowerCase() === String(state.userId).toLowerCase();
+
+        const isMe =
+            String(player.user_id).toLowerCase() ===
+            String(state.userId).toLowerCase();
 
         if (isMe) {
-            target = document.getElementById("myInfo") || document.querySelector(".my-player-panel");
+            target =
+                document.getElementById("myInfo") ||
+                document.querySelector(".my-player-panel");
         } else {
-            // Keep the established visual-seat mapping; only the toss order changes.
-            let relative = Number(player.fixed_seat_no) - Number(state.fixedSeatNo);
+            // Preserve existing visual-seat mapping.
+            let relative =
+                Number(player.fixed_seat_no) -
+                Number(state.fixedSeatNo);
+
             if (relative < 0) relative += 6;
-            const targetIdByRelativeSeat = { 1: "opp4", 2: "opp2", 3: "opp1", 4: "opp3", 5: "opp5" };
-            target = document.getElementById(targetIdByRelativeSeat[relative]);
+
+            const targetIdByRelativeSeat = {
+                1: "opp4",
+                2: "opp2",
+                3: "opp1",
+                4: "opp3",
+                5: "opp5"
+            };
+
+            target = document.getElementById(
+                targetIdByRelativeSeat[relative]
+            );
         }
 
         if (!target) continue;
+
         const targetRect = target.getBoundingClientRect();
+
         if (!targetRect.width || !targetRect.height) continue;
 
-        // Larger face-up toss card for easy reading on mobile and desktop.
+        // Larger face-up toss card.
         const cardWidth = 64;
         const cardHeight = 90;
+
         const cardValue = tossCards[seatIndex];
-        const isRed = cardValue.includes("♥") || cardValue.includes("♦");
+
+        const isRed =
+            cardValue.includes("♥") ||
+            cardValue.includes("♦");
+
         const flyer = document.createElement("div");
+
         flyer.setAttribute("aria-hidden", "true");
+
         Object.assign(flyer.style, {
             position: "fixed",
             left: `${sourceX - cardWidth / 2}px`,
@@ -8527,37 +8610,92 @@ async function animateInitialSeatCardDistribution(players) {
             fontSize: "30px",
             lineHeight: "1"
         });
+
         flyer.textContent = cardValue;
+
         document.body.appendChild(flyer);
+
+        const dx =
+            targetRect.left + targetRect.width / 2 - sourceX;
+
+        const dy =
+            targetRect.top + targetRect.height / 2 - sourceY;
+
+        // Save each destination for simultaneous animation.
+        flyer.dataset.dx = String(dx);
+        flyer.dataset.dy = String(dy);
+
         tossFlyers.push(flyer);
-
-        const dx = targetRect.left + targetRect.width / 2 - sourceX;
-        const dy = targetRect.top + targetRect.height / 2 - sourceY;
-        if (canAnimate) {
-            try {
-                const flight = flyer.animate([
-                    { transform: "translate3d(0,0,0) scale(.72) rotate(0deg)", opacity: 1 },
-                    { transform: `translate3d(${dx * .62}px,${dy * .62 - 18}px,0) scale(.92) rotate(7deg)`, opacity: 1, offset: .68 },
-                    { transform: `translate3d(${dx}px,${dy}px,0) scale(.9) rotate(0deg)`, opacity: 1 }
-                ], { duration: 1000, easing: "cubic-bezier(.2,.72,.22,1)", fill: "forwards" });
-                window.setTimeout(playDealTick, 40);
-                await flight.finished.catch(() => {});
-            } catch (_) {
-                await new Promise(resolve => setTimeout(resolve, 1000));
-            }
-        } else {
-            await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-
-        // Keep each toss card visible while the next player receives theirs.
-        await new Promise(resolve => setTimeout(resolve, 1000));
     }
 
-    // Hold the complete toss result briefly, then clear only the animation cards.
+    // =====================================================
+    // ANIMATE ALL CARDS SIMULTANEOUSLY
+    // =====================================================
+
+    const tossFlightPromises = tossFlyers.map(flyer => {
+        const dx = Number(flyer.dataset.dx || 0);
+        const dy = Number(flyer.dataset.dy || 0);
+
+        if (canAnimate) {
+            try {
+                const flight = flyer.animate(
+                    [
+                        {
+                            transform:
+                                "translate3d(0,0,0) scale(.72) rotate(0deg)",
+                            opacity: 1
+                        },
+                        {
+                            transform:
+                                `translate3d(${dx * .62}px,${dy * .62 - 18}px,0) scale(.92) rotate(7deg)`,
+                            opacity: 1,
+                            offset: .68
+                        },
+                        {
+                            transform:
+                                `translate3d(${dx}px,${dy}px,0) scale(.9) rotate(0deg)`,
+                            opacity: 1
+                        }
+                    ],
+                    {
+                        duration: 300,
+                        easing: "cubic-bezier(.2,.72,.22,1)",
+                        fill: "forwards"
+                    }
+                );
+
+                return flight.finished.catch(() => {});
+            } catch (_) {}
+        }
+
+        return new Promise(resolve => setTimeout(resolve, 300));
+    });
+
+    // Play one tick for the simultaneous toss.
+    try {
+        playDealTick();
+    } catch (_) {}
+
+    // Wait for every card to finish its flight.
+    await Promise.all(tossFlightPromises);
+
+    // =====================================================
+    // KEEP ALL TOSS CARDS VISIBLE TOGETHER
+    // =====================================================
+
     await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // =====================================================
+    // CLEAN UP TOSS CARDS
+    // =====================================================
+
     tossFlyers.forEach(flyer => flyer.remove());
-    try { localStorage.setItem(animationKey, "1"); } catch (_) {}
+
+    try {
+        localStorage.setItem(animationKey, "1");
+    } catch (_) {}
 }
+
 
 async function loadLobbyState() {
 
