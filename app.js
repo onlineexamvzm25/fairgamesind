@@ -4312,7 +4312,7 @@ function startDealBackupTimer() {
         } finally {
             dealBackupInProgress = false;
         }
-    }, 6000);
+    }, 1000);
 }
 
 // Animate the selected hand card from any group onto the open pile.
