@@ -1561,6 +1561,29 @@
                     OFFLINE
                 </span>
             </div>
+            <button
+                id="btnVoiceMic"
+                type="button"
+                title="Microphone is off"
+                aria-label="Turn microphone on"
+                aria-pressed="false"
+                style="
+                    width:30px;
+                    height:30px;
+                    padding:3px;
+                    margin-left:5px;
+                    border:1px solid rgba(255,255,255,0.4);
+                    border-radius:50%;
+                    background:#444;
+                    color:white;
+                    font-size:17px;
+                    cursor:pointer;
+                    display:flex;
+                    align-items:center;
+                    justify-content:center;
+                ">
+                🎙
+            </button>
 
             <div id="declarationTimer"></div>
 
@@ -1964,7 +1987,9 @@
 })();
 </script>
 
-<script src="app.js?v=physicaltiktik20261018"></script>
+<script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js"></script>
+
+<script src="app.js"></script>
   <script src="responsive.js"></script>
 </body>
 </html>

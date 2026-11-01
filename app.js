@@ -4690,6 +4690,7 @@ async function handleTableCompleted(data)
 
 
     state.tableCompleted = true;
+    await disconnectCrdgVoice();
 
     // POINTS heartbeat is no longer required.
     stopPointsHeartbeat();
@@ -4795,8 +4796,9 @@ async function handleTableCompleted(data)
 }
 
 
-function goToHome()
+async function goToHome()
 {
+    await disconnectCrdgVoice();
     window.location.replace("index.html");
 }
 
@@ -7302,6 +7304,7 @@ async function handleEliminatedPlayer() {
     }
 
     state.eliminationRedirecting = true;
+    await disconnectCrdgVoice();
     state.myTurn = false;
 
     // Remove this player's saved active-game pointer before redirecting.
@@ -9240,6 +9243,229 @@ async function hostStartGame() {
 
 
 
+// =====================================================
+// LIVEKIT VOICE CHAT
+// =====================================================
+
+let crdgVoiceRoom = null;
+let crdgVoiceConnecting = false;
+let crdgVoiceMicEnabled = false;
+
+function updateVoiceMicButton(enabled, message) {
+    const btn = document.getElementById("btnVoiceMic");
+    if (!btn) return;
+
+    crdgVoiceMicEnabled = enabled;
+
+    btn.style.background = enabled ? "#168b45" : "#444";
+    btn.style.borderColor = enabled ? "#65e69a" : "rgba(255,255,255,0.4)";
+    btn.style.color = "#fff";
+
+    btn.innerText = enabled ? "🎙" : "🎙";
+    btn.title = message;
+    btn.setAttribute("aria-pressed", String(enabled));
+    btn.setAttribute(
+        "aria-label",
+        enabled ? "Mute microphone" : "Turn microphone on"
+    );
+}
+
+async function connectCrdgVoice() {
+
+    if (crdgVoiceRoom || crdgVoiceConnecting) return;
+
+    if (!window.LivekitClient) {
+        console.error("LiveKit SDK is not loaded");
+        return;
+    }
+
+    if (!state.activeGameRegistered) {
+        console.warn("Voice connection blocked: active game not registered");
+        return;
+    }
+
+    crdgVoiceConnecting = true;
+
+    try {
+        const sessionToken =
+            localStorage.getItem("crdgn_session_token");
+
+        if (!sessionToken) {
+            throw new Error("Login session token not found");
+        }
+
+        const { data, error } =
+            await supabaseClient.functions.invoke(
+                "crdg_voice_token",
+                {
+                    body: {
+                        sessionToken: sessionToken,
+                        gameUserId: state.userId,
+                        tableId: state.tableId,
+                        sessionId: state.sessionId
+                    }
+                }
+            );
+
+        if (error) throw error;
+
+        if (!data || data.success !== true) {
+            throw new Error(
+                data?.message || "Unable to obtain voice token"
+            );
+        }
+
+        const room = new LivekitClient.Room();
+
+        room.on(
+            LivekitClient.RoomEvent.TrackSubscribed,
+            (track, publication, participant) => {
+
+                if (track.kind === "audio") {
+                    const audioElement = track.attach();
+                    audioElement.autoplay = true;
+                    document.body.appendChild(audioElement);
+
+                    console.log(
+                        "Voice received from:",
+                        participant.name
+                    );
+                }
+            }
+        );
+
+        room.on(
+            LivekitClient.RoomEvent.TrackUnsubscribed,
+            (track) => {
+                track.detach().forEach(element => element.remove());
+            }
+        );
+
+        room.on(
+            LivekitClient.RoomEvent.Disconnected,
+            () => {
+                console.log("LiveKit disconnected");
+                crdgVoiceRoom = null;
+                updateVoiceMicButton(false, "Voice disconnected");
+            }
+        );
+
+        room.on(
+            LivekitClient.RoomEvent.AudioPlaybackStatusChanged,
+            () => {
+                if (!room.canPlaybackAudio) {
+                    console.warn("Voice audio needs user interaction");
+                }
+            }
+        );
+
+        await room.connect(data.url, data.token);
+
+        crdgVoiceRoom = room;
+
+        // Join with microphone OFF.
+        await room.localParticipant.setMicrophoneEnabled(false);
+
+        updateVoiceMicButton(false, "Voice connected — microphone muted");
+
+        console.log(
+            "Rummy voice connected:",
+            data.roomName,
+            data.participantName
+        );
+
+    } catch (error) {
+        console.error("Rummy voice connection failed:", error);
+
+        updateVoiceMicButton(
+            false,
+            "Voice connection failed"
+        );
+
+    } finally {
+        crdgVoiceConnecting = false;
+    }
+}
+
+
+async function disconnectCrdgVoice() {
+
+    const room = crdgVoiceRoom;
+
+    // Clear the reference immediately to prevent duplicate operations.
+    crdgVoiceRoom = null;
+    crdgVoiceMicEnabled = false;
+
+    updateVoiceMicButton(false, "Voice disconnected");
+
+    if (!room) return;
+
+    try {
+        await room.disconnect();
+        console.log("Rummy voice disconnected");
+    } catch (error) {
+        console.error("Voice disconnection failed:", error);
+    }
+}
+
+
+
+// =====================================================
+// MICROPHONE BUTTON
+// =====================================================
+
+document.addEventListener("DOMContentLoaded", () => {
+
+    const btn = document.getElementById("btnVoiceMic");
+
+    if (!btn) {
+        console.warn("Voice microphone button not found");
+        return;
+    }
+
+    updateVoiceMicButton(false, "Microphone muted");
+
+    btn.addEventListener("click", async () => {
+
+        if (!crdgVoiceRoom) {
+            alert("Voice is not connected yet. Please wait.");
+            return;
+        }
+
+        try {
+            // Also handles browsers that require a user gesture
+            // before remote audio playback can begin.
+            if (!crdgVoiceRoom.canPlaybackAudio) {
+                await crdgVoiceRoom.startAudio();
+            }
+
+            const enableMic = !crdgVoiceMicEnabled;
+
+            await crdgVoiceRoom.localParticipant
+                .setMicrophoneEnabled(enableMic);
+
+            updateVoiceMicButton(
+                enableMic,
+                enableMic ? "Microphone ON — tap to mute" :
+                            "Microphone OFF — tap to speak"
+            );
+
+        } catch (error) {
+            console.error("Microphone operation failed:", error);
+
+            updateVoiceMicButton(
+                false,
+                "Microphone unavailable"
+            );
+
+            alert("Unable to access microphone. Check microphone permission.");
+        }
+    });
+
+});
+
+
+
 async function enterGame(){
 
   if (gameEntered) return;
@@ -9312,6 +9538,17 @@ async function enterGame(){
   ) {
       await setActiveGame();
   }
+
+    // Connect voice only after active-game registration succeeds.
+  if (
+      state.activeGameRegistered &&
+      state.playerStatus !== "ELIMINATED" &&
+      state.tableCompleted !== true
+  ) {
+      connectCrdgVoice();
+  }
+
+
 
   subscribeRealtime();
   startPointsHeartbeat();
