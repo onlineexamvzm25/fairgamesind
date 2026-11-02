@@ -9472,13 +9472,13 @@ function setCrdgVoiceSpeaker(enabled) {
     });
 
     // 2. Control card pickup sound.
-    pickupSound.muted = !enabled;
+   // pickupSound.muted = !enabled;
 
     // 3. Control card discard sound.
-    discardSound.muted = !enabled;
+   // discardSound.muted = !enabled;
 
     // 4. Control turn countdown sound.
-    turnTickAudio.muted = !enabled;
+   // turnTickAudio.muted = !enabled;
 
     // Immediately stop currently playing game sounds when OFF.
     if (!enabled) {
