@@ -9322,8 +9322,16 @@ async function connectCrdgVoice() {
             (track, publication, participant) => {
 
                 if (track.kind === "audio") {
+
                     const audioElement = track.attach();
+
                     audioElement.autoplay = true;
+
+                    // Respect the current speaker ON/OFF setting.
+                    audioElement.muted = !crdgVoiceSpeakerEnabled;
+
+                    crdgVoiceAudioElements.add(audioElement);
+
                     document.body.appendChild(audioElement);
 
                     console.log(
@@ -9337,7 +9345,13 @@ async function connectCrdgVoice() {
         room.on(
             LivekitClient.RoomEvent.TrackUnsubscribed,
             (track) => {
-                track.detach().forEach(element => element.remove());
+
+                track.detach().forEach(element => {
+
+                    crdgVoiceAudioElements.delete(element);
+
+                    element.remove();
+                });
             }
         );
 
@@ -9409,6 +9423,78 @@ async function disconnectCrdgVoice() {
 }
 
 
+// Incoming voice audio control
+let crdgVoiceSpeakerEnabled = true;
+let crdgVoiceAudioElements = new Set();
+
+function updateVoiceSpeakerButton() {
+
+    const btn = document.getElementById("btnVoiceSpeaker");
+    if (!btn) return;
+
+    btn.style.background =
+        crdgVoiceSpeakerEnabled ? "#168b45" : "#444";
+
+    btn.style.borderColor =
+        crdgVoiceSpeakerEnabled
+            ? "#65e69a"
+            : "rgba(255,255,255,0.4)";
+
+    btn.innerText =
+        crdgVoiceSpeakerEnabled ? "🔊" : "🔇";
+
+    btn.title =
+        crdgVoiceSpeakerEnabled
+            ? "Voice Chat ON"
+            : "Voice Chat OFF";
+
+    btn.setAttribute(
+        "aria-pressed",
+        String(crdgVoiceSpeakerEnabled)
+    );
+
+    btn.setAttribute(
+        "aria-label",
+        crdgVoiceSpeakerEnabled
+            ? "Turn voice chat off"
+            : "Turn voice chat on"
+    );
+}
+
+
+function setCrdgVoiceSpeaker(enabled) {
+
+    crdgVoiceSpeakerEnabled = enabled;
+
+    // 1. Control incoming voice from other players.
+    crdgVoiceAudioElements.forEach(audio => {
+        audio.muted = !enabled;
+    });
+
+    // 2. Control card pickup sound.
+    pickupSound.muted = !enabled;
+
+    // 3. Control card discard sound.
+    discardSound.muted = !enabled;
+
+    // 4. Control turn countdown sound.
+    turnTickAudio.muted = !enabled;
+
+    // Immediately stop currently playing game sounds when OFF.
+    if (!enabled) {
+
+        [pickupSound, discardSound, turnTickAudio].forEach(audio => {
+
+            audio.pause();
+            audio.currentTime = 0;
+
+        });
+    }
+
+    updateVoiceSpeakerButton();
+}
+
+
 
 // =====================================================
 // MICROPHONE BUTTON
@@ -9417,6 +9503,20 @@ async function disconnectCrdgVoice() {
 document.addEventListener("DOMContentLoaded", () => {
 
     const btn = document.getElementById("btnVoiceMic");
+
+    const speakerBtn =
+        document.getElementById("btnVoiceSpeaker");
+
+    if (speakerBtn) {
+
+        updateVoiceSpeakerButton();
+
+        speakerBtn.addEventListener("click", () => {
+
+            setCrdgVoiceSpeaker(!crdgVoiceSpeakerEnabled);
+
+        });
+    }
 
     if (!btn) {
         console.warn("Voice microphone button not found");
