@@ -4805,6 +4805,40 @@ async function goToHome()
 
 async function showTableCompletedScreen(data)
 {
+
+
+        // ==================================================
+    // POINTS GAME - SIMPLE TABLE COMPLETION SCREEN
+    // ==================================================
+
+    if (IS_POINTS) {
+
+        const screen = document.getElementById(
+            "tableCompletedScreen"
+        );
+
+        if (!screen) {
+            return;
+        }
+
+        // Hide trophy, player scores and thank-you message.
+        const elementsToHide = [
+            screen.querySelector(".trophy"),
+            screen.querySelector(".table-scroll"),
+            screen.querySelector("p")
+        ];
+
+        elementsToHide.forEach(element => {
+            if (element) {
+                element.style.display = "none";
+            }
+        });
+
+        // Show only heading and HOME button.
+        screen.style.display = "flex";
+
+        return;
+    }
     const tbody =
         document.getElementById(
             "finalScoreBody"
