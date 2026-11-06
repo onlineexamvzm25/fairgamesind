@@ -2549,3 +2549,62 @@ body.mobile-game-mode .game-stage {
     height: 34px !important;
     padding: 0 !important;
 }
+
+/* =====================================================
+   CRDG FRIENDS — MOBILE HISTORY WIDTH FIX
+   Desktop layout remains unchanged.
+===================================================== */
+
+body.mobile-game-mode .topbar {
+    display: grid !important;
+
+    grid-template-columns:
+        2.7fr
+        2.7fr
+        2.7fr
+        2.7fr
+        1.8fr
+        4.4fr !important;
+
+    width: 100% !important;
+    min-width: 0 !important;
+}
+
+/* HISTORY CONTAINER */
+body.mobile-game-mode .topbar-history {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+
+    width: 100% !important;
+    min-width: 0 !important;
+
+    gap: 8px !important;
+    padding: 0 6px !important;
+}
+
+/* HISTORY BUTTON */
+body.mobile-game-mode #btnHistory {
+    flex: 1 1 0 !important;
+
+    width: 0 !important;
+    min-width: 0 !important;
+
+    height: 34px !important;
+    padding: 0 8px !important;
+
+    font-size: 14px !important;
+    font-weight: 900 !important;
+}
+
+/* REFRESH BUTTON */
+body.mobile-game-mode #btnGameRefresh {
+    flex: 0 0 42px !important;
+
+    width: 42px !important;
+    min-width: 42px !important;
+    max-width: 42px !important;
+
+    height: 34px !important;
+    padding: 0 !important;
+}
