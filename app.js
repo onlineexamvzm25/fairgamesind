@@ -4690,6 +4690,7 @@ async function handleTableCompleted(data)
 
 
     state.tableCompleted = true;
+    clearActiveTurnSeatDisplay();
     await disconnectCrdgVoice();
 
     // POINTS heartbeat is no longer required.
@@ -5608,6 +5609,7 @@ async function loadSessionInfo() {
 
 
             state.resultWindowOpened = true;
+            clearActiveTurnSeatDisplay();
 
             hideBaseTableHand();
 
@@ -8160,6 +8162,19 @@ async function processTurnTimeout() {
     }
 }
 
+// Remove the active-turn highlight from every seat.
+// The highlight is reapplied by loadPlayers() using the authoritative turn seat.
+function clearActiveTurnSeatDisplay() {
+    document
+        .querySelectorAll(".opponent-seat.active-turn-seat")
+        .forEach(element => element.classList.remove("active-turn-seat"));
+
+    document
+        .getElementById("myInfo")
+        ?.classList.remove("active-turn-self");
+}
+
+
 async function loadPlayers(playersData = null) {
 
     let dlr_name = "YOU";
@@ -8185,6 +8200,9 @@ async function loadPlayers(playersData = null) {
     }
 
     if (!data) return;
+
+    // Seats are rebuilt on every player refresh; remove the previous turn glow first.
+    clearActiveTurnSeatDisplay();
 
             // =================================================
         // UPDATE TOP BAR POT
@@ -8359,6 +8377,22 @@ async function loadPlayers(playersData = null) {
         </div>
         ${statusHtml}
         `;
+
+        // Show the same active-turn highlight on every connected player's screen.
+        // The local player uses #myPlayerPanel; opponents use their mapped seat box.
+        const turnDisplayAllowed =
+            !state.tableCompleted &&
+            !state.resultWindowOpened &&
+            !state.declarationMode &&
+            Number.isFinite(Number(state.currentTurnSeat)) &&
+            Number(state.currentTurnSeat) > 0;
+
+        if (
+            turnDisplayAllowed &&
+            Number(player.seat_no) === Number(state.currentTurnSeat)
+        ) {
+            targetEl.classList.add("active-turn-seat");
+        }
     });
    
     let myIcons = "";
@@ -8375,6 +8409,16 @@ async function loadPlayers(playersData = null) {
     ).innerHTML =
         `You ${myIcons}`;
 
+    const mySeatIsActive =
+        !state.tableCompleted &&
+        !state.resultWindowOpened &&
+        !state.declarationMode &&
+        Number(state.seatNo) === Number(state.currentTurnSeat) &&
+        Number(state.currentTurnSeat) > 0;
+
+    // Keep the local player's turn indicator compact: animate only "You".
+    const myInfoElement = document.getElementById("myInfo");
+    myInfoElement?.classList.toggle("active-turn-self", mySeatIsActive);
 
 
         // =====================================================
@@ -10072,6 +10116,11 @@ async function declareGame() {
         return;
     }
 
+    // The server accepted the declaration. Stop the active-seat animation
+    // immediately, before the remaining local UI/score work completes.
+    state.declarationMode = true;
+    clearActiveTurnSeatDisplay();
+
     // Remember the declaration card for refresh/reconnect handling.
     try {
         const declarationStorageKey =
@@ -10131,7 +10180,6 @@ async function declareGame() {
     await calculateDealScore();
 
     // Enter the declarer's waiting state.
-    state.declarationMode = true;
     state.declarationTimerStarted = true;
 
     clearDeclarationTimerDisplay();

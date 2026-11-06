@@ -247,6 +247,70 @@ button {
   color: white;
   text-align: center;
 }
+
+/* ACTIVE TURN — red and gold highlight follows the database turn seat */
+.opponent-seat.active-turn-seat {
+    position: relative;
+    z-index: 5;
+    border: 2px solid #f5c542 !important;
+    background: linear-gradient(135deg, #681010, #b51f1f 55%, #681010) !important;
+    color: #fff !important;
+    box-shadow:
+        0 0 5px rgba(255, 205, 65, .95),
+        0 0 13px rgba(255, 35, 35, .9),
+        inset 0 0 10px rgba(255, 205, 65, .22);
+    animation: crdgActiveTurnPulse 1.15s ease-in-out infinite;
+}
+
+/* Local player's turn: animate only the YOU label, not the full score/action bar. */
+#myInfo.active-turn-self {
+    color: #fff !important;
+    text-shadow:
+        0 0 4px rgba(255, 220, 100, .95),
+        0 0 9px rgba(255, 35, 35, .95),
+        0 0 16px rgba(255, 205, 65, .8);
+    animation: crdgActiveTurnTextPulse 1.15s ease-in-out infinite;
+}
+
+@keyframes crdgActiveTurnTextPulse {
+    0%, 100% {
+        text-shadow:
+            0 0 3px rgba(255, 220, 100, .75),
+            0 0 7px rgba(255, 35, 35, .7);
+        filter: brightness(1);
+    }
+    50% {
+        text-shadow:
+            0 0 6px rgba(255, 235, 150, 1),
+            0 0 12px rgba(255, 35, 35, 1),
+            0 0 19px rgba(255, 205, 65, .95);
+        filter: brightness(1.25);
+    }
+}
+
+@keyframes crdgActiveTurnPulse {
+    0%, 100% {
+        box-shadow:
+            0 0 4px rgba(255, 205, 65, .75),
+            0 0 9px rgba(255, 35, 35, .65),
+            inset 0 0 7px rgba(255, 205, 65, .15);
+        filter: brightness(1);
+    }
+    50% {
+        box-shadow:
+            0 0 8px rgba(255, 220, 100, 1),
+            0 0 20px rgba(255, 35, 35, 1),
+            inset 0 0 13px rgba(255, 220, 100, .32);
+        filter: brightness(1.2);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .opponent-seat.active-turn-seat,
+    #myInfo.active-turn-self {
+        animation: none;
+    }
+}
 #opp1 {
     top: 4px;
     left: 50%;
@@ -558,24 +622,6 @@ button {
 
 .player-discard-button:hover {
     background: #4ba7ff;
-}
-
-/* HISTORY BUTTON — positioned after Discard in the player row */
-.player-history-button {
-    flex: 0 0 140px;
-    width: 140px;
-    min-width: 140px;
-    height: 56px;
-    padding: 0 10px;
-    margin: 0;
-    border: none;
-    border-radius: 9px;
-    background: #214bd5;
-    color: #fff;
-    font-size: 20px;
-    font-weight: 900;
-    white-space: nowrap;
-    cursor: pointer;
 }
 
 .drop-status {
@@ -1355,6 +1401,41 @@ body.mobile-game-mode .game-stage {
 
 
 /* ========================================
+   HISTORY
+======================================== */
+
+.topbar-history {
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    width: 100%;
+    height: 36px;
+
+    white-space: nowrap;
+}
+
+
+.topbar-history button {
+    border: none;
+
+    background: transparent;
+    color: white;
+
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 800;
+
+    cursor: pointer;
+
+    padding: 0 8px;
+
+    width: 100%;
+    height: 34px;
+}
+
+/* ========================================
    MOBILE LANDSCAPE REQUIREMENT
 ======================================== */
 
@@ -1504,6 +1585,22 @@ body.mobile-game-mode .game-stage {
     font-weight: bold;
 
     cursor: pointer;
+}
+
+#btnHistory {
+    width: 100%;
+    height: 36px;
+
+    padding: 0 8px;
+
+    margin: 0;
+
+    border: none;
+
+    font-size: 14px;
+    font-weight: 800;
+
+    white-space: nowrap;
 }
 
 .open-history-card {
@@ -2473,4 +2570,223 @@ body.mobile-game-mode .game-stage {
     #lastDealHistoryPopup .last-deal-result-table td:nth-child(2) { min-width: 330px; }
     #lastDealHistoryPopup .last-deal-result-table .result-card { flex-basis: 27px; width: 27px; min-width: 27px; max-width: 27px; height: 38px; }
     #lastDealHistoryPopup .last-deal-result-table .result-card-group .result-card + .result-card { margin-left: -10px; }
+}
+/* ============================================
+   CRDG FRIENDS — TOPBAR WIDTH ADJUSTMENT
+============================================ */
+
+.topbar {
+    grid-template-columns:
+        3fr
+        3fr
+        3fr
+        3fr
+        2.55fr
+        3.45fr !important;
+}
+
+/* HISTORY SECTION */
+.topbar-section.topbar-history {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+    padding: 0 5px !important;
+    min-width: 0 !important;
+    width: 100% !important;
+}
+
+/* HISTORY BUTTON */
+.topbar-history #btnHistory {
+    flex: 1 1 auto !important;
+    width: auto !important;
+    min-width: 0 !important;
+    height: 34px !important;
+    padding: 0 10px !important;
+}
+
+/* REFRESH BUTTON */
+.topbar-history #btnGameRefresh {
+    flex: 0 0 42px !important;
+    width: 42px !important;
+    min-width: 42px !important;
+    height: 34px !important;
+    padding: 0 !important;
+}
+
+/* =====================================================
+   CRDG FRIENDS — MOBILE HISTORY WIDTH FIX
+   Desktop layout remains unchanged.
+===================================================== */
+
+body.mobile-game-mode .topbar {
+    display: grid !important;
+
+    grid-template-columns:
+        2.7fr
+        2.7fr
+        2.7fr
+        2.7fr
+        1.8fr
+        4.4fr !important;
+
+    width: 100% !important;
+    min-width: 0 !important;
+}
+
+/* HISTORY CONTAINER */
+body.mobile-game-mode .topbar-history {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+
+    width: 100% !important;
+    min-width: 0 !important;
+
+    gap: 8px !important;
+    padding: 0 6px !important;
+}
+
+/* REFRESH BUTTON */
+body.mobile-game-mode #btnGameRefresh {
+    flex: 0 0 42px !important;
+
+    width: 42px !important;
+    min-width: 42px !important;
+    max-width: 42px !important;
+
+    height: 34px !important;
+    padding: 0 !important;
+}
+
+/* HISTORY BUTTON */
+.player-history-button {
+    flex: 0 0 140px;
+    width: 140px;
+    min-width: 140px;
+    height: 56px;
+
+    background: #214bd5;
+    color: white;
+
+    border-radius: 9px;
+    font-size: 23px;
+    font-weight: 900;
+}
+
+/* MOBILE */
+body.mobile-game-mode .player-history-button {
+    flex: 0 0 140px !important;
+    width: 140px !important;
+    min-width: 140px !important;
+    height: 56px !important;
+}
+/* ==========================================
+   FIX MOBILE HISTORY BUTTON OVERLAPPING
+========================================== */
+
+.my-player-details {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-wrap: nowrap !important;
+    gap: 20px !important;
+}
+
+/* HISTORY BUTTON — NEVER SHRINK */
+.my-player-details #btnHistory {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+
+    flex: 0 0 140px !important;
+
+    width: 140px !important;
+    min-width: 140px !important;
+    max-width: 140px !important;
+
+    height: 56px !important;
+
+    padding: 0 10px !important;
+
+    box-sizing: border-box !important;
+    white-space: nowrap !important;
+
+    background: #214bd5 !important;
+    color: white !important;
+
+    border-radius: 9px !important;
+
+    font-size: 20px !important;
+    font-weight: 900 !important;
+
+    position: relative !important;
+    z-index: 5 !important;
+}
+
+/* KEEP PLAYER NAME SEPARATE */
+.my-player-details #myInfo {
+    flex: 0 0 auto !important;
+    white-space: nowrap !important;
+}
+
+/* ==============================================
+   FINAL FIX — HISTORY BUTTON MOBILE FLEX WRAPPER
+   ============================================== */
+
+body.mobile-game-mode .my-player-details {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 20px !important;
+}
+
+/* FIX THE OUTER DIV — ACTUAL FLEX ITEM */
+body.mobile-game-mode .my-player-details > div:first-child {
+    display: flex !important;
+
+    flex: 0 0 140px !important;
+
+    width: 140px !important;
+    min-width: 140px !important;
+    max-width: 140px !important;
+
+    flex-shrink: 0 !important;
+}
+
+/* HISTORY BUTTON */
+body.mobile-game-mode .my-player-details > div:first-child #btnHistory {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+
+    flex: 0 0 100% !important;
+
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+
+    height: 56px !important;
+    padding: 0 8px !important;
+    margin: 0 !important;
+
+    box-sizing: border-box !important;
+
+    background: #214bd5 !important;
+    color: #ffffff !important;
+
+    border-radius: 9px !important;
+
+    font-size: 20px !important;
+    font-weight: 900 !important;
+
+    white-space: nowrap !important;
+}
+
+/* PLAYER NAME */
+body.mobile-game-mode #myInfo {
+    flex: 0 0 auto !important;
+    white-space: nowrap !important;
 }
