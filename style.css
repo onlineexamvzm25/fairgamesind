@@ -2513,12 +2513,12 @@ body.mobile-game-mode .game-stage {
 
 .topbar {
     grid-template-columns:
-        2fr
-        2fr
-        2fr
-        2fr
-        1.55fr
-        2.45fr !important;
+        3fr
+        3fr
+        3fr
+        3fr
+        2.55fr
+        3.45fr !important;
 }
 
 /* HISTORY SECTION */
