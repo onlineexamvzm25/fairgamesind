@@ -2631,3 +2631,51 @@ body.mobile-game-mode .player-history-button {
     min-width: 140px !important;
     height: 56px !important;
 }
+/* ==========================================
+   FIX MOBILE HISTORY BUTTON OVERLAPPING
+========================================== */
+
+.my-player-details {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-wrap: nowrap !important;
+    gap: 20px !important;
+}
+
+/* HISTORY BUTTON — NEVER SHRINK */
+.my-player-details #btnHistory {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+
+    flex: 0 0 140px !important;
+
+    width: 140px !important;
+    min-width: 140px !important;
+    max-width: 140px !important;
+
+    height: 56px !important;
+
+    padding: 0 10px !important;
+
+    box-sizing: border-box !important;
+    white-space: nowrap !important;
+
+    background: #214bd5 !important;
+    color: white !important;
+
+    border-radius: 9px !important;
+
+    font-size: 20px !important;
+    font-weight: 900 !important;
+
+    position: relative !important;
+    z-index: 5 !important;
+}
+
+/* KEEP PLAYER NAME SEPARATE */
+.my-player-details #myInfo {
+    flex: 0 0 auto !important;
+    white-space: nowrap !important;
+}
