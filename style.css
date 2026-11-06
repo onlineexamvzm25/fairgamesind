@@ -2608,3 +2608,26 @@ body.mobile-game-mode #btnGameRefresh {
     height: 34px !important;
     padding: 0 !important;
 }
+
+/* HISTORY BUTTON */
+.player-history-button {
+    flex: 0 0 140px;
+    width: 140px;
+    min-width: 140px;
+    height: 56px;
+
+    background: #214bd5;
+    color: white;
+
+    border-radius: 9px;
+    font-size: 23px;
+    font-weight: 900;
+}
+
+/* MOBILE */
+body.mobile-game-mode .player-history-button {
+    flex: 0 0 140px !important;
+    width: 140px !important;
+    min-width: 140px !important;
+    height: 56px !important;
+}
