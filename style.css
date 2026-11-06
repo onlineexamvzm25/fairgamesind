@@ -2507,3 +2507,45 @@ body.mobile-game-mode .game-stage {
     #lastDealHistoryPopup .last-deal-result-table .result-card { flex-basis: 27px; width: 27px; min-width: 27px; max-width: 27px; height: 38px; }
     #lastDealHistoryPopup .last-deal-result-table .result-card-group .result-card + .result-card { margin-left: -10px; }
 }
+/* ============================================
+   CRDG FRIENDS — TOPBAR WIDTH ADJUSTMENT
+============================================ */
+
+.topbar {
+    grid-template-columns:
+        2fr
+        2fr
+        2fr
+        2fr
+        1.55fr
+        2.45fr !important;
+}
+
+/* HISTORY SECTION */
+.topbar-section.topbar-history {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+    padding: 0 5px !important;
+    min-width: 0 !important;
+    width: 100% !important;
+}
+
+/* HISTORY BUTTON */
+.topbar-history #btnHistory {
+    flex: 1 1 auto !important;
+    width: auto !important;
+    min-width: 0 !important;
+    height: 34px !important;
+    padding: 0 10px !important;
+}
+
+/* REFRESH BUTTON */
+.topbar-history #btnGameRefresh {
+    flex: 0 0 42px !important;
+    width: 42px !important;
+    min-width: 42px !important;
+    height: 34px !important;
+    padding: 0 !important;
+}
