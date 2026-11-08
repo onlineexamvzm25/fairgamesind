@@ -5355,31 +5355,43 @@ async function loadSessionInfo() {
     }
 
     // =====================================================
-        // MY TURN PICK ANIMATION
         // =====================================================
-        if (
-            state.currentTurnSeat === state.seatNo &&
-            state.hand.length === 13 &&
-            !state.pickedCard
-        ) {
-            state.myTurnPickAnimation = true;
-                // Mobile vibration
+        // LOCAL PLAYER PICK-PILE ANIMATION
+        // Blink only while THIS player can still pick a card.
+        // This is local-device UI; other players do not see it.
+        // =====================================================
+        const isMyActiveTurn =
+            Number(state.seatNo) > 0 &&
+            Number(state.seatNo) === Number(state.currentTurnSeat);
+
+        const localCardCount = getTotalCards();
+
+        const canLocalPlayerPick =
+            isMyActiveTurn &&
+            localCardCount === 13 &&
+            !state.declarationMode &&
+            !state.resultWindowOpened &&
+            !state.tableCompleted &&
+            !state.isDropped &&
+            !state.isEliminated;
+
+        state.myTurnPickAnimation = canLocalPlayerPick;
+
+        const openPileForAnimation = document.getElementById("openVisual");
+        const stockPileForAnimation = document.getElementById("stockCard");
+
+        openPileForAnimation?.classList.toggle(
+            "pick-card-pulse",
+            canLocalPlayerPick
+        );
+
+        stockPileForAnimation?.classList.toggle(
+            "pick-card-pulse",
+            canLocalPlayerPick
+        );
+
+        if (canLocalPlayerPick) {
             startMyTurnVibration();
-        }
-
-
-        // =====================================================
-        // START PICK CARD ANIMATION
-        // =====================================================
-        if (state.myTurnPickAnimation) {
-
-            document
-                .getElementById("openVisual")
-                .classList.add("pick-card-pulse");
-
-            document
-                .getElementById("stockCard")
-                .classList.add("pick-card-pulse");
         }
 
 

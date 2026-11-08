@@ -250,7 +250,6 @@ button {
 
 /* ACTIVE TURN — red and gold highlight follows the database turn seat */
 .opponent-seat.active-turn-seat {
-    position: relative;
     z-index: 5;
     border: 2px solid #f5c542 !important;
     background: linear-gradient(135deg, #681010, #b51f1f 55%, #681010) !important;
@@ -264,11 +263,19 @@ button {
 
 /* Local player's turn: animate only the YOU label, not the full score/action bar. */
 #myInfo.active-turn-self {
+    display: inline-block;
+    padding: 4px 10px;
+    border: 1px solid #f5c542;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #681010, #b51f1f 55%, #681010);
     color: #fff !important;
     text-shadow:
         0 0 4px rgba(255, 220, 100, .95),
         0 0 9px rgba(255, 35, 35, .95),
         0 0 16px rgba(255, 205, 65, .8);
+    box-shadow:
+        0 0 5px rgba(255, 205, 65, .85),
+        0 0 11px rgba(255, 35, 35, .75);
     animation: crdgActiveTurnTextPulse 1.15s ease-in-out infinite;
 }
 
