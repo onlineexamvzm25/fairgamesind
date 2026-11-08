@@ -2913,3 +2913,219 @@ body.mobile-game-mode #myInfo {
         min-height: 28px !important;
     }
 }
+
+
+/* =========================================================
+   CRDG FRIENDS — FINAL MOBILE GAME VIEWPORT + TOP BAR LAYOUT
+   Keep the 1280x720 game canvas intact for responsive.js.
+   Make the viewport fill the device and make the top bar's
+   six sections share space deliberately (no oversized History).
+========================================================= */
+
+html.mobile-game-mode,
+body.mobile-game-mode {
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+}
+
+body.mobile-game-mode .game-viewport {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100vw !important;
+    height: 100dvh !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    background: #000 !important;
+}
+
+body.mobile-game-mode .game-stage {
+    width: 1280px !important;
+    min-width: 1280px !important;
+    height: 720px !important;
+    overflow: hidden !important;
+    background: #000 !important;
+}
+
+/* The black playing surface occupies the full stage width below the bar. */
+body.mobile-game-mode .game-stage > .table {
+    width: 100% !important;
+    min-width: 0 !important;
+    height: calc(100% - 42px) !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+}
+
+/* Six top-bar sections:
+   Table | Game type | Pot | Turn | Timer | History + Refresh */
+body.mobile-game-mode .game-stage > .topbar {
+    display: grid !important;
+    grid-template-columns:
+        minmax(0, 2.35fr)
+        minmax(0, 1.85fr)
+        minmax(0, 1.45fr)
+        minmax(0, 1.75fr)
+        minmax(0, 0.95fr)
+        minmax(0, 1.85fr) !important;
+    grid-template-rows: 42px !important;
+    align-items: stretch !important;
+    justify-content: stretch !important;
+    width: 1280px !important;
+    min-width: 1280px !important;
+    max-width: 1280px !important;
+    height: 42px !important;
+    min-height: 42px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    gap: 0 !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+    background: #0d3b4f !important;
+    color: #fff !important;
+    white-space: nowrap !important;
+}
+
+body.mobile-game-mode .game-stage > .topbar > .topbar-section {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    height: 42px !important;
+    min-height: 42px !important;
+    margin: 0 !important;
+    padding: 0 5px !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+    border-right: 1px solid rgba(255,255,255,.18) !important;
+    font-size: 14px !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+    text-overflow: ellipsis !important;
+}
+
+body.mobile-game-mode .game-stage > .topbar .topbar-turn,
+body.mobile-game-mode .game-stage > .topbar .topbar-timer {
+    gap: 3px !important;
+}
+
+body.mobile-game-mode .game-stage > .topbar #tableIdDisplay,
+body.mobile-game-mode .game-stage > .topbar #topGameType,
+body.mobile-game-mode .game-stage > .topbar #topPot,
+body.mobile-game-mode .game-stage > .topbar #currentTurnPlayer,
+body.mobile-game-mode .game-stage > .topbar #turnTimer {
+    min-width: 0 !important;
+    white-space: nowrap !important;
+}
+
+body.mobile-game-mode .game-stage > .topbar #currentTurnPlayer,
+body.mobile-game-mode .game-stage > .topbar #turnTimer {
+    font-size: 16px !important;
+}
+
+/* History + Refresh share the last section without stretching History. */
+body.mobile-game-mode .game-stage > .topbar > .topbar-history {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 7px !important;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    padding: 0 7px !important;
+    overflow: hidden !important;
+    border-right: 0 !important;
+}
+
+body.mobile-game-mode .game-stage > .topbar > .topbar-history #btnHistory {
+    display: inline-flex !important;
+    flex: 1 1 auto !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    height: 34px !important;
+    min-height: 34px !important;
+    margin: 0 !important;
+    padding: 0 8px !important;
+    border: 1px solid rgba(255,255,255,.45) !important;
+    border-radius: 7px !important;
+    background: #214bd5 !important;
+    color: #fff !important;
+    font-size: 14px !important;
+    line-height: 1 !important;
+    font-weight: 900 !important;
+    white-space: nowrap !important;
+    pointer-events: auto !important;
+    touch-action: manipulation !important;
+    position: relative !important;
+    z-index: 50 !important;
+}
+
+body.mobile-game-mode .game-stage > .topbar > .topbar-history #btnGameRefresh {
+    display: inline-flex !important;
+    flex: 0 0 38px !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 38px !important;
+    min-width: 38px !important;
+    max-width: 38px !important;
+    height: 34px !important;
+    min-height: 34px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    font-size: 19px !important;
+    color: #fff !important;
+    background: transparent !important;
+    pointer-events: auto !important;
+    touch-action: manipulation !important;
+    position: relative !important;
+    z-index: 50 !important;
+}
+
+/* Small landscape phones: keep all six sections readable and avoid
+   text spilling across neighboring sections. The whole stage is scaled
+   by the existing responsive.js; these dimensions are stage coordinates. */
+@media screen and (orientation: landscape) and (max-width: 900px) {
+    body.mobile-game-mode .game-stage > .topbar > .topbar-section {
+        font-size: 13px !important;
+        padding-left: 3px !important;
+        padding-right: 3px !important;
+    }
+
+    body.mobile-game-mode .game-stage > .topbar > .topbar-history {
+        gap: 5px !important;
+        padding-left: 5px !important;
+        padding-right: 5px !important;
+    }
+
+    body.mobile-game-mode .game-stage > .topbar > .topbar-history #btnHistory {
+        height: 36px !important;
+        min-height: 36px !important;
+        font-size: 14px !important;
+        padding: 0 6px !important;
+    }
+
+    body.mobile-game-mode .game-stage > .topbar > .topbar-history #btnGameRefresh {
+        flex-basis: 36px !important;
+        width: 36px !important;
+        min-width: 36px !important;
+        max-width: 36px !important;
+        height: 36px !important;
+        min-height: 36px !important;
+    }
+}
+
+/* Wider mobile/tablet landscape: slightly larger touch targets. */
+@media screen and (orientation: landscape) and (min-width: 901px) and (max-width: 1200px) {
+    body.mobile-game-mode .game-stage > .topbar > .topbar-history #btnHistory {
+        height: 36px !important;
+        min-height: 36px !important;
+        font-size: 15px !important;
+    }
+}
