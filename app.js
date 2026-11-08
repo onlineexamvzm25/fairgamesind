@@ -1632,6 +1632,60 @@ function playDealTick() {
     }
 }
 
+// =====================================================
+// REFRESH AUTHORITATIVE GAME STATE AFTER EACH NEW DEAL
+// Runs once per session/user/deal, after card distribution.
+// =====================================================
+let dealPostDistributionRefreshTimer = null;
+let dealPostDistributionRefreshKey = null;
+
+function schedulePostDealRefresh() {
+    const dealKey = crdgDealAnimationKey();
+    if (!dealKey || dealPostDistributionRefreshKey === dealKey) return;
+
+    dealPostDistributionRefreshKey = dealKey;
+
+    if (dealPostDistributionRefreshTimer) {
+        clearTimeout(dealPostDistributionRefreshTimer);
+        dealPostDistributionRefreshTimer = null;
+    }
+
+    const runRefresh = async () => {
+        dealPostDistributionRefreshTimer = null;
+
+        // Do not overlap a refresh already in progress.
+        if (refreshInProgress) {
+            dealPostDistributionRefreshTimer = setTimeout(runRefresh, 500);
+            return;
+        }
+
+        if (
+            state.tableCompleted ||
+            state.isEliminated ||
+            !state.sessionId ||
+            !state.userId ||
+            !gameEntered
+        ) {
+            return;
+        }
+
+        try {
+            const refreshed = await refreshGame();
+            if (!refreshed) {
+                console.warn(
+                    "Post-deal refresh did not complete successfully:",
+                    dealKey
+                );
+            }
+        } catch (error) {
+            console.error("Post-deal refresh failed:", error);
+        }
+    };
+
+    // Wait one full second after all cards have finished distributing.
+    dealPostDistributionRefreshTimer = setTimeout(runRefresh, 1000);
+}
+
 async function playDealDistributionAnimation(reserved = false) {
     if (state.dealAnimationInProgress) return;
 
@@ -1654,6 +1708,9 @@ async function playDealDistributionAnimation(reserved = false) {
             card.classList.remove("deal-card-hidden", "card-enter");
             card.classList.add("card-show");
         });
+        if (cards.length > 0) {
+            schedulePostDealRefresh();
+        }
         return;
     }
 
@@ -1669,6 +1726,7 @@ async function playDealDistributionAnimation(reserved = false) {
             card.classList.add("card-show");
         });
         state.dealAnimationInProgress = false;
+        schedulePostDealRefresh();
         return;
     }
 
@@ -1727,6 +1785,7 @@ async function playDealDistributionAnimation(reserved = false) {
 
     await Promise.all(flightPromises);
     state.dealAnimationInProgress = false;
+    schedulePostDealRefresh();
 }
 
 // Called only when a live deal transition is detected. Initial page loads
@@ -8223,7 +8282,7 @@ function clearActiveTurnSeatDisplay() {
 
 async function loadPlayers(playersData = null) {
 
-    let dlr_name = "YOU";
+    //let dlr_name = "YOU";
 
     let data = playersData;
 
@@ -8347,12 +8406,6 @@ async function loadPlayers(playersData = null) {
             icons += ` ↺${player.rejoin_count}`;
         }
 
-        let cardsDisplay = `
-        <div style="font-size:24px;">
-            🂠🂠🂠🂠🂠
-        </div>
-        `;
-
         if(player.is_out_of_deal)
         {
             
@@ -8375,18 +8428,6 @@ async function loadPlayers(playersData = null) {
                 default:
                     txt = "wait";
             }
-
-            cardsDisplay = `
-            <div
-                style="
-                    color:#d32f2f;
-                    font-weight:bold;
-                    font-size:18px;
-                    margin-top:8px;
-                ">
-                ${txt}
-            </div>
-            `;
         }
 
         
@@ -8415,8 +8456,6 @@ async function loadPlayers(playersData = null) {
         <div>
             <b>${player.display_name}${icons}</b>
         </div>
-
-        ${cardsDisplay}
 
         <div>
             Score : ${player.points || 0}
