@@ -3239,3 +3239,106 @@ body.mobile-game-mode #myInfo {
         font-size: 18px !important;
     }
 }
+
+
+/* =========================================================
+   CRDG FRIENDS — HUD HEIGHT + INFORMATION TEXT STYLE
+   Slightly taller panel. Only HISTORY and REFRESH look like
+   buttons; the five information fields are plain text.
+========================================================= */
+
+.game-stage > .table {
+    grid-template-rows: 74px 210px 135px 76px minmax(0, 1fr) !important;
+}
+
+.game-stage > .table > .topbar {
+    height: 68px !important;
+    min-height: 68px !important;
+    padding-top: 4px !important;
+    padding-bottom: 4px !important;
+}
+
+.game-stage > .table > .topbar > .topbar-section {
+    height: 58px !important;
+    min-height: 58px !important;
+    padding-left: 9px !important;
+    padding-right: 9px !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    font-size: 15px !important;
+}
+
+/* Keep only the History/Refresh container as a subtle group;
+   the two controls themselves retain their button styling. */
+.game-stage > .table > .topbar > .topbar-history {
+    height: 58px !important;
+    min-height: 58px !important;
+    padding: 0 6px !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+.game-stage > .table > .topbar > .topbar-history #btnHistory {
+    height: 48px !important;
+    min-height: 48px !important;
+    font-size: 15px !important;
+}
+
+.game-stage > .table > .topbar > .topbar-history #btnGameRefresh {
+    height: 48px !important;
+    min-height: 48px !important;
+    font-size: 21px !important;
+}
+
+@media screen and (max-width: 900px) {
+    body.mobile-game-mode .game-stage > .table {
+        grid-template-rows: 74px 210px 135px 76px minmax(0, 1fr) !important;
+    }
+
+    body.mobile-game-mode .game-stage > .table > .topbar {
+        height: 68px !important;
+        min-height: 68px !important;
+        padding-top: 4px !important;
+        padding-bottom: 4px !important;
+    }
+
+    body.mobile-game-mode .game-stage > .table > .topbar > .topbar-section {
+        height: 58px !important;
+        min-height: 58px !important;
+        padding-left: 5px !important;
+        padding-right: 5px !important;
+        font-size: 14px !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+    }
+
+    body.mobile-game-mode .game-stage > .table > .topbar > .topbar-history {
+        height: 58px !important;
+        min-height: 58px !important;
+        gap: 4px !important;
+        padding-left: 4px !important;
+        padding-right: 4px !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+    }
+
+    body.mobile-game-mode .game-stage > .table > .topbar > .topbar-history #btnHistory {
+        height: 48px !important;
+        min-height: 48px !important;
+        font-size: 14px !important;
+    }
+
+    body.mobile-game-mode .game-stage > .table > .topbar > .topbar-history #btnGameRefresh {
+        height: 48px !important;
+        min-height: 48px !important;
+        font-size: 20px !important;
+    }
+}
