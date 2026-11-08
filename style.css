@@ -2797,3 +2797,119 @@ body.mobile-game-mode #myInfo {
     flex: 0 0 auto !important;
     white-space: nowrap !important;
 }
+
+/* =========================================================
+   CRDG FRIENDS — SINGLE HISTORY BUTTON IN TOP MENU
+   The existing btnHistory element is moved to the topbar.
+   The old btnHistory1 placeholder is removed.
+   Its original JavaScript click handler remains valid because
+   the button keeps the same ID.
+========================================================= */
+
+.topbar-section.topbar-history {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+    min-width: 0 !important;
+    width: 100% !important;
+    height: 36px !important;
+    padding: 0 5px !important;
+    overflow: visible !important;
+}
+
+.topbar-history .topbar-history-button {
+    display: inline-flex !important;
+    flex: 1 1 auto !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    height: 30px !important;
+    min-height: 30px !important;
+    margin: 0 !important;
+    padding: 0 8px !important;
+    box-sizing: border-box !important;
+    border: 1px solid rgba(255,255,255,.45) !important;
+    border-radius: 6px !important;
+    background: #214bd5 !important;
+    color: #fff !important;
+    font-family: Arial, sans-serif !important;
+    font-size: 13px !important;
+    line-height: 1 !important;
+    font-weight: 900 !important;
+    white-space: nowrap !important;
+    cursor: pointer !important;
+    pointer-events: auto !important;
+    touch-action: manipulation !important;
+    position: relative !important;
+    z-index: 20 !important;
+}
+
+.topbar-history #btnGameRefresh {
+    display: inline-flex !important;
+    flex: 0 0 38px !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 38px !important;
+    min-width: 38px !important;
+    max-width: 38px !important;
+    height: 30px !important;
+    min-height: 30px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    position: relative !important;
+    z-index: 20 !important;
+    pointer-events: auto !important;
+    touch-action: manipulation !important;
+}
+
+/* The old lower-row History button is no longer part of the layout. */
+.player-history-button {
+    display: none !important;
+}
+
+@media screen and (max-width: 900px) {
+    body.mobile-game-mode .topbar {
+        grid-template-columns:
+            minmax(0, 2.7fr)
+            minmax(0, 2.7fr)
+            minmax(0, 2.7fr)
+            minmax(0, 2.7fr)
+            minmax(0, 1.8fr)
+            minmax(0, 4.4fr) !important;
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    body.mobile-game-mode .topbar-section {
+        min-width: 0 !important;
+        overflow: visible !important;
+        font-size: clamp(10px, 1.05vw, 14px) !important;
+    }
+
+    body.mobile-game-mode .topbar-section.topbar-history {
+        min-width: 0 !important;
+        gap: 4px !important;
+        padding: 0 4px !important;
+    }
+
+    body.mobile-game-mode .topbar-history .topbar-history-button {
+        flex: 1 1 0 !important;
+        min-width: 0 !important;
+        height: 28px !important;
+        min-height: 28px !important;
+        padding: 0 4px !important;
+        font-size: clamp(10px, 1vw, 13px) !important;
+    }
+
+    body.mobile-game-mode .topbar-history #btnGameRefresh {
+        flex: 0 0 34px !important;
+        width: 34px !important;
+        min-width: 34px !important;
+        max-width: 34px !important;
+        height: 28px !important;
+        min-height: 28px !important;
+    }
+}
