@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#07150f">
+  <title>JANA OR PATTU · Game</title>
+  <link rel="stylesheet" href="jana-game.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <main class="game-shell">
+    <header class="game-topbar">
+      <a class="brand" href="jana.html"><span class="brand-mark">♠</span><span>JANA <b>OR</b> PATTU</span></a>
+      <div class="top-actions"><span id="connectionStatus" class="connection"><i></i> Connecting</span><button id="refreshButton" class="small-icon-button" type="button" title="Refresh game">↻</button></div>
+    </header>
+
+    <section class="round-strip">
+      <div><span class="eyebrow">TABLE</span><strong id="tableCode">—</strong></div>
+      <div><span class="eyebrow">SESSION</span><strong id="sessionNumber">—</strong></div>
+      <div><span class="eyebrow">ROUND</span><strong id="roundNumber">—</strong></div>
+      <div><span class="eyebrow">POT</span><strong id="potAmount">—</strong></div>
+    </section>
+
+    <section class="round-banner" id="roundBanner">
+      <div class="banner-main"><span id="phaseLabel" class="eyebrow">LOADING GAME</span><strong id="statusMessage">Connecting to the table…</strong></div>
+      <div id="timerBox" class="timer-box hidden"><span id="timerLabel">PLAYER TURN</span><strong id="timerValue">8</strong></div>
+    </section>
+
+    <section class="status-panel" aria-label="Player status">
+      <div class="status-panel-heading"><span>TABLE PLAYERS</span><span>PLAYER <b>·</b> STATUS</span></div>
+      <div id="playerStatusList" class="status-list"><div class="status-row"><span>Loading players…</span><b>—</b></div></div>
+    </section>
+
+    <div id="turnTransitionOverlay" class="turn-transition-overlay hidden" aria-live="polite">
+      <div class="turn-transition-card"><span class="transition-kicker">NEXT TURN</span><strong id="transitionPlayerName">PLAYER</strong><div class="transition-countdown"><b id="transitionCountdown">3</b><span>GET READY</span></div><div class="transition-progress"><i></i></div></div>
+    </div>
+
+    <section class="table-felt" id="tableFelt" aria-label="JANA round table">
+      <div class="felt-rim"></div>
+      <div class="table-centre">
+        <div class="stock-stack" id="stockStack" aria-label="Stock deck">
+          <span class="stock-card stock-card-back"></span><span class="stock-card stock-card-back second"></span><span class="stock-card stock-card-back third"></span>
+        </div>
+        <strong id="stockCountLarge" class="stock-number">52</strong><span class="stock-label">STOCK CARDS</span>
+        <div id="centreAnnouncement" class="centre-announcement hidden"></div>
+      </div>
+      <div id="playersGrid" class="seat-layer"><div class="seat-loading">Loading seats…</div></div>
+      <div id="flyingCardLayer" class="flying-card-layer" aria-hidden="true"></div>
+    </section>
+
+    <section class="action-panel">
+      <div id="turnHint" class="turn-hint">Waiting for your turn…</div>
+      <div class="action-buttons"><button id="hitButton" class="hit-button" type="button" disabled>HIT <span>＋</span></button><button id="patluButton" class="patlu-button" type="button" disabled>PATLU <span>✓</span></button></div>
+      <p class="action-note">HIT draws one card. PATLU ends your turn. A score of 21 wins immediately.</p>
+    </section>
+
+    <section class="history-panel"><div class="history-heading"><h2>Round activity</h2><span>LIVE</span></div><div id="activityList" class="activity-list"><div class="activity-empty">Round activity will appear here.</div></div></section>
+    <div id="shuffleOverlay" class="shuffle-overlay hidden" aria-live="polite">
+      <div class="shuffle-panel">
+        <span class="shuffle-kicker">JANA OR PATTU</span>
+        <div class="shuffle-deck" aria-hidden="true">
+          <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+        </div>
+        <strong>SHUFFLING STOCK</strong>
+        <span class="shuffle-subtitle">Preparing the next round</span>
+        <b id="shuffleCountdown" class="shuffle-countdown">6</b>
+      </div>
+    </div>
+
+    <div id="observationOverlay" class="observation-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="observationTitle">
+      <section class="observation-panel">
+        <header class="observation-header"><div><span class="eyebrow">JANA · ROUND SUMMARY</span><h2 id="observationTitle">ROUND RESULTS</h2></div><div class="observation-countdown"><b id="observationCountdown">20</b><span>SECONDS</span></div></header>
+        <div id="observationRoundMeta" class="observation-round-meta"></div>
+        <div id="observationWinner" class="observation-winner"></div>
+        <div class="observation-table-wrap">
+          <table class="observation-table">
+            <thead><tr><th>Name</th><th>Cards</th><th>Score</th><th>Status</th></tr></thead>
+            <tbody id="observationPlayers"></tbody>
+          </table>
+        </div>
+        <div class="observation-footer"><span>Next round will start automatically when the countdown ends.</span><button id="exitTableButton" class="exit-table-button hidden" type="button">EXIT TABLE</button></div>
+      </section>
+    </div>
+
+    <audio id="drawSound" src="pickup.mp3" preload="auto"></audio>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <div id="busyOverlay" class="busy-overlay hidden"><div class="spinner"></div><span id="busyText">Loading game…</span></div>
+    <footer><button id="backToTableButton" type="button">BACK TO TABLE</button><span>Game actions are processed securely by the server.</span></footer>
+  </main>
+  <script src="jana-game.js"></script>
+</body>
+</html>
