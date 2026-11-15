@@ -2669,9 +2669,10 @@ async function exitPointsTable()
     }
 }
 
+
 async function onObservationTimerExpired()
 {
-    
+
 
     document.getElementById(
         "dealResultModal"
@@ -2763,9 +2764,6 @@ async function onObservationTimerExpired()
         }
 
 
-    
-
-
         // --------------------------------------------------
         // RELOAD SESSION AFTER SETTLEMENT
         // --------------------------------------------------
@@ -2803,7 +2801,6 @@ async function onObservationTimerExpired()
             settledSession.game_completed === true
         )
         {
-            
 
             handleTableCompleted(
                 settledSession
@@ -2820,7 +2817,6 @@ async function onObservationTimerExpired()
         // checkpoint are eliminated only AFTER the
         // current deal has been settled.
         // --------------------------------------------------
-
 
         const {
             data: eliminatedCount,
@@ -2882,9 +2878,6 @@ async function onObservationTimerExpired()
         }
 
 
-        
-
-
         // --------------------------------------------------
         // ONLY ONE PLAYER REMAINS
         //
@@ -2920,9 +2913,6 @@ async function onObservationTimerExpired()
 
                 return;
             }
-
-
-            
 
 
             // --------------------------------------------------
@@ -2971,6 +2961,116 @@ async function onObservationTimerExpired()
         // START NEXT DEAL
         // --------------------------------------------------
 
+        await startNextDeal();
+
+        return;
+    }
+
+
+    // --------------------------------------------------
+    // FRIENDS GAME → FINALIZE SETTLEMENT
+    // ONLY AFTER OBSERVATION TIMER EXPIRES
+    // --------------------------------------------------
+
+    if (
+        typeof GAME_TYPE !== "undefined" &&
+        GAME_TYPE === "FRIENDS"
+    ) {
+
+        const {
+            data: finalizationData,
+            error: finalizationError
+        } =
+        await supabaseClient.rpc(
+            "crdg_finalize_settlement",
+            {
+                p_session_id:
+                    state.sessionId,
+                p_session_token:
+                    localStorage.getItem("crdgn_session_token")
+            }
+        );
+
+
+        if (finalizationError) {
+
+            console.error(
+                "FRIENDS settlement finalization failed:",
+                finalizationError
+            );
+
+            // Do not start another deal when the
+            // settlement outcome is unknown.
+
+            return;
+        }
+
+
+        const result =
+            Array.isArray(finalizationData)
+                ? finalizationData[0]
+                : finalizationData;
+
+
+        console.log(
+            "FRIENDS settlement finalization:",
+            result
+        );
+
+
+        // --------------------------------------------------
+        // SETTLEMENT ACCEPTED
+        // STOP GAME AND SHOW COMPLETED WINDOW
+        // --------------------------------------------------
+
+        if (
+            result &&
+            result.status === "ACCEPTED"
+        ) {
+
+            const {
+                data: completedSession,
+                error: completedSessionError
+            } =
+            await supabaseClient
+                .from("crdg_game_sessions")
+                .select("*")
+                .eq(
+                    "session_id",
+                    state.sessionId
+                )
+                .single();
+
+
+            if (completedSessionError) {
+
+                console.error(
+                    "FRIENDS: Failed to reload completed session:",
+                    completedSessionError
+                );
+
+                return;
+            }
+
+
+            handleTableCompleted(
+                completedSession
+            );
+
+            return;
+        }
+
+
+        // --------------------------------------------------
+        // SETTLEMENT UNSUCCESSFUL
+        //
+        // CANCELLED / NO_SETTLEMENT / OTHER RESULT
+        // Continue normal next-deal process immediately.
+        // --------------------------------------------------
+
+        console.log(
+            "FRIENDS settlement not completed. Starting next deal."
+        );
 
         await startNextDeal();
 
@@ -2979,11 +3079,12 @@ async function onObservationTimerExpired()
 
 
     // --------------------------------------------------
-    // NORMAL GAME → START NEXT DEAL
+    // OTHER GAME TYPES → NORMAL NEXT DEAL
     // --------------------------------------------------
 
     await startNextDeal();
 }
+
 
 function resetSettlementControls() {
 
@@ -2994,7 +3095,7 @@ function resetSettlementControls() {
 
     const cancelBtn =
         document.getElementById(
-            "btnSettlementCancel"
+            "btnSettlementReject"
         );
 
     const statusEl =
@@ -3782,7 +3883,7 @@ async function loadLastDealHistory() {
 
     const { data, error } = await supabaseClient.rpc(
         "crdg_get_last_deal_history",
-        { p_session_id: state.sessionId }
+        { p_session_id: state.sessionId, p_session_token: localStorage.getItem("crdgn_session_token") }
     );
 
     if (error) {
@@ -4703,6 +4804,21 @@ function subscribeRealtime() {
                     err
                 );
             }
+        });
+
+    // Keep the multi-player settlement popup synchronized with every response
+    // and with a rejoin that cancels the proposal. No seating data is changed.
+    supabaseClient
+        .channel("settlement-session-" + state.sessionId + "-" + state.userId)
+        .on("postgres_changes", {
+            event: "*", schema: "public", table: "crdg_settlement",
+            filter: "session_id=eq." + state.sessionId
+        }, () => { refreshSettlementRealtime(); })
+        .on("postgres_changes", {
+            event: "*", schema: "public", table: "crdg_settlement_players"
+        }, () => { refreshSettlementRealtime(); })
+        .subscribe((status, err) => {
+            if (err) console.error("Settlement realtime error:", err);
         });
 }
 
@@ -6356,305 +6472,169 @@ function closeOpenPileHistory()
     }
 }
 
-async function openSettlement() {
+function setSettlementButtonsDisabled(disabled) {
+    const acceptBtn = document.getElementById("btnSettlementAccept");
+    const rejectBtn = document.getElementById("btnSettlementReject");
+    if (acceptBtn) acceptBtn.disabled = disabled;
+    if (rejectBtn) rejectBtn.disabled = disabled;
+}
 
-    if (!state.settlementEligible) {
-        return;
-    }
+function renderSettlementPlayers(rows) {
+    const container = document.getElementById("settlementPlayers");
+    if (!container) return;
 
-    const { data, error } =
-        await supabaseClient.rpc(
-            "crdg_create_settlement_proposal",
-            {
-                p_session_id: state.sessionId
+    container.innerHTML = "";
+    const header = document.createElement("div");
+    header.style.cssText = "display:grid;grid-template-columns:1.5fr .7fr .8fr .9fr;gap:6px;padding:7px 4px;font-weight:800;font-size:12px;border-bottom:1px solid #cbd5e1;color:#334155;";
+    ["Player", "Score", "Share", "Response"].forEach(label => {
+        const cell = document.createElement("span");
+        cell.textContent = label;
+        header.appendChild(cell);
+    });
+    container.appendChild(header);
+
+    const isParticipant = (rows || []).some(player => String(player.user_id) === String(state.userId));
+    const acceptBtn = document.getElementById("btnSettlementAccept");
+    const rejectBtn = document.getElementById("btnSettlementReject");
+    if (acceptBtn) acceptBtn.style.display = isParticipant ? "inline-block" : "none";
+    if (rejectBtn) rejectBtn.style.display = isParticipant ? "inline-block" : "none";
+
+    (rows || []).forEach(player => {
+        const row = document.createElement("div");
+        row.style.cssText = "display:grid;grid-template-columns:1.5fr .7fr .8fr .9fr;gap:6px;align-items:center;padding:9px 4px;border-bottom:1px solid #e2e8f0;font-size:13px;color:#111;";
+        const values = [
+            player.player_name || "Player",
+            String(player.player_score ?? "-"),
+            `${Number(player.percentage || 0).toFixed(2)}%`,
+            player.response === "ACCEPT" ? "Accepted" : player.response === "REJECT" ? "Rejected" : "Waiting"
+        ];
+        values.forEach((value, index) => {
+            const cell = document.createElement("span");
+            cell.textContent = value;
+            if (index === 3) {
+                cell.style.fontWeight = "700";
+                cell.style.color = player.response === "ACCEPT" ? "#2e7d32" : player.response === "REJECT" ? "#c62828" : "#64748b";
             }
-        );
+            row.appendChild(cell);
+        });
+        container.appendChild(row);
+    });
+}
+
+async function openSettlement() {
+    if (!state.settlementEligible || !state.sessionId) return;
+
+    const { data, error } = await supabaseClient.rpc(
+        "crdg_create_settlement_proposal",
+        { p_session_id: state.sessionId, p_session_token: localStorage.getItem("crdgn_session_token") }
+    );
 
     if (error) {
-
-        console.error(
-            "Settlement proposal error:",
-            error
-        );
-
-        alert(
-            "Unable to create settlement proposal."
-        );
-
+        console.error("Settlement proposal error:", error);
+        alert("Unable to create settlement proposal.");
         return;
     }
 
-    const proposal = data?.[0];
+    const rows = Array.isArray(data) ? data : [];
+    if (!rows.length) return;
 
-    if (!proposal) {
-        return;
-    }
-
-    state.settlementId =
-        proposal.settlement_id;
-
+    state.settlementId = rows[0].settlement_id;
     state.settlementOpened = true;
+    renderSettlementPlayers(rows);
 
-    document.getElementById(
-            "settlementPlayers"
-        ).innerHTML = `
-            <div style="
-                display:flex;
-                justify-content:space-between;
-                padding:10px;
-                font-size:18px;
-                border-bottom:1px solid #ddd;
-            ">
-                <b>${proposal.player1_name}</b>
+    const status = document.getElementById("settlementStatus");
+    if (status) status.textContent = "All active players must respond. Settlement is finalized only when the observation timer expires.";
 
-                <span style="
-                color:#000000;
-                font-weight:bold;
-            ">
-                ${proposal.player1_percentage}%
-            </span>
-            </div>
-
-            <div style="
-                display:flex;
-                justify-content:space-between;
-                padding:10px;
-                font-size:18px;
-            ">
-                <b>${proposal.player2_name}</b>
-
-                <span style="
-                color:#000000;
-                font-weight:bold;
-            ">
-                ${proposal.player2_percentage}%
-            </span>
-            </div>
-        `;
-
-    document.getElementById(
-        "settlementStatus"
-    ).innerText = "";
-
-    document.getElementById(
-        "settlementPopup"
-    ).style.display = "block";
+    setSettlementButtonsDisabled(false);
+    const popup = document.getElementById("settlementPopup");
+    if (popup) popup.style.display = "flex";
 }
-
 
 function closeSettlementPopup() {
-
-    const popup =
-        document.getElementById(
-            "settlementPopup"
-        );
-
-    if (popup) {
-        popup.style.display = "none";
-    }
-
-    const status =
-        document.getElementById(
-            "settlementStatus"
-        );
-
-    if (status) {
-        status.innerText = "";
-    }
-
+    const popup = document.getElementById("settlementPopup");
+    if (popup) popup.style.display = "none";
     state.settlementOpened = false;
-    state.settlementId = null;
-    state.settlementEligible = false;
 }
 
-async function onDeclarationTimerExpired(){
+async function refreshSettlementRealtime() {
+    if (!state.sessionId || !state.settlementOpened || !state.settlementId) return;
 
-    // End the declaration countdown before finalizing the current hand.
-    clearDeclarationTimerDisplay();
-    hideBaseTableHand();
+    const { data: master, error: masterError } = await supabaseClient
+        .from("crdg_settlement")
+        .select("settlement_id,status")
+        .eq("settlement_id", state.settlementId)
+        .maybeSingle();
 
-    const { data, error } =
-        await supabaseClient.rpc(
-            "crdg_submit_final_groups",
-            {
-                p_session_id:
-                    state.sessionId,
+    if (masterError) {
+        console.error("Settlement status refresh failed:", masterError);
+        return;
+    }
+    if (!master) return;
 
-                p_table_id:
-                    state.tableId,
-
-                p_user_id:
-                    state.userId,
-
-                p_groups:
-                    state.groups,
-
-                p_joker_card:
-                    state.jokerCard
-            }
-        );
-
-    if(error){
-
-        console.error(error);
-
+    if (master.status !== "PENDING") {
+        const status = document.getElementById("settlementStatus");
+        if (status) status.textContent = master.status === "CANCELLED"
+            ? "Settlement cancelled — a player rejoined or someone rejected the proposal."
+            : "Settlement accepted. Waiting for the observation timer to finish.";
+        setSettlementButtonsDisabled(true);
         return;
     }
 
-    // Re-read the authoritative session immediately. If this submission
-    // completes the declaration phase, loadSessionInfo() sees
-    // deal_results_ready=true and starts the observation countdown.
-    // If other players are still arranging, it leaves their declaration
-    // phase alone; their final submission will trigger the same flow.
-    try {
-        await loadSessionInfo();
+    const { data, error } = await supabaseClient.rpc(
+        "crdg_create_settlement_proposal",
+        { p_session_id: state.sessionId, p_session_token: localStorage.getItem("crdgn_session_token") }
+    );
+    if (error) {
+        // Eligibility can become false immediately after a rejoin; master status
+        // is checked again so the popup can still report the cancellation.
+        console.warn("Settlement participant refresh:", error.message);
+        return;
     }
-    catch (refreshError) {
-        console.error(
-            "Session refresh after declaration timer failed:",
-            refreshError
-        );
-    }
+    if (Array.isArray(data) && data.length) renderSettlementPlayers(data);
 }
 
 async function respondSettlement(response) {
+    if (!state.sessionId || !state.userId) return;
+    if (response !== "ACCEPT" && response !== "REJECT") return;
 
-    if (!state.sessionId || !state.userId) {
-        return;
-    }
-
-    const acceptBtn =
-        document.getElementById(
-            "btnSettlementAccept"
-        );
-
-    const cancelBtn =
-        document.getElementById(
-            "btnSettlementCancel"
-        );
-
-    // Prevent double-clicks
-    acceptBtn.disabled = true;
-    cancelBtn.disabled = true;
-
+    setSettlementButtonsDisabled(true);
     try {
-
-        const {
-            data,
-            error
-        } = await supabaseClient.rpc(
+        const { data, error } = await supabaseClient.rpc(
             "crdg_respond_settlement",
             {
-                p_session_id:
-                    state.sessionId,
-
-                p_user_id:
-                    state.userId,
-
-                p_response:
-                    response
+                p_session_id: state.sessionId,
+                p_user_id: state.userId,
+                p_response: response,
+                p_session_token: localStorage.getItem("crdgn_session_token")
             }
         );
 
-        if (error) {
+        if (error) throw error;
+        const result = Array.isArray(data) ? data[0] : data;
+        if (!result) throw new Error("No settlement response returned.");
 
-            console.error(
-                "Settlement response error:",
-                error
+        const status = document.getElementById("settlementStatus");
+        if (status) {
+            if (result.status === "CANCELLED") {
+                status.textContent = "Settlement rejected/cancelled. The next deal will start when observation ends.";
+            } else {
+                status.textContent = `${result.accepted_count} of ${result.required_count} players accepted; ${result.rejected_count} rejected. ${result.message === "all_players_accepted_waiting_for_observation_expiry" ? "All accepted — waiting for observation to expire." : "Waiting for the remaining players."}`;
+            }
+        }
+
+        if (result.status === "PENDING") {
+            const { data: refreshed, error: refreshError } = await supabaseClient.rpc(
+                "crdg_create_settlement_proposal",
+                { p_session_id: state.sessionId, p_session_token: localStorage.getItem("crdgn_session_token") }
             );
-
-            acceptBtn.disabled = false;
-            cancelBtn.disabled = false;
-
-            return;
+            if (!refreshError && Array.isArray(refreshed)) renderSettlementPlayers(refreshed);
+            setSettlementButtonsDisabled(false);
         }
-
-        const result =
-            data?.[0];
-
-        if (!result) {
-
-            acceptBtn.disabled = false;
-            cancelBtn.disabled = false;
-            return;
-        }
-
-
-        // ------------------------------------------
-        // CANCEL
-        // ------------------------------------------
-
-        if (
-            result.status ===
-            "CANCELLED"
-        ) {
-
-            document.getElementById(
-                "settlementStatus"
-            ).innerText =
-                "Settlement cancelled";
-
-            setTimeout(() => {
-
-                document.getElementById(
-                    "settlementPopup"
-                ).style.display =
-                    "none";
-
-            }, 700);
-
-            return;
-        }
-
-
-        // ------------------------------------------
-        // BOTH ACCEPTED
-        // ------------------------------------------
-
-        if (
-            result.status ===
-            "ACCEPTED"
-        ) {
-
-            document.getElementById(
-                "settlementStatus"
-            ).innerText =
-                "Settlement accepted";
-
-            return;
-        }
-
-
-        // ------------------------------------------
-        // ONE PLAYER ACCEPTED
-        // ------------------------------------------
-
-        if (
-            result.status ===
-            "PENDING"
-        ) {
-
-            document.getElementById(
-                "settlementStatus"
-            ).innerText =
-                "Accepted — waiting for other player";
-
-            // This player has already accepted.
-            // Do not allow changing response.
-            acceptBtn.disabled = true;
-            cancelBtn.disabled = true;
-        }
-
-    }
-    catch (error) {
-
-        console.error(
-            "Settlement unexpected error:",
-            error
-        );
-
-        acceptBtn.disabled = false;
-        cancelBtn.disabled = false;
+    } catch (error) {
+        console.error("Settlement response failed:", error);
+        const status = document.getElementById("settlementStatus");
+        if (status) status.textContent = "Unable to submit response. Please try again.";
+        setSettlementButtonsDisabled(false);
     }
 }
 

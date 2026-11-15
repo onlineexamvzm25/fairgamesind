@@ -1727,8 +1727,10 @@
     <div
         
         style="
-            width:340px;
-            max-width:90%;
+            width: min(560px, 94vw);
+            max-width:94%;
+            max-height:90vh;
+            overflow-y:auto;
             background:#ffffff;
             color:#000000;
             border-radius:14px;
@@ -1764,8 +1766,10 @@
             style="
                 background:#f5f7fa;
                 border-radius:10px;
-                padding:12px;
-                margin-bottom:18px;
+                padding:8px 10px;
+                margin-bottom:14px;
+                max-height:48vh;
+                overflow-y:auto;
             "
         ></div>
 
@@ -1804,8 +1808,8 @@
             </button>
 
             <button
-                id="btnSettlementCancel"
-                onclick="respondSettlement('CANCEL')"
+                id="btnSettlementReject"
+                onclick="respondSettlement('REJECT')"
                 style="
                     background:#c62828;
                     color:white;
@@ -1816,7 +1820,7 @@
                     cursor:pointer;
                 "
             >
-                Cancel
+                Reject
             </button>
 
         </div>
@@ -1855,40 +1859,6 @@
 
     </div>
   </section>
-
-    <div
-        id="settlementPopup"
-        class="settlement-popup"
-        style="display:none;"
-    >
-        <div class="settlement-box">
-
-            <h3>Settlement</h3>
-
-            <div id="settlementPlayers"></div>
-
-            <div class="settlement-actions">
-
-                <button
-                    id="btnSettlementAccept"
-                    onclick="respondSettlement('ACCEPT')"
-                >
-                    Accept
-                </button>
-
-                <button
-                    id="btnSettlementCancel"
-                    onclick="respondSettlement('CANCEL')"
-                >
-                    Cancel
-                </button>
-
-            </div>
-
-            <div id="settlementStatus"></div>
-
-        </div>
-    </div>
 
 
   <div id="historyPopup" class="history-popup hidden">

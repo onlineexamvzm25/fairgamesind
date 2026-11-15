@@ -3342,3 +3342,15 @@ body.mobile-game-mode #myInfo {
         font-size: 20px !important;
     }
 }
+
+
+/* FRIENDS multi-player settlement popup */
+#settlementPopup { box-sizing:border-box; padding:14px; }
+#settlementPopup > div { box-sizing:border-box; }
+#settlementPopup button:disabled { opacity:.55; cursor:not-allowed; }
+@media (max-width:600px) {
+  #settlementPopup { padding:8px; }
+  #settlementPopup > div { padding:14px !important; }
+  #settlementPlayers { font-size:11px; }
+  #settlementPlayers > div { font-size:11px !important; grid-template-columns:1.35fr .55fr .75fr .85fr !important; }
+}
