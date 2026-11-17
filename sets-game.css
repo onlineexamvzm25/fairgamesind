@@ -582,96 +582,145 @@
   .center-play .center-actions .action-btn { width:138px !important; min-width:138px !important; height:47px !important; min-height:47px !important; font-size:14px !important; }
 }
 
+
 /* ==========================================================
-   FINAL HAND ROW: PLAYER NAME IMMEDIATELY BEFORE GROUP 1
-   Mobile landscape stage; keep the name at the left edge and
-   place G1-G4 directly after it on the same horizontal line.
+   SETS MOBILE REFINEMENT — CENTERED PILES + CLEAN GROUP ROW
+   Requested 17 Nov 2026
 ========================================================== */
-@media screen and (max-width:900px), screen and (orientation:landscape) and (max-height:600px) {
-  .rummy-my-seat {
+@media screen and (max-width:900px),
+       screen and (orientation:landscape) and (max-height:600px) {
+  /* Center the stock, open pile and action controls as one unit. */
+  .rummy-play-area .rummy-center {
+    left:50% !important;
+    right:auto !important;
+    transform:translateX(-50%) !important;
+    width:max-content !important;
+    max-width:calc(100% - 24px) !important;
+    justify-content:center !important;
+  }
+  .rummy-play-area .center-play {
+    display:flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+    gap:30px !important;
+    width:max-content !important;
+  }
+  .rummy-play-area .center-actions {
     display:flex !important;
     flex-direction:row !important;
     align-items:center !important;
-    justify-content:flex-start !important;
+    justify-content:center !important;
     gap:10px !important;
-    width:100% !important;
-    height:100% !important;
-    min-height:0 !important;
-    padding:0 !important;
-    overflow:hidden !important;
+    margin:0 0 0 2px !important;
   }
-  .rummy-my-seat > .my-player-card {
-    display:flex !important;
-    flex:0 0 72px !important;
-    width:72px !important;
-    min-width:72px !important;
-    max-width:72px !important;
+  .rummy-play-area .center-actions .action-btn {
+    width:150px !important;
+    min-width:150px !important;
+    height:58px !important;
+    min-height:58px !important;
+    padding:0 12px !important;
+    font-size:15px !important;
+    border-radius:9px !important;
+  }
+
+  /* Increase the OPEN card rank without enlarging its suit symbol. */
+  .open-wrap .playing-card.open-card .corner,
+  .open-wrap .playing-card.open-card .corner b {
+    font-size:25px !important;
+    line-height:1 !important;
+  }
+  .open-wrap .playing-card.open-card .corner small {
+    font-size:10px !important;
+  }
+
+  /* Replace the green hand panel with a simple player-name + groups row. */
+  .rummy-my-seat {
+    display:grid !important;
+    grid-template-rows:30px minmax(0,1fr) !important;
+    gap:0 !important;
     min-height:0 !important;
+  }
+  .rummy-my-seat .my-player-card {
+    display:flex !important;
+    grid-row:1 !important;
     align-self:center !important;
-    justify-self:auto !important;
-    margin:0 !important;
-    padding:0 !important;
+    justify-self:start !important;
+    width:max-content !important;
+    min-width:0 !important;
+    max-width:100% !important;
+    min-height:0 !important;
+    height:28px !important;
+    padding:0 4px !important;
+    margin:0 0 0 6px !important;
     border:0 !important;
     border-radius:0 !important;
     background:transparent !important;
     box-shadow:none !important;
+    gap:0 !important;
   }
-  .rummy-my-seat > .my-player-card .avatar,
-  .rummy-my-seat > .my-player-card .player-details span,
-  .rummy-my-seat > .my-player-card .my-status {
+  .rummy-my-seat .my-player-card .avatar,
+  .rummy-my-seat .my-player-card .player-details span,
+  .rummy-my-seat .my-player-card .my-status {
     display:none !important;
   }
-  .rummy-my-seat > .my-player-card .player-details {
+  .rummy-my-seat .my-player-card .player-details {
     display:block !important;
     min-width:0 !important;
-    width:100% !important;
-    flex:none !important;
   }
-  .rummy-my-seat > .my-player-card .player-details strong {
+  .rummy-my-seat .my-player-card .player-details strong {
     display:block !important;
-    margin:0 !important;
-    padding:0 !important;
     color:#fff !important;
-    font-family:'DM Sans',sans-serif !important;
-    font-size:17px !important;
-    line-height:1.15 !important;
-    font-weight:800 !important;
-    letter-spacing:.2px !important;
-    white-space:nowrap !important;
-    overflow:hidden !important;
-    text-overflow:ellipsis !important;
+    font-size:15px !important;
+    line-height:1 !important;
+    letter-spacing:.5px !important;
   }
-  .rummy-my-seat > .hand-area {
-    display:contents !important;
+  .rummy-my-seat .my-player-card .player-details strong em {
+    color:#83e3bc !important;
+    font-size:10px !important;
+    margin-left:5px !important;
+  }
+
+  .rummy-my-seat .hand-area {
+    grid-row:2 !important;
+    display:flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+    width:100% !important;
+    height:100% !important;
+    min-height:0 !important;
+    padding:0 !important;
+    margin:0 !important;
+    border:0 !important;
+    border-radius:0 !important;
+    background:transparent !important;
+    box-shadow:none !important;
+    overflow:visible !important;
   }
   .rummy-my-seat .hand-heading,
   .rummy-my-seat .grouping-help,
   .rummy-my-seat .rummy-action-bar {
     display:none !important;
   }
-  .rummy-my-seat #handCards.set-groups {
-    order:1 !important;
+  .rummy-my-seat .set-groups {
     display:flex !important;
-    flex:1 1 auto !important;
-    width:auto !important;
-    min-width:0 !important;
-    max-width:none !important;
-    height:auto !important;
-    min-height:0 !important;
-    margin:0 !important;
-    padding:0 !important;
+    flex:0 0 auto !important;
     align-items:center !important;
-    justify-content:flex-start !important;
-    gap:8px !important;
+    justify-content:center !important;
+    align-content:center !important;
+    width:max-content !important;
+    max-width:100% !important;
+    height:150px !important;
+    min-height:150px !important;
+    max-height:150px !important;
+    gap:12px !important;
+    margin:0 auto !important;
+    padding:0 !important;
     overflow:visible !important;
   }
   .rummy-my-seat .set-group {
-    position:relative !important;
     flex:0 0 auto !important;
-    align-self:center !important;
     height:143px !important;
     min-height:143px !important;
     max-height:143px !important;
-    margin:0 !important;
   }
 }
