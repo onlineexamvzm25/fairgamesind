@@ -350,3 +350,82 @@
   .discard-tools { display:flex; align-items:center; gap:10px; }
   .selected-hint { color:#9eafa8; font-size:10px; }
 }
+
+
+/* ==========================================================
+   SETS MOBILE GROUPING + DIRECT PILE INTERACTION
+========================================================== */
+@media screen and (max-width: 900px), screen and (orientation:landscape) and (max-height:600px) {
+  .game-topbar { grid-template-columns: 230px minmax(0,1fr) 150px !important; }
+  .top-meta { gap:8px !important; font-size:9px !important; letter-spacing:.8px !important; white-space:nowrap !important; }
+  .top-meta b { font-size:11px !important; }
+  .top-meta i { height:12px !important; }
+  .top-actions { gap:5px !important; }
+  .table-layout { grid-template-rows:92px 178px 42px minmax(0,1fr) !important; }
+  .opponents { grid-row:1 !important; height:92px !important; padding:18px 8px 0 !important; align-items:flex-start !important; }
+  .player-seat { min-width:145px !important; max-width:190px !important; min-height:43px !important; padding:5px 8px !important; }
+  .rummy-play-area { grid-row:2 !important; height:178px !important; min-height:178px !important; }
+  .rummy-center { left:105px !important; top:29px !important; height:140px !important; gap:42px !important; }
+  .center-play { gap:34px !important; }
+  .pile-wrap { gap:4px !important; }
+  .card-back,.open-wrap .playing-card.open-card,.open-card-empty { width:82px !important; height:116px !important; }
+  .open-wrap { margin-left:8px !important; }
+  .rummy-my-seat { grid-row:3 / span 2 !important; display:grid !important; grid-template-rows:42px minmax(0,1fr) !important; gap:2px !important; }
+  .rummy-my-seat .my-player-card { grid-row:1 !important; min-height:38px !important; }
+  .rummy-my-seat .hand-area { grid-row:2 !important; display:grid !important; grid-template-rows:20px 14px minmax(0,1fr) 34px !important; gap:2px !important; min-height:0 !important; padding:5px 8px 5px !important; }
+  .grouping-help { display:block !important; font-size:8px !important; line-height:13px !important; }
+  .set-groups { display:grid !important; grid-template-columns:repeat(4,minmax(0,1fr)) !important; gap:8px !important; align-items:stretch !important; min-height:0 !important; height:100% !important; overflow:visible !important; }
+  .set-group { position:relative !important; min-width:0 !important; width:100% !important; height:100% !important; min-height:0 !important; border:1px solid #4d6259 !important; border-radius:7px !important; background:#091611 !important; overflow:visible !important; }
+  .set-group.draw-group { border-style:dashed !important; border-color:#c6a45f !important; background:#1b1a12 !important; }
+  .group-title { position:absolute !important; top:0 !important; left:0 !important; right:0 !important; width:100% !important; height:21px !important; display:flex !important; align-items:center !important; justify-content:center !important; gap:8px !important; padding:0 3px !important; font-size:12px !important; color:#83e3bc !important; background:transparent !important; border:0 !important; z-index:6 !important; }
+  .group-title .group-count { font-size:8px !important; color:#b5c6bd !important; }
+  .group-cards { position:absolute !important; inset:22px 4px 4px !important; display:flex !important; align-items:flex-start !important; justify-content:flex-start !important; overflow:visible !important; padding:0 !important; }
+  .group-cards .playing-card { flex:0 0 82px !important; width:82px !important; min-width:82px !important; max-width:82px !important; height:116px !important; max-height:calc(100% - 1px) !important; margin-right:-12px !important; padding:4px !important; border-radius:6px !important; touch-action:none !important; user-select:none !important; }
+  .group-cards .playing-card:last-child { margin-right:0 !important; }
+  .group-cards .playing-card .corner { left:5px !important; top:5px !important; font-size:23px !important; line-height:1 !important; }
+  .group-cards .playing-card .corner small { font-size:10px !important; }
+  .group-cards .playing-card .corner-bottom { left:auto !important; top:auto !important; right:5px !important; bottom:5px !important; }
+  .group-cards .playing-card .card-center { font-size:30px !important; }
+  .group-cards .playing-card.selected { transform:translateY(-8px) !important; outline:2px solid #f3d34a !important; z-index:12 !important; }
+  .group-cards .joker-face { font-size:30px !important; }
+  .group-cards .joker>b { font-size:8px !important; }
+  .group-cards .joker-label { font-size:6px !important; }
+  .action-bar { min-height:34px !important; height:34px !important; }
+  .discard-tools .action-btn { height:28px !important; }
+  #stockPile,#openPile { touch-action:none !important; }
+  .center-actions { display:none !important; }
+}
+@media screen and (min-width:901px) and (min-height:601px) {
+  .top-meta { gap:12px; }
+  .set-groups { grid-template-columns:repeat(4,minmax(0,1fr)) !important; }
+  .set-group { min-width:0; }
+  .group-cards { display:flex; }
+  .group-cards .playing-card { flex:0 0 92px; width:92px; height:135px; margin-right:-14px; }
+  .group-cards .playing-card .corner { font-size:22px; }
+}
+
+@media screen and (max-width: 900px), screen and (orientation:landscape) and (max-height:600px) {
+  .group-cards .playing-card .corner { font-size:27px !important; }
+  .group-cards .playing-card .corner small { font-size:9px !important; }
+  .group-cards .playing-card .card-center { font-size:24px !important; }
+  .discard-tools { gap:7px !important; }
+  .discard-tools .action-btn.declare { width:104px !important; min-width:104px !important; height:28px !important; font-size:10px !important; }
+  .discard-tools .action-btn.discard { width:104px !important; min-width:104px !important; height:28px !important; font-size:10px !important; }
+  .rummy-center { gap:48px !important; }
+}
+
+/* Group containers grow with their card count. Empty groups retain one-card width. */
+@media screen and (max-width: 900px), screen and (orientation:landscape) and (max-height:600px) {
+  .set-groups { display:flex !important; justify-content:space-between !important; align-items:stretch !important; gap:8px !important; }
+  .set-group { flex:0 0 auto !important; width:max-content !important; min-width:90px !important; max-width:calc(100% - 8px) !important; display:flex !important; flex-direction:column !important; }
+  .group-cards { position:relative !important; inset:auto !important; width:max-content !important; min-width:82px !important; max-width:100% !important; height:calc(100% - 22px) !important; margin-top:22px !important; display:flex !important; align-items:flex-start !important; overflow:visible !important; padding:0 4px 4px !important; }
+  .group-cards:empty::after { content:""; display:block; flex:0 0 82px; width:82px; height:116px; border:1px dashed #61756a; border-radius:6px; background:rgba(255,255,255,.025); }
+  .group-cards .playing-card { margin-right:-12px !important; }
+  .group-cards .playing-card:last-child { margin-right:0 !important; }
+}
+@media screen and (min-width:901px) and (min-height:601px) {
+  .set-groups { display:flex !important; justify-content:space-between !important; align-items:stretch !important; gap:12px !important; }
+  .set-group { flex:0 0 auto !important; width:max-content !important; min-width:100px !important; display:flex !important; flex-direction:column !important; }
+  .group-cards { position:relative !important; inset:auto !important; width:max-content !important; min-width:92px !important; margin-top:24px !important; display:flex !important; padding:4px 8px !important; }
+  .group-cards:empty::after { content:""; display:block; flex:0 0 92px; width:92px; height:135px; border:1px dashed #61756a; border-radius:7px; }
+}

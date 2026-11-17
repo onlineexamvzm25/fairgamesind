@@ -12,7 +12,7 @@
   <div class="game-shell" id="gameStage">
     <header class="game-topbar">
       <a class="brand" href="sets.html" aria-label="Back to SETS lobby"><span class="brand-mark">♠</span><span>CRDG <b>SETS</b></span></a>
-      <div class="top-meta"><span class="live-dot"></span><span>TABLE <b id="tableCode">652836</b></span><i></i><span>DEAL <b id="dealNo">01</b></span></div>
+      <div class="top-meta"><span class="live-dot"></span><span>TABLE <b id="tableCode">—</b></span><i></i><span>DEAL <b id="dealNo">01</b></span><i></i><span>DEALER <b id="dealerName">—</b></span><i></i><span id="topTurnLabel">WAITING</span> <b id="topTurnSeconds">40s</b></div>
       <div class="top-actions"><span class="preview-tag" id="connectionText">CONNECTING</span><button class="icon-btn" id="soundBtn" aria-label="Toggle sound">♫</button><button class="icon-btn" id="helpBtn" aria-label="Game rules">?</button><button class="icon-btn exit-btn" id="exitBtn" aria-label="Exit game">↗</button></div>
     </header>
 
@@ -20,8 +20,6 @@
       <section class="opponents" id="opponents" aria-label="Other players"></section>
 
       <section class="felt-table rummy-play-area" aria-label="SETS playing area">
-        <div class="dealer-chip"><span>DEALER</span><b id="dealerName">—</b></div>
-        <div class="turn-banner" id="turnBanner"><span class="turn-pulse"></span><span id="turnBannerName">WAITING</span><b id="turnBannerSeconds">40s</b></div>
         <div class="rummy-center">
           <div class="center-play">
             <div class="pile-wrap stock-wrap">
@@ -31,11 +29,7 @@
             </div>
             <div class="pile-wrap open-wrap" id="openPileWrap"><span class="pile-label">OPEN CARD</span><div class="open-card-empty">Loading</div><span class="pile-hint">PICK OPEN</span></div>
           </div>
-          <div class="center-actions">
-            <button class="action-btn pick" id="pickStockBtn">PICK STOCK</button>
-            <button class="action-btn pick" id="pickOpenBtn">PICK OPEN</button>
-            <button class="action-btn declare" id="declareBtn">DECLARE</button>
-          </div>
+
         </div>
       </section>
 
@@ -47,15 +41,16 @@
         </div>
         <div class="hand-area">
           <div class="hand-heading"><div><span class="eyebrow">YOUR HAND</span><strong><b id="handCount">9</b> <small>/ 9 CARDS</small></strong></div><div class="hand-instructions" id="handInstructions">Connecting to live game…</div></div>
-          <div class="grouping-help">Select a card, then tap a group label to move it. Build three groups of three cards.</div>
-          <div class="hand-cards set-groups" id="handCards" aria-label="Your three card groups">
+          <div class="grouping-help">Drag cards between groups. Tap STOCK or OPEN to place the drawn card in G4. Drag a card to OPEN to discard.</div>
+          <div class="hand-cards set-groups" id="handCards" aria-label="Your three groups and drawn-card holding area">
             <section class="set-group" data-group="1"><button class="group-title" type="button" data-group-target="1"><b>G1</b><span class="group-count">0/3</span></button><div class="group-cards"></div></section>
             <section class="set-group" data-group="2"><button class="group-title" type="button" data-group-target="2"><b>G2</b><span class="group-count">0/3</span></button><div class="group-cards"></div></section>
             <section class="set-group" data-group="3"><button class="group-title" type="button" data-group-target="3"><b>G3</b><span class="group-count">0/3</span></button><div class="group-cards"></div></section>
+            <section class="set-group draw-group" data-group="4"><button class="group-title" type="button" data-group-target="4"><b>G4</b><span class="group-count">0/1</span></button><div class="group-cards"></div></section>
           </div>
           <div class="action-bar rummy-action-bar">
             <div class="turn-clock"><span class="clock-icon">◷</span><span id="myTurnLabel">WAITING</span><b id="timerText">—</b><small>SEC</small></div>
-            <div class="discard-tools"><span class="selected-hint" id="selectedHint">Select a card to discard</span><button class="action-btn discard" id="discardBtn" disabled>DISCARD</button></div>
+            <div class="discard-tools"><span class="selected-hint" id="selectedHint">Select a card to discard</span><button class="action-btn declare" id="declareBtn" disabled>DECLARE</button><button class="action-btn discard" id="discardBtn" disabled>DISCARD</button></div>
           </div>
         </div>
       </section>

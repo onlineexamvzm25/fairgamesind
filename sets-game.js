@@ -19,6 +19,9 @@ let clockHandle = null;
 let serverOffsetMs = 0;
 let soundEnabled = true;
 let lastMessage = '';
+let desiredPickGroup = 4;
+let pointerDrag = null;
+let suppressNextClick = false;
 
 function toast(message, error = false) {
   const el = $('toast'); if (!el) return;
@@ -71,50 +74,84 @@ function renderPlayers(state) {
     opponents.appendChild(el);
   }
 }
+function rankSortValue(card) {
+  const r = String(card.rank_code || card.card_code || '').replace(/[SHDC]$/i, '').toUpperCase();
+  const order = { A:1, '2':2, '3':3, '4':4, '5':5, '6':6, '7':7, '8':8, '9':9, '10':10, J:11, Q:12, K:13, JKR:14 };
+  return order[r] || 99;
+}
+function buildInitialGroups(hand) {
+  const groups = [[], [], []];
+  const byRank = new Map();
+  hand.slice().sort((a,b) => rankSortValue(a)-rankSortValue(b)).forEach(card => {
+    const rank = cardParts(card).joker ? 'ZZ-JOKER' : String(card.rank_code || card.card_code || '').replace(/[SHDC]$/i,'').toUpperCase();
+    if (!byRank.has(rank)) byRank.set(rank, []);
+    byRank.get(rank).push(card);
+  });
+  const clusters = [...byRank.values()].sort((a,b) => b.length-a.length || rankSortValue(a[0])-rankSortValue(b[0]));
+  clusters.forEach(cluster => {
+    while (cluster.length) {
+      const chunk = cluster.splice(0, Math.min(3, cluster.length));
+      let target = groups.findIndex(g => g.length + chunk.length <= 3);
+      if (target < 0) target = groups.reduce((best,g,i) => g.length < groups[best].length ? i : best, 0);
+      chunk.forEach(card => groups[target].push(card));
+    }
+  });
+  const remaining = hand.filter(c => !groups.some(g => g.some(x => String(x.card_id) === String(c.card_id))));
+  remaining.forEach(card => {
+    const target = groups.findIndex(g => g.length < 3);
+    if (target >= 0) groups[target].push(card);
+  });
+  groups.forEach(g => g.sort((a,b) => rankSortValue(a)-rankSortValue(b)));
+  const assignments = {};
+  groups.forEach((g,i) => g.forEach(c => assignments[String(c.card_id)] = i+1));
+  return assignments;
+}
 function ensureGroupAssignments(hand, state) {
   const key = `${state.round_id || state.round_no || 'round'}:${state.my_user_id || 'player'}`;
   if (groupRoundKey !== key) { groupAssignments = {}; groupRoundKey = key; }
   const liveIds = new Set(hand.map(c => String(c.card_id)));
   Object.keys(groupAssignments).forEach(id => { if (!liveIds.has(id)) delete groupAssignments[id]; });
-  const counts = [0, 0, 0];
-  hand.forEach(c => {
-    const group = Number(groupAssignments[String(c.card_id)] || 0);
-    if (group >= 1 && group <= 3) counts[group - 1]++;
-  });
-  hand.forEach(c => {
-    const id = String(c.card_id);
+  if (!Object.keys(groupAssignments).length && hand.length >= 9 && !state.has_drawn_card) {
+    groupAssignments = buildInitialGroups(hand);
+  }
+  const pickedId = state.picked_card_id == null ? null : String(state.picked_card_id);
+  if (state.has_drawn_card && pickedId && liveIds.has(pickedId) && !groupAssignments[pickedId]) {
+    groupAssignments[pickedId] = Number(desiredPickGroup || 4);
+  }
+  hand.forEach(card => {
+    const id = String(card.card_id);
     if (groupAssignments[id]) return;
-    const min = Math.min(...counts);
-    const index = counts.findIndex(n => n === min);
-    groupAssignments[id] = index + 1;
-    counts[index]++;
+    groupAssignments[id] = state.has_drawn_card && pickedId === id ? Number(desiredPickGroup || 4) : 4;
   });
 }
-function moveSelectedToGroup(groupNo) {
-  if (!selectedCardId) return toast('Select a card first, then choose G1, G2 or G3.', true);
-  groupAssignments[String(selectedCardId)] = Number(groupNo);
+function moveCardToGroup(cardId, groupNo) {
+  const target = Number(groupNo);
+  const hand = gameState?.my_hand || [];
+  const targetCount = hand.filter(c => String(c.card_id) !== String(cardId) && Number(groupAssignments[String(c.card_id)]) === target).length;
+  const limit = target === 4 ? 1 : 3;
+  if (targetCount >= limit) return toast(`G${target} is full.`, true);
+  groupAssignments[String(cardId)] = target;
+  selectedCardId = String(cardId);
   renderHand(gameState);
   updateControls();
-  toast(`Card moved to G${groupNo}.`);
+}
+function moveSelectedToGroup(groupNo) {
+  if (!selectedCardId) return toast('Select a card first.', true);
+  moveCardToGroup(selectedCardId, groupNo);
 }
 function renderHand(state) {
   const hand = Array.isArray(state.my_hand) ? state.my_hand : [];
   ensureGroupAssignments(hand, state);
   $('handCount').textContent = hand.length;
-  const groups = [1, 2, 3];
+  const groups = [1, 2, 3, 4];
   groups.forEach(groupNo => {
     const section = $('handCards').querySelector(`[data-group="${groupNo}"]`);
     if (!section) return;
     const cardsBox = section.querySelector('.group-cards');
-    const cards = hand.filter(c => Number(groupAssignments[String(c.card_id)]) === groupNo);
-    section.querySelector('.group-count').textContent = `${cards.length}/3`;
-    section.querySelector('.group-title').classList.toggle('group-full', cards.length === 3);
+    const cards = hand.filter(c => Number(groupAssignments[String(c.card_id)]) === groupNo).sort((a,b) => rankSortValue(a)-rankSortValue(b));
+    section.querySelector('.group-count').textContent = `${cards.length}/${groupNo === 4 ? 1 : 3}`;
+    section.querySelector('.group-title').classList.toggle('group-full', cards.length === (groupNo === 4 ? 1 : 3));
     cardsBox.innerHTML = cards.map(c => cardMarkup(c, String(c.card_id) === String(selectedCardId))).join('');
-    cardsBox.querySelectorAll('[data-card-id]').forEach(btn => btn.addEventListener('click', () => {
-      selectedCardId = btn.dataset.cardId;
-      renderHand(gameState);
-      updateControls();
-    }));
   });
   $('handCards').querySelectorAll('[data-group-target]').forEach(btn => {
     btn.onclick = () => moveSelectedToGroup(btn.dataset.groupTarget);
@@ -130,8 +167,6 @@ function renderOpen(state) {
     return;
   }
   wrap.innerHTML = `<span class="pile-label">OPEN CARD</span>${cardMarkup(state.open_card, false, 'open-card') .replace('<button', '<button id="openPile"').replace('data-card-id=', 'data-card-id=')}<span class="pile-hint">PICK OPEN</span>`;
-  const open = $('openPile');
-  if (open) open.addEventListener('click', () => pickCard('OPEN'));
 }
 function renderState(state) {
   gameState = state;
@@ -143,8 +178,8 @@ function renderState(state) {
   $('myName').textContent = state.my_name || profile?.name || 'YOU';
   $('mySeatNo').textContent = state.my_seat_no || '—';
   $('myTurnLabel').textContent = state.current_turn_user_id === state.my_user_id ? 'YOUR TURN' : `${state.current_turn_name || 'OPPONENT'} TURN`;
-  $('turnBannerName').textContent = state.current_turn_user_id === state.my_user_id ? 'YOUR TURN' : `${state.current_turn_name || 'OPPONENT'} TURN`;
-  $('turnBanner').classList.toggle('is-my-turn', state.current_turn_user_id === state.my_user_id);
+  $('topTurnLabel').textContent = state.current_turn_user_id === state.my_user_id ? 'YOUR TURN' : `${state.current_turn_name || 'OPPONENT'} TURN`;
+  $('topTurnLabel').classList.toggle('is-my-turn', state.current_turn_user_id === state.my_user_id);
   $('myPlayerCard').classList.toggle('active-turn-self', state.current_turn_user_id === state.my_user_id);
   $('connectionText').textContent = 'LIVE';
   $('connectionTextFooter').textContent = 'LIVE CONNECTION';
@@ -163,7 +198,7 @@ function updateClock() {
   const deadline = gameState.turn_deadline_at ? new Date(gameState.turn_deadline_at).getTime() : 0;
   const remaining = deadline ? Math.max(0, Math.ceil((deadline - (Date.now() + serverOffsetMs))/1000)) : Number(gameState.remaining_seconds || 0);
   $('timerText').textContent = remaining;
-  $('turnBannerSeconds').textContent = `${remaining}s`;
+  $('topTurnSeconds').textContent = `${remaining}s`;
   $('timerText').classList.toggle('timer-low', remaining <= 10);
 }
 function updateControls() {
@@ -171,11 +206,11 @@ function updateControls() {
   const myTurn = gameState.current_turn_user_id === gameState.my_user_id && gameState.my_player_status === 'PLAYING';
   const drew = !!gameState.has_drawn_card;
   const handCount = (gameState.my_hand || []).length;
-  $('pickStockBtn').disabled = busy || !myTurn || drew || Number(gameState.stock_count) <= 0;
-  $('pickOpenBtn').disabled = busy || !myTurn || drew || !gameState.open_card;
+  $('stockPile').disabled = busy || !myTurn || drew || Number(gameState.stock_count) <= 0;
+  const openEl = $('openPile'); if (openEl) openEl.disabled = busy || !myTurn || drew || !gameState.open_card;
   $('discardBtn').disabled = busy || !myTurn || !drew || handCount !== 10 || !selectedCardId;
   $('declareBtn').disabled = busy || !myTurn || !drew || handCount !== 10 || !selectedCardId;
-  $('handInstructions').textContent = drew ? 'Select a card to DISCARD or exclude for DECLARE' : 'Arrange cards into G1, G2 and G3';
+  $('handInstructions').textContent = drew ? 'Drawn card is in G4. Move cards as needed, then discard or declare.' : 'Arrange your nine cards into G1, G2 and G3.';
 }
 async function loadState(silent = false) {
   if (!tableCode || !sessionToken || busy) return;
@@ -210,8 +245,9 @@ async function performAction(name, args, successText) {
   finally { busy = false; updateControls(); }
 }
 function baseArgs() { return {p_session_token:sessionToken,p_table_code:tableCode}; }
-function pickCard(source) {
+function pickCard(source, targetGroup = 4) {
   if (!gameState || gameState.current_turn_user_id !== gameState.my_user_id) return;
+  desiredPickGroup = Number(targetGroup) || 4;
   performAction('jop_sets_pick_card', {...baseArgs(),p_source:source}, `Picked from ${source}.`);
 }
 function discardCard() {
@@ -223,6 +259,47 @@ function declareHand() {
   if (!confirm('Use the selected card as the excluded OPEN card and submit your nine-card declaration?')) return;
   performAction('jop_sets_declare', {...baseArgs(),p_excluded_card_id:Number(selectedCardId)}, 'Declaration submitted.');
 }
+function bindDragAndDrop() {
+  const stage = $('gameStage');
+  stage.addEventListener('pointerdown', e => {
+    const stock = e.target.closest('#stockPile');
+    const open = e.target.closest('#openPile');
+    const card = e.target.closest('#handCards [data-card-id]');
+    if (stock) pointerDrag = { kind:'STOCK', x:e.clientX, y:e.clientY, moved:false };
+    else if (open) pointerDrag = { kind:'OPEN', x:e.clientX, y:e.clientY, moved:false };
+    else if (card) pointerDrag = { kind:'CARD', id:String(card.dataset.cardId), x:e.clientX, y:e.clientY, moved:false };
+  });
+  stage.addEventListener('pointermove', e => {
+    if (!pointerDrag) return;
+    if (Math.hypot(e.clientX-pointerDrag.x, e.clientY-pointerDrag.y) > 12) pointerDrag.moved = true;
+  });
+  stage.addEventListener('pointerup', e => {
+    if (!pointerDrag) return;
+    const drag = pointerDrag; pointerDrag = null;
+    if (!drag.moved) return;
+    suppressNextClick = true;
+    setTimeout(() => { suppressNextClick = false; }, 250);
+    const targetGroup = e.target.closest('[data-group]');
+    const targetOpen = e.target.closest('.open-wrap');
+    if (drag.kind === 'CARD') {
+      if (targetGroup) moveCardToGroup(drag.id, Number(targetGroup.dataset.group));
+      else if (targetOpen) { selectedCardId = drag.id; discardCard(); }
+    } else if (targetGroup && (drag.kind === 'STOCK' || drag.kind === 'OPEN')) {
+      pickCard(drag.kind, Number(targetGroup.dataset.group));
+    }
+  });
+  stage.addEventListener('pointercancel', () => { pointerDrag = null; });
+  $('openPileWrap').addEventListener('click', e => {
+    const open = e.target.closest('#openPile');
+    if (open && !suppressNextClick) pickCard('OPEN', 4);
+  });
+  $('handCards').addEventListener('click', e => {
+    const card = e.target.closest('[data-card-id]');
+    if (!card || suppressNextClick) return;
+    selectedCardId = String(card.dataset.cardId);
+    renderHand(gameState); updateControls();
+  });
+}
 async function initialize() {
   if (!sessionToken) { location.replace('index.html'); return; }
   if (!tableCode) { location.replace('sets.html'); return; }
@@ -232,10 +309,9 @@ async function initialize() {
     profile = firstRow(await rpc('crdgn_get_profile',{p_session_token:sessionToken}));
     if (!profile?.user_id) throw new Error('Unable to load your player profile.');
     $('exitBtn').addEventListener('click', () => { if (confirm('Return to the SETS lobby? Your table membership will remain active.')) location.href = `sets.html?table=${encodeURIComponent(tableCode)}`; });
-    $('pickStockBtn').addEventListener('click', () => pickCard('STOCK'));
-    $('pickOpenBtn').addEventListener('click', () => pickCard('OPEN'));
-    $('stockPile').addEventListener('click', () => pickCard('STOCK'));
+    $('stockPile').addEventListener('click', () => { if (!suppressNextClick) pickCard('STOCK', 4); });
     $('discardBtn').addEventListener('click', discardCard);
+    bindDragAndDrop();
     $('declareBtn').addEventListener('click', declareHand);
     $('helpBtn').addEventListener('click', () => $('helpDialog').showModal());
     $('soundBtn').addEventListener('click', () => { soundEnabled = !soundEnabled; $('soundBtn').textContent = soundEnabled ? '♫' : '♪'; toast(soundEnabled ? 'Sound enabled' : 'Sound muted'); });
