@@ -22,6 +22,11 @@ let lastMessage = '';
 let desiredPickGroup = 4;
 let pointerDrag = null;
 let suppressNextClick = false;
+let observationRefreshHandle = null;
+let observationData = null;
+let observationFinishBusy = false;
+let observationRoundKey = null;
+let autoDealBusyRound = null;
 
 function toast(message, error = false) {
   const el = $('toast'); if (!el) return;
@@ -193,7 +198,10 @@ function renderState(state) {
   updateControls();
   updateClock();
   if (state.round_status === 'OBSERVATION') {
-    toast('Declaration observation has started. The observation screen will be shown in the next integration step.');
+    openObservation();
+  } else {
+    closeObservation();
+    if (state.round_status === 'SHUFFLING') maybeCompleteNextDeal(state);
   }
 }
 function updateClock() {
@@ -215,11 +223,90 @@ function updateControls() {
   $('declareBtn').disabled = busy || !myTurn || !drew || handCount !== 10 || !selectedCardId;
   $('handInstructions').textContent = drew ? 'Drawn card is in G4. Move cards as needed, then discard or declare.' : 'Arrange your nine cards into G1, G2 and G3.';
 }
+function obsCardMarkup(c) {
+  const code=String(c.card_code||'');
+  if(code.startsWith('PJ')||String(c.rank_code).toUpperCase()==='JKR') return `<span class="obs-mini-card joker">★<small>${escapeHtml(code)}</small></span>`;
+  const suit=String(c.suit||'').toUpperCase(); const symbol=suitSymbol(suit); const rank=escapeHtml(c.rank_code||code.slice(0,-1));
+  return `<span class="obs-mini-card ${suit==='H'||suit==='D'?'red':''}">${rank}<small>${symbol}</small></span>`;
+}
+function renderObservation(data) {
+  observationData=data;
+  const dlg=$('observationDialog');
+  $('obsTableCode').textContent=data.table_code||tableCode;
+  $('obsDealNo').textContent=String(data.round_no||1).padStart(2,'0');
+  $('obsDealerName').textContent=data.dealer_name||'—';
+  const players=data.players||[];
+  $('obsPlayers').innerHTML=players.map(p=>{
+    const grouping=p.grouping||{}; const groups=grouping.groups||[]; const ungrouped=grouping.ungrouped_cards||[];
+    const groupHtml=[0,1,2].map(i=>{const cards=groups[i]||[];return `<div class="obs-group"><span class="obs-group-label">G${i+1}</span><div class="obs-group-cards">${cards.map(obsCardMarkup).join('')||'<span class="obs-player-seat">—</span>'}</div></div>`}).join('');
+    const extra=ungrouped.length?`<div class="obs-ungrouped"><span class="obs-ungrouped-label">EXTRA</span>${ungrouped.map(obsCardMarkup).join('')}</div>`:'';
+    return `<article class="obs-player-row"><div class="obs-player-ident"><div class="obs-player-name">${escapeHtml(p.player_name||'PLAYER')}</div><div class="obs-player-seat">SEAT ${escapeHtml(p.seat_no??'—')}</div></div>${groupHtml}<span class="obs-result ${p.result_status==='WINNER'?'winner':''}">${escapeHtml(p.result_status||'LOST')}</span>${extra}</article>`;
+  }).join('')||'<div class="obs-loading">No player results available.</div>';
+  $('obsMessage').textContent='All players see the same deal results. No wallet or transaction settlement.';
+  if(!dlg.open) dlg.showModal();
+  updateObservationTimer();
+  const key=String(data.round_id||data.round_no||'');
+  if(observationRoundKey!==key){observationRoundKey=key;observationFinishBusy=false;}
+}
+async function openObservation(){
+  if(!tableCode||!sessionToken)return;
+  try{
+    const raw=await rpc('jop_sets_get_observation_state',{p_session_token:sessionToken,p_table_code:tableCode});
+    const data=firstRow(raw);
+    if(data?.success){renderObservation(data);}
+    else if(data?.round_status && data.round_status!=='OBSERVATION'){closeObservation();}
+    else if(data?.message) console.warn('SETS observation:',data.message);
+  }catch(e){console.error('SETS observation load failed:',e);}
+}
+function updateObservationTimer(){
+  if(!observationData)return;
+  const serverOffset=observationData.server_time?new Date(observationData.server_time).getTime()-Date.now():serverOffsetMs;
+  const end=observationData.observation_ends_at?new Date(observationData.observation_ends_at).getTime():0;
+  const left=end?Math.max(0,Math.ceil((end-(Date.now()+serverOffset))/1000)):0;
+  $('obsTimer').textContent=`${left}s`;
+  if(left===0)finishObservation();
+}
+async function finishObservation(){
+  if(observationFinishBusy||!observationData)return;
+  observationFinishBusy=true;
+  try{
+    const result=firstRow(await rpc('jop_sets_complete_observation',{p_session_token:sessionToken,p_table_code:tableCode}));
+    if(result?.success){
+      closeObservation();
+      await loadState(true);
+    }else if(result?.round_status==='SHUFFLING'||result?.already_started){
+      closeObservation(); await loadState(true);
+    }else{
+      observationFinishBusy=false;
+      if(result?.message) console.warn('Observation completion:',result.message);
+    }
+  }catch(e){observationFinishBusy=false;console.error('Observation completion failed:',e);}
+}
+function closeObservation(){
+  const dlg=$('observationDialog'); if(dlg?.open)dlg.close();
+  observationData=null;
+}
+async function maybeCompleteNextDeal(state){
+  const key=String(state.round_id||state.round_no||'');
+  if(!key||autoDealBusyRound===key)return;
+  const nextAt=state.next_action_at?new Date(state.next_action_at).getTime():0;
+  const serverNow=state.server_time?new Date(state.server_time).getTime():Date.now()+serverOffsetMs;
+  if(!nextAt||serverNow<nextAt)return;
+  autoDealBusyRound=key;
+  try{
+    const result=firstRow(await rpc('jop_sets_complete_initial_deal',{p_session_token:sessionToken,p_table_code:tableCode}));
+    if(result?.success){autoDealBusyRound=null;await loadState(true);}
+    else if(/SHUFFLING|already completed|not in SHUFFLING/i.test(result?.message||'')){autoDealBusyRound=null;}
+    else{console.warn('Next deal distribution:',result?.message);autoDealBusyRound=null;}
+  }catch(e){console.error('Next deal distribution failed:',e);autoDealBusyRound=null;}
+}
+
 async function loadState(silent = false) {
   if (!tableCode || !sessionToken || busy) return;
   try {
     const state = resultOrThrow(await rpc('jop_sets_get_game_state', {p_session_token:sessionToken,p_table_code:tableCode}), 'Unable to load SETS game state.');
     if (state.round_status === 'COMPLETED' || state.round_status === 'CANCELLED') {
+      closeObservation();
       toast(`Deal ${state.round_status.toLowerCase()}.`);
       return;
     }
@@ -355,7 +442,8 @@ async function initialize() {
     $('helpDialog').querySelectorAll('[data-close-dialog]').forEach(b => b.addEventListener('click', () => $('helpDialog').close()));
     await loadState(false);
     refreshHandle = setInterval(() => loadState(true), 1200);
-    clockHandle = setInterval(updateClock, 200);
+    clockHandle = setInterval(() => { updateClock(); updateObservationTimer(); }, 200);
+    $('obsExitBtn').addEventListener('click', () => { if(confirm('Exit this SETS table?')) location.href=`sets.html?table=${encodeURIComponent(tableCode)}`; });
   } catch (error) { toast(error.message, true); console.error(error); }
 }
 window.addEventListener('beforeunload', () => { clearInterval(refreshHandle); clearInterval(clockHandle); });

@@ -63,6 +63,19 @@
     <footer class="game-footer"><span id="connectionIndicator"><i class="connection-dot"></i> <span id="connectionTextFooter">LIVE CONNECTION</span></span><span>NO POINTS · NO WALLET · FRIENDS GAME</span><span>CRDG GAMES <b>•</b> SETS</span></footer>
   </div>
 
+
+  <dialog id="observationDialog" class="sets-observation-dialog" aria-labelledby="observationTitle">
+    <section class="obs-modal-shell">
+      <header class="obs-modal-header">
+        <div><span class="obs-kicker">CRDG SETS · DEAL RESULTS</span><h2 id="observationTitle">OBSERVATION</h2></div>
+        <div class="obs-countdown"><small>TIME LEFT</small><strong id="obsTimer">15s</strong></div>
+      </header>
+      <div class="obs-modal-meta"><span>TABLE <b id="obsTableCode">—</b></span><span>DEAL <b id="obsDealNo">—</b></span><span>DEALER <b id="obsDealerName">—</b></span></div>
+      <div class="obs-player-list" id="obsPlayers"><div class="obs-loading">Loading deal results…</div></div>
+      <footer class="obs-modal-footer"><span id="obsMessage">All players can see these results.</span><button type="button" id="obsExitBtn">EXIT TABLE</button></footer>
+    </section>
+  </dialog>
+
   <div class="toast" id="toast" role="status"></div>
   <dialog id="helpDialog" class="help-dialog"><form method="dialog"><button class="dialog-close" type="button" aria-label="Close" data-close-dialog>×</button><span class="eyebrow">QUICK GUIDE</span><h2>How to play SETS</h2><p>Pick one card from STOCK or OPEN, then discard one card. Arrange your cards into G1, G2 and G3. A valid declaration contains exactly three valid groups of three cards.</p><ul><li>Three cards of the same rank.</li><li>Two cards of the same rank plus one printed joker.</li><li>One non-joker plus two printed jokers.</li></ul><p class="muted">Each player sees their own private hand. Pick one card, then discard one card, or submit a declaration.</p><button class="dialog-ok" data-close-dialog>GOT IT</button></form></dialog>
   <script src="sets-game.js"></script>
