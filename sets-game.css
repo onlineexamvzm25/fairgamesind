@@ -993,3 +993,38 @@
   .obs-modal-footer { min-height:26px !important; font-size:7px !important; }
   .obs-modal-footer button { padding:5px 7px !important; font-size:7px !important; }
 }
+
+
+/* Observation results: all nine cards occupy the same three group boxes.
+   The visual fallback groups do not change the server declaration result. */
+.obs-player-row {
+  grid-template-columns: minmax(82px,.72fr) repeat(3,minmax(125px,1fr)) minmax(65px,.48fr) !important;
+}
+.obs-ungrouped { display:none !important; }
+.obs-modal-header { gap:10px !important; }
+.obs-header-actions {
+  display:flex !important;
+  align-items:center !important;
+  justify-content:flex-end !important;
+  gap:8px !important;
+  flex:0 0 auto !important;
+}
+.obs-exit-top {
+  flex:0 0 auto !important;
+  border:1px solid #b58a45 !important;
+  border-radius:7px !important;
+  padding:7px 11px !important;
+  background:linear-gradient(135deg,#d7b66b,#a77b37) !important;
+  color:#1c211a !important;
+  font-size:9px !important;
+  font-weight:900 !important;
+  letter-spacing:.4px !important;
+}
+.obs-modal-footer { justify-content:flex-start !important; }
+@media(max-width:700px) {
+  .obs-player-row {
+    grid-template-columns:minmax(62px,.65fr) repeat(3,minmax(76px,1fr)) minmax(48px,.42fr) !important;
+  }
+  .obs-header-actions { gap:5px !important; }
+  .obs-exit-top { padding:5px 7px !important; font-size:7px !important; }
+}

@@ -68,11 +68,14 @@
     <section class="obs-modal-shell">
       <header class="obs-modal-header">
         <div><span class="obs-kicker">CRDG SETS · DEAL RESULTS</span><h2 id="observationTitle">OBSERVATION</h2></div>
-        <div class="obs-countdown"><small>TIME LEFT</small><strong id="obsTimer">15s</strong></div>
+        <div class="obs-header-actions">
+          <div class="obs-countdown"><small>TIME LEFT</small><strong id="obsTimer">15s</strong></div>
+          <button type="button" id="obsExitBtn" class="obs-exit-top">EXIT TABLE</button>
+        </div>
       </header>
       <div class="obs-modal-meta"><span>TABLE <b id="obsTableCode">—</b></span><span>DEAL <b id="obsDealNo">—</b></span><span>DEALER <b id="obsDealerName">—</b></span></div>
       <div class="obs-player-list" id="obsPlayers"><div class="obs-loading">Loading deal results…</div></div>
-      <footer class="obs-modal-footer"><span id="obsMessage">All players can see these results.</span><button type="button" id="obsExitBtn">EXIT TABLE</button></footer>
+      <footer class="obs-modal-footer"><span id="obsMessage">All players can see these results.</span></footer>
     </section>
   </dialog>
 

@@ -237,10 +237,18 @@ function renderObservation(data) {
   $('obsDealerName').textContent=data.dealer_name||'—';
   const players=data.players||[];
   $('obsPlayers').innerHTML=players.map(p=>{
-    const grouping=p.grouping||{}; const groups=grouping.groups||[]; const ungrouped=grouping.ungrouped_cards||[];
-    const groupHtml=[0,1,2].map(i=>{const cards=groups[i]||[];return `<div class="obs-group"><span class="obs-group-label">G${i+1}</span><div class="obs-group-cards">${cards.map(obsCardMarkup).join('')||'<span class="obs-player-seat">—</span>'}</div></div>`}).join('');
-    const extra=ungrouped.length?`<div class="obs-ungrouped"><span class="obs-ungrouped-label">EXTRA</span>${ungrouped.map(obsCardMarkup).join('')}</div>`:'';
-    return `<article class="obs-player-row"><div class="obs-player-ident"><div class="obs-player-name">${escapeHtml(p.player_name||'PLAYER')}</div><div class="obs-player-seat">SEAT ${escapeHtml(p.seat_no??'—')}</div></div>${groupHtml}<span class="obs-result ${p.result_status==='WINNER'?'winner':''}">${escapeHtml(p.result_status||'LOST')}</span>${extra}</article>`;
+    const grouping=p.grouping||{};
+    const displayGroups=(Array.isArray(grouping.groups)?grouping.groups:[]).slice(0,3).map(g=>Array.isArray(g)?g:[]);
+    const remaining=Array.isArray(grouping.ungrouped_cards)?grouping.ungrouped_cards.slice():[];
+    // Observation is a visual nine-card layout for every player. Valid groups
+    // returned by SQL stay intact; leftover cards fill the remaining visual
+    // slots in sets of three so LOST players use the same three-box layout.
+    while(displayGroups.length<3 && remaining.length){
+      displayGroups.push(remaining.splice(0,3));
+    }
+    while(displayGroups.length<3) displayGroups.push([]);
+    const groupHtml=displayGroups.map(cards=>`<div class="obs-group"><span class="obs-group-label"></span><div class="obs-group-cards">${cards.map(obsCardMarkup).join('')||'<span class="obs-player-seat">—</span>'}</div></div>`).join('');
+    return `<article class="obs-player-row"><div class="obs-player-ident"><div class="obs-player-name">${escapeHtml(p.player_name||'PLAYER')}</div><div class="obs-player-seat">SEAT ${escapeHtml(p.seat_no??'—')}</div></div>${groupHtml}<span class="obs-result ${p.result_status==='WINNER'?'winner':''}">${escapeHtml(p.result_status||'LOST')}</span></article>`;
   }).join('')||'<div class="obs-loading">No player results available.</div>';
   $('obsMessage').textContent='All players see the same deal results. No wallet or transaction settlement.';
   if(!dlg.open) dlg.showModal();
