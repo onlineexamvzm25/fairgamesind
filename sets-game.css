@@ -193,3 +193,160 @@
  .hand-cards .playing-card{flex:0 1 78px;min-width:0}
  .action-btn{min-width:96px}
 }
+
+/* ==========================================================
+   CRDG SETS — RUMMY-STYLE GROUPED HAND LAYOUT
+   Match the supplied CRDG Rummy reference: black canvas,
+   compact opponent seat, left-side piles, action row and
+   three physical-card groups across the bottom.
+========================================================== */
+@media screen and (max-width: 900px),
+       screen and (orientation: landscape) and (max-height: 600px) {
+  html, body { background:#000 !important; overflow:hidden !important; }
+  .game-shell {
+    width:1280px !important; height:720px !important; min-height:720px !important;
+    padding:0 18px !important; display:grid !important;
+    grid-template-rows:42px 678px !important; background:#000 !important;
+  }
+  .game-topbar { height:42px !important; min-height:42px !important; grid-template-columns:1.15fr 1fr 1fr !important; }
+  .table-layout.rummy-layout {
+    height:678px !important; min-height:0 !important; width:100% !important;
+    display:grid !important; grid-template-columns:1fr !important;
+    grid-template-rows:112px 208px 1fr !important; gap:0 !important;
+    padding:0 0 7px !important; overflow:hidden !important;
+  }
+  .rummy-layout > .opponents {
+    grid-column:1 !important; grid-row:1 !important; height:112px !important; min-height:0 !important;
+    justify-content:flex-start !important; align-items:flex-start !important;
+    padding:22px 105px 0 !important; gap:12px !important; overflow:hidden !important;
+  }
+  .rummy-layout .player-seat { min-width:155px !important; max-width:205px !important; min-height:52px !important; padding:6px 9px !important; }
+  .rummy-play-area {
+    grid-column:1 !important; grid-row:2 !important; position:relative !important;
+    width:100% !important; height:208px !important; min-height:208px !important;
+    border:0 !important; border-radius:0 !important; background:#000 !important;
+    box-shadow:none !important; overflow:hidden !important; display:block !important;
+  }
+  .rummy-play-area:before,.rummy-play-area:after { display:none !important; }
+  .rummy-play-area .dealer-chip {
+    top:8px !important; left:48% !important; transform:translateX(-50%) !important;
+    z-index:3 !important; padding:4px 9px !important; font-size:8px !important;
+  }
+  .rummy-play-area .turn-banner { top:8px !important; right:5% !important; z-index:3 !important; }
+  .rummy-center {
+    position:absolute !important; left:145px !important; top:38px !important;
+    height:155px !important; display:flex !important; align-items:center !important; gap:42px !important;
+  }
+  .center-play { margin:0 !important; gap:28px !important; align-items:center !important; }
+  .pile-wrap { gap:4px !important; }
+  .pile-label { font-size:9px !important; }
+  .card-back,.open-wrap .playing-card.open-card,.open-card-empty {
+    width:78px !important; height:112px !important; border-radius:7px !important;
+  }
+  .card-back { border-width:2px !important; }
+  .card-back-mark { font-size:30px !important; }
+  .card-center { font-size:34px !important; }
+  .corner { font-size:14px !important; }
+  .corner small { font-size:10px !important; }
+  .pile-count,.pile-hint { font-size:8px !important; }
+  .table-divider { display:none !important; }
+  .center-actions { display:flex !important; flex-direction:column !important; gap:8px !important; margin-left:5px !important; }
+  .center-actions .action-btn { width:142px !important; height:43px !important; min-width:142px !important; font-size:13px !important; border-radius:7px !important; }
+  .center-actions .pick { background:#1687ec !important; }
+  .center-actions .declare { background:#1687ec !important; }
+
+  .rummy-my-seat { grid-column:1 !important; grid-row:3 !important; display:grid !important;
+    grid-template-rows:42px minmax(0,1fr) !important; gap:4px !important; min-height:0 !important; }
+  .rummy-my-seat .my-player-card {
+    display:flex !important; grid-row:1 !important; align-self:center !important; justify-self:start !important;
+    width:260px !important; min-height:38px !important; padding:3px 9px !important;
+    border-radius:7px !important; background:#102c22 !important;
+  }
+  .rummy-my-seat .my-player-card .avatar { width:27px !important; height:27px !important; }
+  .rummy-my-seat .my-player-card .player-details strong { font-size:11px !important; }
+  .rummy-my-seat .my-player-card .player-details span { font-size:7px !important; }
+  .rummy-my-seat .my-status { font-size:7px !important; }
+  .rummy-my-seat .hand-area {
+    grid-row:2 !important; width:100% !important; height:100% !important; min-height:0 !important;
+    padding:7px 10px 6px !important; border-radius:10px !important;
+    display:grid !important; grid-template-rows:20px 14px minmax(0,1fr) 34px !important;
+    gap:2px !important; overflow:hidden !important; background:#101f1a !important;
+  }
+  .hand-heading { min-height:20px !important; margin:0 !important; }
+  .hand-heading strong { font-size:13px !important; }
+  .hand-heading strong small { font-size:8px !important; }
+  .hand-instructions { font-size:8px !important; }
+  .grouping-help { display:block !important; font-size:8px !important; color:#9eafa8 !important; line-height:14px !important; }
+  .set-groups {
+    width:100% !important; min-height:0 !important; height:100% !important; overflow:hidden !important;
+    display:grid !important; grid-template-columns:repeat(3,minmax(0,1fr)) !important;
+    gap:10px !important; align-items:stretch !important; padding:2px 0 4px !important;
+  }
+  .set-group {
+    position:relative !important; min-width:0 !important; height:100% !important;
+    border:1px solid #555 !important; border-radius:7px !important;
+    background:rgba(0,0,0,.22) !important; overflow:hidden !important;
+  }
+  .group-title {
+    position:absolute !important; top:0 !important; left:0 !important; right:0 !important;
+    height:22px !important; display:flex !important; align-items:center !important; justify-content:center !important;
+    gap:12px !important; width:100% !important; padding:0 8px !important;
+    color:#fff !important; background:transparent !important; border:0 !important;
+    font-size:12px !important; font-weight:900 !important; z-index:5 !important;
+  }
+  .group-title .group-count { color:#aab8b1 !important; font-size:8px !important; font-weight:600 !important; }
+  .group-title.group-full { color:#80e3b7 !important; }
+  .group-cards {
+    position:absolute !important; inset:23px 6px 4px !important;
+    display:flex !important; align-items:flex-start !important; justify-content:flex-start !important;
+    overflow:visible !important; padding:0 0 0 2px !important;
+  }
+  .group-cards .playing-card {
+    flex:0 0 103px !important; width:103px !important; min-width:103px !important; max-width:103px !important;
+    height:145px !important; max-height:calc(100% - 1px) !important;
+    margin-right:-24px !important; border-radius:7px !important; padding:4px !important;
+    box-shadow:0 2px 5px #0008 !important;
+  }
+  .group-cards .playing-card:last-child { margin-right:0 !important; }
+  .group-cards .playing-card .corner { left:6px !important; top:6px !important; font-size:20px !important; }
+  .group-cards .playing-card .corner small { font-size:14px !important; }
+  .group-cards .playing-card .corner-bottom { left:auto !important; top:auto !important; right:6px !important; bottom:6px !important; }
+  .group-cards .playing-card .card-center { font-size:38px !important; }
+  .group-cards .playing-card.selected { transform:translateY(-9px) !important; outline:3px solid #e6e51c !important; z-index:10 !important; }
+  .group-cards .joker-face { font-size:34px !important; }
+  .group-cards .joker>b { font-size:9px !important; }
+  .group-cards .joker-label { font-size:7px !important; }
+  .rummy-action-bar { min-height:34px !important; height:34px !important; padding:2px 0 0 !important; display:flex !important; align-items:center !important; justify-content:space-between !important; }
+  .turn-clock { font-size:9px !important; gap:5px !important; }
+  .turn-clock b { font-size:17px !important; }
+  .discard-tools { display:flex !important; align-items:center !important; gap:8px !important; }
+  .selected-hint { color:#9eafa8 !important; font-size:8px !important; }
+  .discard-tools .action-btn { width:112px !important; min-width:112px !important; height:29px !important; font-size:11px !important; }
+  .game-footer { display:none !important; }
+}
+
+/* Desktop/tablet uses the same grouping hierarchy, without stage scaling. */
+@media screen and (min-width:901px) and (min-height:601px) {
+  .table-layout.rummy-layout { grid-template-columns:1fr; grid-template-rows:100px 190px minmax(300px,1fr); gap:0; }
+  .rummy-layout > .opponents { grid-column:1; grid-row:1; justify-content:flex-start; padding:15px 8%; }
+  .rummy-play-area { grid-column:1; grid-row:2; min-height:190px; border:0; border-radius:0; background:#000; box-shadow:none; }
+  .rummy-play-area:before,.rummy-play-area:after { display:none; }
+  .rummy-center { position:absolute; left:12%; top:35px; display:flex; align-items:center; gap:45px; }
+  .center-play { margin:0; gap:28px; }
+  .center-actions { display:flex; flex-direction:row; gap:10px; }
+  .center-actions .action-btn { min-width:120px; height:42px; }
+  .rummy-my-seat { grid-column:1; grid-row:3; display:grid; grid-template-rows:42px minmax(0,1fr); gap:5px; }
+  .rummy-my-seat .my-player-card { width:260px; min-height:38px; padding:3px 9px; }
+  .rummy-my-seat .hand-area { display:grid; grid-template-rows:22px 16px minmax(190px,1fr) 36px; gap:3px; }
+  .grouping-help { display:block; font-size:10px; color:#9eafa8; }
+  .set-groups { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; min-height:190px; }
+  .set-group { position:relative; border:1px solid #555; border-radius:8px; overflow:hidden; background:#0003; }
+  .group-title { width:100%; height:24px; display:flex; justify-content:center; gap:12px; color:white; background:transparent; border:0; font-weight:900; }
+  .group-count { color:#9eafa8; font-size:10px; }
+  .group-cards { display:flex; padding:4px 8px; }
+  .group-cards .playing-card { flex:0 0 105px; width:105px; height:155px; margin-right:-25px; }
+  .group-cards .playing-card.selected { transform:translateY(-10px); outline:3px solid #e6e51c; z-index:5; }
+  .rummy-action-bar { display:flex; align-items:center; justify-content:space-between; }
+  .discard-tools { display:flex; align-items:center; gap:10px; }
+  .selected-hint { color:#9eafa8; font-size:10px; }
+}

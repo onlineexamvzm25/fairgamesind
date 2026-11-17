@@ -11,6 +11,8 @@ const sessionToken = localStorage.getItem(SETS_SESSION_KEY);
 let profile = null;
 let gameState = null;
 let selectedCardId = null;
+let groupAssignments = {};
+let groupRoundKey = null;
 let busy = false;
 let refreshHandle = null;
 let clockHandle = null;
@@ -69,16 +71,57 @@ function renderPlayers(state) {
     opponents.appendChild(el);
   }
 }
+function ensureGroupAssignments(hand, state) {
+  const key = `${state.round_id || state.round_no || 'round'}:${state.my_user_id || 'player'}`;
+  if (groupRoundKey !== key) { groupAssignments = {}; groupRoundKey = key; }
+  const liveIds = new Set(hand.map(c => String(c.card_id)));
+  Object.keys(groupAssignments).forEach(id => { if (!liveIds.has(id)) delete groupAssignments[id]; });
+  const counts = [0, 0, 0];
+  hand.forEach(c => {
+    const group = Number(groupAssignments[String(c.card_id)] || 0);
+    if (group >= 1 && group <= 3) counts[group - 1]++;
+  });
+  hand.forEach(c => {
+    const id = String(c.card_id);
+    if (groupAssignments[id]) return;
+    const min = Math.min(...counts);
+    const index = counts.findIndex(n => n === min);
+    groupAssignments[id] = index + 1;
+    counts[index]++;
+  });
+}
+function moveSelectedToGroup(groupNo) {
+  if (!selectedCardId) return toast('Select a card first, then choose G1, G2 or G3.', true);
+  groupAssignments[String(selectedCardId)] = Number(groupNo);
+  renderHand(gameState);
+  updateControls();
+  toast(`Card moved to G${groupNo}.`);
+}
 function renderHand(state) {
   const hand = Array.isArray(state.my_hand) ? state.my_hand : [];
+  ensureGroupAssignments(hand, state);
   $('handCount').textContent = hand.length;
-  $('handCards').innerHTML = hand.map(c => cardMarkup(c, String(c.card_id) === String(selectedCardId))).join('');
-  $('handCards').querySelectorAll('[data-card-id]').forEach(btn => btn.addEventListener('click', () => {
-    selectedCardId = btn.dataset.cardId;
-    renderHand(gameState);
-    updateControls();
-  }));
+  const groups = [1, 2, 3];
+  groups.forEach(groupNo => {
+    const section = $('handCards').querySelector(`[data-group="${groupNo}"]`);
+    if (!section) return;
+    const cardsBox = section.querySelector('.group-cards');
+    const cards = hand.filter(c => Number(groupAssignments[String(c.card_id)]) === groupNo);
+    section.querySelector('.group-count').textContent = `${cards.length}/3`;
+    section.querySelector('.group-title').classList.toggle('group-full', cards.length === 3);
+    cardsBox.innerHTML = cards.map(c => cardMarkup(c, String(c.card_id) === String(selectedCardId))).join('');
+    cardsBox.querySelectorAll('[data-card-id]').forEach(btn => btn.addEventListener('click', () => {
+      selectedCardId = btn.dataset.cardId;
+      renderHand(gameState);
+      updateControls();
+    }));
+  });
+  $('handCards').querySelectorAll('[data-group-target]').forEach(btn => {
+    btn.onclick = () => moveSelectedToGroup(btn.dataset.groupTarget);
+  });
   $('myCardCount').textContent = `${hand.length} CARDS`;
+  const hint = $('selectedHint');
+  if (hint) hint.textContent = selectedCardId ? 'Selected card ready for DISCARD / DECLARE' : 'Select a card to discard';
 }
 function renderOpen(state) {
   const wrap = $('openPileWrap');
@@ -132,7 +175,7 @@ function updateControls() {
   $('pickOpenBtn').disabled = busy || !myTurn || drew || !gameState.open_card;
   $('discardBtn').disabled = busy || !myTurn || !drew || handCount !== 10 || !selectedCardId;
   $('declareBtn').disabled = busy || !myTurn || !drew || handCount !== 10 || !selectedCardId;
-  $('handInstructions').textContent = drew ? 'Select a card to DISCARD or exclude for DECLARE' : 'Pick STOCK or OPEN to begin your turn';
+  $('handInstructions').textContent = drew ? 'Select a card to DISCARD or exclude for DECLARE' : 'Arrange cards into G1, G2 and G3';
 }
 async function loadState(silent = false) {
   if (!tableCode || !sessionToken || busy) return;

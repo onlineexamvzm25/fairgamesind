@@ -16,29 +16,47 @@
       <div class="top-actions"><span class="preview-tag" id="connectionText">CONNECTING</span><button class="icon-btn" id="soundBtn" aria-label="Toggle sound">♫</button><button class="icon-btn" id="helpBtn" aria-label="Game rules">?</button><button class="icon-btn exit-btn" id="exitBtn" aria-label="Exit game">↗</button></div>
     </header>
 
-    <main class="table-layout">
+    <main class="table-layout rummy-layout">
       <section class="opponents" id="opponents" aria-label="Other players"></section>
 
-      <section class="felt-table" aria-label="SETS card table">
-        <div class="felt-glow"></div>
-        <div class="table-rings"></div>
-        <div class="table-brand"><span class="brand-gem">✦</span><span>CRDG <b>SETS</b></span><small>THREE GROUPS · NINE CARDS</small></div>
+      <section class="felt-table rummy-play-area" aria-label="SETS playing area">
         <div class="dealer-chip"><span>DEALER</span><b id="dealerName">—</b></div>
         <div class="turn-banner" id="turnBanner"><span class="turn-pulse"></span><span id="turnBannerName">WAITING</span><b id="turnBannerSeconds">40s</b></div>
-        <div class="center-play">
-          <div class="pile-wrap stock-wrap"><span class="pile-label">STOCK</span><button class="card-back stock-card" id="stockPile" aria-label="Stock pile"><span class="card-back-mark">♠</span><small>CRDG</small></button><span class="pile-count"><b id="stockCount">—</b> cards</span></div>
-          <div class="table-divider"></div>
-          <div class="pile-wrap open-wrap" id="openPileWrap"><span class="pile-label">OPEN CARD</span><div class="open-card-empty">Loading</div><span class="pile-hint">PICK OPEN</span></div>
+        <div class="rummy-center">
+          <div class="center-play">
+            <div class="pile-wrap stock-wrap">
+              <span class="pile-label">STOCK</span>
+              <button class="card-back stock-card" id="stockPile" aria-label="Stock pile"><span class="card-back-mark">▤</span><small>CRDG</small></button>
+              <span class="pile-count"><b id="stockCount">—</b> cards</span>
+            </div>
+            <div class="pile-wrap open-wrap" id="openPileWrap"><span class="pile-label">OPEN CARD</span><div class="open-card-empty">Loading</div><span class="pile-hint">PICK OPEN</span></div>
+          </div>
+          <div class="center-actions">
+            <button class="action-btn pick" id="pickStockBtn">PICK STOCK</button>
+            <button class="action-btn pick" id="pickOpenBtn">PICK OPEN</button>
+            <button class="action-btn declare" id="declareBtn">DECLARE</button>
+          </div>
         </div>
-        <div class="table-tip"><span>✦</span> PICK 1 CARD · DISCARD 1 CARD · MAKE 3 VALID GROUPS</div>
       </section>
 
-      <section class="my-seat">
-        <div class="my-player-card" id="myPlayerCard"><div class="avatar avatar-green">YOU</div><div class="player-details"><strong id="myName">YOU <em>YOU</em></strong><span>SEAT <b id="mySeatNo">—</b> · <b id="myCardCount">— CARDS</b></span></div><span class="my-status"><i></i> ONLINE</span></div>
+      <section class="my-seat rummy-my-seat">
+        <div class="my-player-card" id="myPlayerCard">
+          <div class="avatar avatar-green">YOU</div>
+          <div class="player-details"><strong id="myName">YOU <em>YOU</em></strong><span>SEAT <b id="mySeatNo">—</b> · <b id="myCardCount">— CARDS</b></span></div>
+          <span class="my-status"><i></i> ONLINE</span>
+        </div>
         <div class="hand-area">
           <div class="hand-heading"><div><span class="eyebrow">YOUR HAND</span><strong><b id="handCount">9</b> <small>/ 9 CARDS</small></strong></div><div class="hand-instructions" id="handInstructions">Connecting to live game…</div></div>
-          <div class="hand-cards" id="handCards" aria-label="Your private cards"></div>
-          <div class="action-bar"><div class="turn-clock"><span class="clock-icon">◷</span><span id="myTurnLabel">WAITING</span><b id="timerText">—</b><small>SEC</small></div><div class="action-buttons"><button class="action-btn secondary" id="pickStockBtn">PICK STOCK</button><button class="action-btn secondary" id="pickOpenBtn">PICK OPEN</button><button class="action-btn discard" id="discardBtn" disabled>DISCARD</button><button class="action-btn declare" id="declareBtn">DECLARE</button></div></div>
+          <div class="grouping-help">Select a card, then tap a group label to move it. Build three groups of three cards.</div>
+          <div class="hand-cards set-groups" id="handCards" aria-label="Your three card groups">
+            <section class="set-group" data-group="1"><button class="group-title" type="button" data-group-target="1"><b>G1</b><span class="group-count">0/3</span></button><div class="group-cards"></div></section>
+            <section class="set-group" data-group="2"><button class="group-title" type="button" data-group-target="2"><b>G2</b><span class="group-count">0/3</span></button><div class="group-cards"></div></section>
+            <section class="set-group" data-group="3"><button class="group-title" type="button" data-group-target="3"><b>G3</b><span class="group-count">0/3</span></button><div class="group-cards"></div></section>
+          </div>
+          <div class="action-bar rummy-action-bar">
+            <div class="turn-clock"><span class="clock-icon">◷</span><span id="myTurnLabel">WAITING</span><b id="timerText">—</b><small>SEC</small></div>
+            <div class="discard-tools"><span class="selected-hint" id="selectedHint">Select a card to discard</span><button class="action-btn discard" id="discardBtn" disabled>DISCARD</button></div>
+          </div>
         </div>
       </section>
     </main>
@@ -47,7 +65,7 @@
   </div>
 
   <div class="toast" id="toast" role="status"></div>
-  <dialog id="helpDialog" class="help-dialog"><form method="dialog"><button class="dialog-close" type="button" aria-label="Close" data-close-dialog>×</button><span class="eyebrow">QUICK GUIDE</span><h2>How to play SETS</h2><p>Pick one card from STOCK or OPEN, then discard one card. Build exactly three valid groups using your nine cards.</p><ul><li>Three cards of the same rank.</li><li>Two cards of the same rank plus one printed joker.</li><li>One card plus two printed jokers.</li></ul><p class="muted">Each player sees their own private hand. Pick one card, then discard one card, or submit a declaration.</p><button class="dialog-ok" data-close-dialog>GOT IT</button></form></dialog>
+  <dialog id="helpDialog" class="help-dialog"><form method="dialog"><button class="dialog-close" type="button" aria-label="Close" data-close-dialog>×</button><span class="eyebrow">QUICK GUIDE</span><h2>How to play SETS</h2><p>Pick one card from STOCK or OPEN, then discard one card. Arrange your cards into G1, G2 and G3. A valid declaration contains exactly three valid groups of three cards.</p><ul><li>Three cards of the same rank.</li><li>Two cards of the same rank plus one printed joker.</li><li>One non-joker plus two printed jokers.</li></ul><p class="muted">Each player sees their own private hand. Pick one card, then discard one card, or submit a declaration.</p><button class="dialog-ok" data-close-dialog>GOT IT</button></form></dialog>
   <script src="sets-game.js"></script>
   <script src="sets-game-responsive.js"></script>
 </body>
