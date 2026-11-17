@@ -27,7 +27,11 @@
               <button class="card-back stock-card" id="stockPile" aria-label="Stock pile"><span class="card-back-mark">▤</span><small>CRDG</small></button>
               <span class="pile-count"><b id="stockCount">—</b> cards</span>
             </div>
-            <div class="pile-wrap open-wrap" id="openPileWrap"><span class="pile-label">OPEN CARD</span><div class="open-card-empty">Loading</div><span class="pile-hint">PICK OPEN</span></div>
+            <div class="pile-wrap open-wrap" id="openPileWrap"><span class="pile-label">OPEN CARD</span><div class="open-card-empty">Loading</div><span class="pile-hint">TAP TO PICK</span></div>
+            <div class="center-actions" aria-label="Card actions">
+              <button class="action-btn declare" id="declareBtn" disabled>DECLARE</button>
+              <button class="action-btn discard" id="discardBtn" disabled>DISCARD</button>
+            </div>
           </div>
 
         </div>
@@ -50,7 +54,7 @@
           </div>
           <div class="action-bar rummy-action-bar">
             <div class="turn-clock"><span class="clock-icon">◷</span><span id="myTurnLabel">WAITING</span><b id="timerText">—</b><small>SEC</small></div>
-            <div class="discard-tools"><span class="selected-hint" id="selectedHint">Select a card to discard</span><button class="action-btn declare" id="declareBtn" disabled>DECLARE</button><button class="action-btn discard" id="discardBtn" disabled>DISCARD</button></div>
+            <div class="discard-tools"><span class="selected-hint" id="selectedHint">Select a card to discard</span></div>
           </div>
         </div>
       </section>

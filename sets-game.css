@@ -429,3 +429,155 @@
   .group-cards { position:relative !important; inset:auto !important; width:max-content !important; min-width:92px !important; margin-top:24px !important; display:flex !important; padding:4px 8px !important; }
   .group-cards:empty::after { content:""; display:block; flex:0 0 92px; width:92px; height:135px; border:1px dashed #61756a; border-radius:7px; }
 }
+
+
+/* ==========================================================
+   MOBILE GROUP LAYOUT REFINEMENT — 17 NOV 2026
+   Compact centred groups, content-sized boxes, smooth drag.
+========================================================== */
+.set-groups {
+  display:flex !important;
+  justify-content:center !important;
+  align-items:center !important;
+  gap:12px !important;
+  width:100% !important;
+  padding:0 !important;
+  overflow:visible !important;
+}
+.set-group {
+  position:relative !important;
+  display:flex !important;
+  flex:0 0 auto !important;
+  flex-direction:column !important;
+  align-items:stretch !important;
+  height:143px !important;
+  min-height:143px !important;
+  max-height:143px !important;
+  padding:0 4px 4px !important;
+  margin:0 !important;
+  border:1px solid #40534b !important;
+  border-radius:7px !important;
+  background:rgba(0,0,0,.20) !important;
+  overflow:visible !important;
+  transition:width .16s ease, border-color .16s ease, background .16s ease;
+}
+.group-title {
+  position:relative !important;
+  inset:auto !important;
+  flex:0 0 22px !important;
+  width:100% !important;
+  height:22px !important;
+  min-height:22px !important;
+  padding:0 3px !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  gap:7px !important;
+  background:transparent !important;
+  border:0 !important;
+  color:#83e3bc !important;
+  font-size:12px !important;
+  line-height:1 !important;
+}
+.group-title .group-count { font-size:9px !important; color:#c4d0c9 !important; }
+.group-cards {
+  position:relative !important;
+  inset:auto !important;
+  display:flex !important;
+  align-items:flex-start !important;
+  justify-content:flex-start !important;
+  flex:0 0 116px !important;
+  width:100% !important;
+  min-width:0 !important;
+  height:116px !important;
+  min-height:116px !important;
+  margin:0 !important;
+  padding:0 0 0 0 !important;
+  overflow:visible !important;
+}
+.group-cards:empty::after {
+  content:"";
+  display:block;
+  flex:0 0 82px;
+  width:82px;
+  height:116px;
+  border:1px dashed #61756a;
+  border-radius:6px;
+  background:rgba(255,255,255,.025);
+}
+.group-cards .playing-card {
+  position:relative !important;
+  flex:0 0 82px !important;
+  width:82px !important;
+  min-width:82px !important;
+  max-width:82px !important;
+  height:116px !important;
+  min-height:116px !important;
+  max-height:116px !important;
+  margin:0 -16px 0 0 !important;
+  padding:4px !important;
+  border-radius:6px !important;
+  box-shadow:0 2px 6px #0008 !important;
+  touch-action:none !important;
+  user-select:none !important;
+  -webkit-user-select:none !important;
+  transition:transform .14s ease, box-shadow .14s ease;
+}
+.group-cards .playing-card:last-child { margin-right:0 !important; }
+.group-cards .playing-card .corner { left:5px !important; top:5px !important; font-size:30px !important; line-height:1 !important; }
+.group-cards .playing-card .corner b { font-size:30px !important; font-weight:800 !important; }
+.group-cards .playing-card .corner small { font-size:9px !important; line-height:1 !important; }
+.group-cards .playing-card .corner-bottom { left:auto !important; top:auto !important; right:5px !important; bottom:5px !important; }
+.group-cards .playing-card .card-center { font-size:27px !important; }
+.group-cards .playing-card.selected { transform:translateY(-5px) !important; outline:2px solid #f3d34a !important; z-index:12 !important; }
+.group-cards .playing-card.drag-source { opacity:.28 !important; transform:scale(.98) !important; }
+.drag-ghost {
+  position:fixed !important;
+  z-index:99999 !important;
+  pointer-events:none !important;
+  margin:0 !important;
+  opacity:.94 !important;
+  box-shadow:0 12px 28px #000b !important;
+  transition:none !important;
+  transform:translate(-50%,-50%) rotate(2deg) scale(1.04);
+}
+
+/* Action buttons sit directly beside OPEN, not down by the hand. */
+.center-play { gap:20px !important; align-items:center !important; }
+.center-play .center-actions {
+  display:flex !important;
+  flex:0 0 auto !important;
+  flex-direction:column !important;
+  align-items:stretch !important;
+  justify-content:center !important;
+  gap:10px !important;
+  margin:0 0 0 4px !important;
+}
+.center-play .center-actions .action-btn {
+  display:block !important;
+  width:142px !important;
+  min-width:142px !important;
+  height:48px !important;
+  min-height:48px !important;
+  border-radius:8px !important;
+  font-size:14px !important;
+  font-weight:800 !important;
+  letter-spacing:.5px !important;
+  box-shadow:0 3px 8px #0006 !important;
+}
+.center-play .center-actions .declare { background:#1687ec !important; color:#fff !important; }
+.center-play .center-actions .discard { background:#d7354a !important; color:#fff !important; }
+.rummy-action-bar .discard-tools { display:none !important; }
+.rummy-action-bar .turn-clock { display:none !important; }
+
+@media screen and (max-width:900px), screen and (orientation:landscape) and (max-height:600px) {
+  .set-groups { justify-content:center !important; align-items:center !important; gap:12px !important; }
+  .set-group { height:143px !important; min-height:143px !important; max-height:143px !important; }
+  .group-cards { flex:0 0 116px !important; height:116px !important; }
+  .group-cards .playing-card .corner,
+  .group-cards .playing-card .corner b { font-size:30px !important; }
+  .group-cards .playing-card .corner small { font-size:9px !important; }
+  .center-play { gap:18px !important; }
+  .center-play .center-actions { gap:9px !important; margin-left:2px !important; }
+  .center-play .center-actions .action-btn { width:138px !important; min-width:138px !important; height:47px !important; min-height:47px !important; font-size:14px !important; }
+}

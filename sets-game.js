@@ -127,11 +127,9 @@ function ensureGroupAssignments(hand, state) {
 function moveCardToGroup(cardId, groupNo) {
   const target = Number(groupNo);
   const hand = gameState?.my_hand || [];
-  const targetCount = hand.filter(c => String(c.card_id) !== String(cardId) && Number(groupAssignments[String(c.card_id)]) === target).length;
-  const limit = target === 4 ? 1 : 3;
-  if (targetCount >= limit) return toast(`G${target} is full.`, true);
+  if (!hand.some(c => String(c.card_id) === String(cardId))) return;
   groupAssignments[String(cardId)] = target;
-  selectedCardId = String(cardId);
+  selectedCardId = null;
   renderHand(gameState);
   updateControls();
 }
@@ -149,9 +147,14 @@ function renderHand(state) {
     if (!section) return;
     const cardsBox = section.querySelector('.group-cards');
     const cards = hand.filter(c => Number(groupAssignments[String(c.card_id)]) === groupNo).sort((a,b) => rankSortValue(a)-rankSortValue(b));
-    section.querySelector('.group-count').textContent = `${cards.length}/${groupNo === 4 ? 1 : 3}`;
-    section.querySelector('.group-title').classList.toggle('group-full', cards.length === (groupNo === 4 ? 1 : 3));
+    section.querySelector('.group-count').textContent = `${cards.length}`;
+    section.querySelector('.group-title').classList.toggle('group-full', cards.length >= 3);
     cardsBox.innerHTML = cards.map(c => cardMarkup(c, String(c.card_id) === String(selectedCardId))).join('');
+    section.style.setProperty('--group-card-count', String(cards.length));
+    const cardWidth = 82, overlap = 16, pad = 8;
+    const contentWidth = cards.length ? (cardWidth + Math.max(0, cards.length - 1) * (cardWidth - overlap) + pad) : (cardWidth + pad);
+    section.style.width = `${contentWidth}px`;
+    section.style.minWidth = `${contentWidth}px`;
   });
   $('handCards').querySelectorAll('[data-group-target]').forEach(btn => {
     btn.onclick = () => moveSelectedToGroup(btn.dataset.groupTarget);
@@ -261,34 +264,67 @@ function declareHand() {
 }
 function bindDragAndDrop() {
   const stage = $('gameStage');
+  const removeGhost = () => {
+    if (pointerDrag?.ghost) pointerDrag.ghost.remove();
+  };
   stage.addEventListener('pointerdown', e => {
     const stock = e.target.closest('#stockPile');
     const open = e.target.closest('#openPile');
     const card = e.target.closest('#handCards [data-card-id]');
-    if (stock) pointerDrag = { kind:'STOCK', x:e.clientX, y:e.clientY, moved:false };
-    else if (open) pointerDrag = { kind:'OPEN', x:e.clientX, y:e.clientY, moved:false };
-    else if (card) pointerDrag = { kind:'CARD', id:String(card.dataset.cardId), x:e.clientX, y:e.clientY, moved:false };
+    if (!stock && !open && !card) return;
+    if (card && e.button !== 0) return;
+    const kind = stock ? 'STOCK' : open ? 'OPEN' : 'CARD';
+    const ghost = card ? card.cloneNode(true) : null;
+    if (ghost) {
+      ghost.classList.add('drag-ghost');
+      ghost.classList.remove('selected');
+      ghost.style.left = `${e.clientX}px`;
+      ghost.style.top = `${e.clientY}px`;
+      document.body.appendChild(ghost);
+      card.classList.add('drag-source');
+    }
+    pointerDrag = { kind, id:card ? String(card.dataset.cardId) : null,
+      x:e.clientX, y:e.clientY, moved:false, ghost, source:card, pointerId:e.pointerId };
+    if (card) card.setPointerCapture?.(e.pointerId);
   });
   stage.addEventListener('pointermove', e => {
     if (!pointerDrag) return;
-    if (Math.hypot(e.clientX-pointerDrag.x, e.clientY-pointerDrag.y) > 12) pointerDrag.moved = true;
+    const dx = e.clientX - pointerDrag.x, dy = e.clientY - pointerDrag.y;
+    if (Math.hypot(dx, dy) > 8) pointerDrag.moved = true;
+    if (pointerDrag.ghost) {
+      pointerDrag.ghost.style.left = `${e.clientX}px`;
+      pointerDrag.ghost.style.top = `${e.clientY}px`;
+      pointerDrag.ghost.style.transform = 'translate(-50%, -50%) rotate(2deg) scale(1.04)';
+    }
   });
-  stage.addEventListener('pointerup', e => {
+  const finishDrag = e => {
     if (!pointerDrag) return;
-    const drag = pointerDrag; pointerDrag = null;
+    const drag = pointerDrag;
+    pointerDrag = null;
+    if (drag.source) drag.source.classList.remove('drag-source');
+    if (drag.ghost) drag.ghost.remove();
     if (!drag.moved) return;
     suppressNextClick = true;
-    setTimeout(() => { suppressNextClick = false; }, 250);
-    const targetGroup = e.target.closest('[data-group]');
-    const targetOpen = e.target.closest('.open-wrap');
+    setTimeout(() => { suppressNextClick = false; }, 300);
+    const target = document.elementFromPoint(e.clientX, e.clientY);
+    const targetGroup = target?.closest('[data-group]');
+    const targetOpen = target?.closest('.open-wrap');
     if (drag.kind === 'CARD') {
       if (targetGroup) moveCardToGroup(drag.id, Number(targetGroup.dataset.group));
       else if (targetOpen) { selectedCardId = drag.id; discardCard(); }
-    } else if (targetGroup && (drag.kind === 'STOCK' || drag.kind === 'OPEN')) {
-      pickCard(drag.kind, Number(targetGroup.dataset.group));
+    } else if (drag.kind === 'STOCK' || drag.kind === 'OPEN') {
+      if (targetGroup) pickCard(drag.kind, Number(targetGroup.dataset.group));
+      else if (drag.kind === 'STOCK' && target?.closest('#stockPile')) pickCard('STOCK', 4);
+      else if (drag.kind === 'OPEN' && targetOpen) pickCard('OPEN', 4);
     }
+  };
+  stage.addEventListener('pointerup', finishDrag);
+  stage.addEventListener('pointercancel', () => {
+    if (pointerDrag?.source) pointerDrag.source.classList.remove('drag-source');
+    if (pointerDrag?.ghost) pointerDrag.ghost.remove();
+    pointerDrag = null;
   });
-  stage.addEventListener('pointercancel', () => { pointerDrag = null; });
+  $('stockPile').addEventListener('click', () => { if (!suppressNextClick) pickCard('STOCK', 4); });
   $('openPileWrap').addEventListener('click', e => {
     const open = e.target.closest('#openPile');
     if (open && !suppressNextClick) pickCard('OPEN', 4);
@@ -296,10 +332,12 @@ function bindDragAndDrop() {
   $('handCards').addEventListener('click', e => {
     const card = e.target.closest('[data-card-id]');
     if (!card || suppressNextClick) return;
-    selectedCardId = String(card.dataset.cardId);
+    const clickedId = String(card.dataset.cardId);
+    selectedCardId = selectedCardId === clickedId ? null : clickedId;
     renderHand(gameState); updateControls();
   });
 }
+
 async function initialize() {
   if (!sessionToken) { location.replace('index.html'); return; }
   if (!tableCode) { location.replace('sets.html'); return; }
@@ -309,7 +347,6 @@ async function initialize() {
     profile = firstRow(await rpc('crdgn_get_profile',{p_session_token:sessionToken}));
     if (!profile?.user_id) throw new Error('Unable to load your player profile.');
     $('exitBtn').addEventListener('click', () => { if (confirm('Return to the SETS lobby? Your table membership will remain active.')) location.href = `sets.html?table=${encodeURIComponent(tableCode)}`; });
-    $('stockPile').addEventListener('click', () => { if (!suppressNextClick) pickCard('STOCK', 4); });
     $('discardBtn').addEventListener('click', discardCard);
     bindDragAndDrop();
     $('declareBtn').addEventListener('click', declareHand);
