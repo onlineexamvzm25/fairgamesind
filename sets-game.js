@@ -309,9 +309,92 @@ async function maybeCompleteNextDeal(state){
   }catch(e){console.error('Next deal distribution failed:',e);autoDealBusyRound=null;}
 }
 
+
+let exitingObservation = false;
+let redirectingHome = false;
+let lastTableStatusCheckAt = 0;
+let tableStatusCheckBusy = false;
+
+function redirectToHome() {
+  if (redirectingHome) return;
+  redirectingHome = true;
+  clearInterval(refreshHandle);
+  clearInterval(clockHandle);
+  clearInterval(observationRefreshHandle);
+  location.replace('homepage.html');
+}
+
+async function exitObservationTable() {
+  const button = $('obsExitBtn');
+
+  if (exitingObservation || redirectingHome) return;
+
+  if (!confirm('Exit this SETS table permanently? You will not be able to rejoin this table.')) {
+    return;
+  }
+
+  exitingObservation = true;
+  if (button) {
+    button.disabled = true;
+    button.textContent = 'EXITING…';
+  }
+
+  try {
+    const result = resultOrThrow(
+      await rpc('jop_sets_exit_table', baseArgs()),
+      'Unable to exit the SETS table.'
+    );
+
+    toast(result.message || 'You have permanently left the SETS table.');
+    redirectToHome();
+  } catch (error) {
+    console.error('SETS permanent exit failed:', error);
+    toast(error.message || 'Unable to exit the table.', true);
+
+    if (button) {
+      button.disabled = false;
+      button.textContent = 'EXIT TABLE';
+    }
+    exitingObservation = false;
+  }
+}
+
+async function checkClosedTable() {
+  if (tableStatusCheckBusy || redirectingHome) return false;
+
+  // Avoid making a status RPC on every fast UI refresh.
+  const now = Date.now();
+  if (now - lastTableStatusCheckAt < 1800) return false;
+
+  tableStatusCheckBusy = true;
+  lastTableStatusCheckAt = now;
+
+  try {
+    const status = resultOrThrow(
+      await rpc('jop_sets_get_table_status', baseArgs()),
+      'Unable to check SETS table status.'
+    );
+
+    if (String(status.table_status || '').toUpperCase() === 'CLOSED') {
+      closeObservation();
+      toast('This SETS table has been closed.');
+      redirectToHome();
+      return true;
+    }
+  } catch (error) {
+    // A temporary status-check failure must not stop the normal game refresh.
+    console.warn('SETS table status check failed:', error);
+  } finally {
+    tableStatusCheckBusy = false;
+  }
+
+  return false;
+}
+
 async function loadState(silent = false) {
   if (!tableCode || !sessionToken || busy) return;
   try {
+    if (await checkClosedTable()) return;
     const state = resultOrThrow(await rpc('jop_sets_get_game_state', {p_session_token:sessionToken,p_table_code:tableCode}), 'Unable to load SETS game state.');
     if (state.round_status === 'COMPLETED' || state.round_status === 'CANCELLED') {
       closeObservation();
@@ -451,7 +534,7 @@ async function initialize() {
     await loadState(false);
     refreshHandle = setInterval(() => loadState(true), 1200);
     clockHandle = setInterval(() => { updateClock(); updateObservationTimer(); }, 200);
-    $('obsExitBtn').addEventListener('click', () => { if(confirm('Exit this SETS table?')) location.href=`sets.html?table=${encodeURIComponent(tableCode)}`; });
+    $('obsExitBtn').addEventListener('click', exitObservationTable);
   } catch (error) { toast(error.message, true); console.error(error); }
 }
 window.addEventListener('beforeunload', () => { clearInterval(refreshHandle); clearInterval(clockHandle); });
